@@ -1,0 +1,13 @@
+# Fichier d'environnement
+.env
+
+# Dossiers de cache Python
+__pycache__/
+*.pyc
+
+# Base de données locale
+app.db
+
+# Dossier d'environnement virtuel
+venv/
+*.venv

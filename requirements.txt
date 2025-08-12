@@ -1,0 +1,13 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Mail
+python-dotenv
+requests
+beautifulsoup4
+lxml
+google-generativeai
+stripe
+paramiko
+unidecode
+gunicorn

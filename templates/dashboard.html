@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de Bord{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<!-- NOTE: La clé API Google doit être passée depuis votre route Flask dans app.py -->
+<script async src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=places"></script>
+<style>
+    .modal { display: none; }
+    .modal.is-open { display: flex; }
+    #edit-trip-modal .summary-view { display: block; }
+    #edit-trip-modal .edit-view { display: none; }
+    #edit-trip-modal.is-editing .summary-view { display: none; }
+    #edit-trip-modal.is-editing .edit-view { display: block; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .summary-item { display: flex; align-items: center; background-color: #f9fafb; padding: 0.5rem; border-radius: 0.5rem; font-size: 0.875rem; }
+    .summary-item i { font-size: 1.1rem; color: #4b5563; margin-right: 0.75rem; width: 20px; text-align: center; }
+    .summary-item.col-span-full { grid-column: 1 / -1; }
+    .pac-container { z-index: 10000 !important; } /* Pour que l'autocomplétion s'affiche au-dessus de la modale */
+</style>
+{% endblock %}
+
+{% block content %}
+<div>
+    <h1 class="text-3xl font-bold text-slate-800 mb-6">
+        {% if view_mode == 'proposed' %}Voyages Proposés
+        {% elif view_mode == 'assigned' %}Voyage Client
+        {% elif view_mode == 'sold' %}Voyages Vendus
+        {% endif %}
+    </h1>
+
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="border-b-2 border-slate-200">
+                    <tr>
+                        {% if view_mode == 'proposed' %}
+                            <th class="p-3 text-sm font-semibold text-slate-500">Date Ajout</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Hôtel</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Destination</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500 text-center">Publier</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500 text-right">Actions</th>
+                        {% elif view_mode == 'assigned' %}
+                            <th class="p-3 text-sm font-semibold text-slate-500">Date Assign.</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Hôtel</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Client</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500 text-right">Actions</th>
+                        {% elif view_mode == 'sold' %}
+                            <th class="p-3 text-sm font-semibold text-slate-500">Date Vente</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Hôtel</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Client</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Prix</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500 text-right">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody id="trips-table-body">
+                    <tr id="loading-row"><td colspan="5" class="text-center p-8 text-slate-500">Chargement...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODALES -->
+<div id="client-modal-dashboard" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">Assigner à un Client</h2>
+        <form id="client-form-dashboard">
+            <input type="hidden" id="trip-id-to-assign">
+            <div class="space-y-4">
+                <div><label for="client_first_name_dashboard" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div><label for="client_last_name_dashboard" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div><label for="client_email_dashboard" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Assigner</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="edit-trip-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center overflow-y-auto p-4">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl">
+        <input type="hidden" id="trip-id-to-edit">
+        <!-- VUE RÉSUMÉ -->
+        <div class="summary-view">
+            <h2 class="text-xl font-bold mb-4">Ajuster l'offre client</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold mb-2 text-slate-700">Résumé du voyage</h3>
+                    <div id="trip-summary" class="summary-grid"></div>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-2 text-slate-700">Comparateur de prix</h3>
+                    <div id="price-summary" class="text-sm space-y-2 bg-slate-50 p-4 rounded-md"></div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Fermer</button>
+                <button type="button" id="open-edit-view-btn" class="bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg">Modifier le voyage</button>
+            </div>
+        </div>
+
+        <!-- VUE ÉDITION -->
+        <div class="edit-view">
+            <h2 class="text-xl font-bold mb-4">Édition détaillée de l'offre</h2>
+            <form id="edit-trip-form" class="space-y-4 text-sm">
+                <!-- Dates & Personnes -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label>🗓️ Période</label><input type="text" id="edit_date_range" readonly class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"><input type="hidden" id="edit_date_start"><input type="hidden" id="edit_date_end"></div>
+                    <div><label>👥 Personnes</label><input type="number" id="edit_num_people" min="1" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                </div>
+                <!-- Vols -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label>✈️ Départ</label><input type="text" id="edit_departure_city" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                    <div><label>🛬 Arrivée</label><input type="text" id="edit_arrival_airport" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                    <div><label>💰 Prix Vol (€)</label><input type="number" id="edit_flight_price" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                </div>
+                <!-- Transferts & Location -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label>🚐 Transferts (€)</label><input type="number" id="edit_transfer_cost" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                    <div><label>🚗 Location (€)</label><input type="number" id="edit_car_rental_cost" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                </div>
+                <!-- Prix & Pension -->
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                    <div><label>💰 Votre Tarif (€)</label><input type="number" id="edit_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                    <div><label>💳 Tarif Hôtel Seul (€)</label><input type="number" id="edit_booking_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                </div>
+                <div>
+                    <label>🍽️ Surcoût Pension</label>
+                    <div class="flex gap-4">
+                        <input type="number" id="edit_surcharge_cost" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                        <select id="edit_surcharge_type" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                            <option>Petit déjeuner</option><option>Demi pension</option><option>Pension complète</option><option>All-In</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Services Exclusifs -->
+                <div><label>🎁 Services Exclusifs</label><textarea id="edit_exclusive_services" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></textarea></div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" id="close-edit-view-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer & Republier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewMode = '{{ view_mode }}';
+        const sitePublicUrl = '{{ site_public_url }}';
+        const tableBody = document.getElementById('trips-table-body');
+        const clientModal = document.getElementById('client-modal-dashboard');
+        const editTripModal = document.getElementById('edit-trip-modal');
+        let currentTripInfo = { id: null, rowElement: null };
+        let editDatePicker = null;
+
+        async function fetchTrips() {
+            try {
+                const response = await fetch(`/api/trips?status=${viewMode}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const trips = await response.json();
+                renderTable(trips);
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">Erreur de chargement des données.</td></tr>`;
+            }
+        }
+
+        function renderTable(trips) {
+            tableBody.innerHTML = '';
+            if (trips.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Aucun voyage à afficher.</td></tr>`;
+                return;
+            }
+            trips.forEach(trip => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-100 hover:bg-slate-50';
+                row.dataset.tripId = trip.id;
+                
+                let rowHtml = '';
+                if (viewMode === 'proposed') {
+                    const viewOnlineLink = trip.is_published 
+                        ? `<a href="${sitePublicUrl}/offres/${trip.published_filename}" target="_blank" title="Voir la fiche en ligne" class="text-blue-500 text-xl">👁️</a>`
+                        : `<span title="Publiez pour voir le lien" class="text-gray-400 text-xl cursor-not-allowed">👁️</span>`;
+                    
+                    rowHtml = `
+                        <td class="p-3 text-sm text-slate-600">${trip.created_at}</td>
+                        <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
+                        <td class="p-3 text-sm text-slate-600">${trip.destination}</td>
+                        <td class="p-3 text-center">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" data-action="toggle-publish" class="sr-only peer" ${trip.is_published ? 'checked' : ''}>
+                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </td>
+                        <td class="p-3 text-right space-x-2">
+                            ${viewOnlineLink}
+                            <button data-action="edit-price" title="Modifier le prix" class="text-yellow-500 text-xl">💶</button>
+                            <button data-action="whatsapp" title="WhatsApp" class="text-green-500 text-xl">✳️</button>
+                            <button data-action="sell" title="Assigner à un client" class="text-blue-500 text-xl">💰</button>
+                            <button data-action="delete" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
+                        </td>`;
+                } else if (viewMode === 'assigned') {
+                    const viewClientOfferLink = trip.client_published_filename
+                        ? `<a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" title="Voir l'offre client" class="text-blue-500 text-xl">👁️</a>`
+                        : `<span title="L'offre client n'est pas publiée" class="text-gray-400 text-xl cursor-not-allowed">👁️</span>`;
+
+                     rowHtml = `
+                        <td class="p-3 text-sm text-slate-600">${trip.assigned_at}</td>
+                        <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
+                        <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
+                        <td class="p-3 text-right space-x-2">
+                            ${viewClientOfferLink}
+                            <button data-action="edit-trip" title="Ajuster l'offre client" class="text-yellow-500 text-xl">⚙️</button>
+                            <button data-action="send-offer" title="Envoyer Offre" class="text-purple-500 text-xl">💸</button>
+                            <button data-action="mark-paid" title="Marquer comme Payé" class="text-green-500 text-xl">✅</button>
+                            <button data-action="delete" title="Supprimer la fiche client" class="text-red-500 text-xl">🗑️</button>
+                        </td>`;
+                } else if (viewMode === 'sold') {
+                    rowHtml = `
+                        <td class="p-3 text-sm text-slate-600">${trip.sold_at}</td>
+                        <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
+                        <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
+                        <td class="p-3 text-sm font-bold text-slate-700">${trip.price} €</td>
+                        <td class="p-3 text-right space-x-2">
+                            <button data-action="view-details" title="Voir la fiche" class="text-gray-500 text-xl">📄</button>
+                        </td>`;
+                }
+                row.innerHTML = rowHtml;
+                tableBody.appendChild(row);
+            });
+        }
+
+        async function getTripDetails(tripId) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}`);
+                if (!response.ok) throw new Error('Could not fetch trip details');
+                return await response.json();
+            } catch (error) {
+                alert(error.message);
+                return null;
+            }
+        }
+
+        async function deleteTrip(tripId, rowElement) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    rowElement.remove();
+                } else { alert('Erreur: ' + result.message); }
+            } catch (error) { alert('Erreur réseau lors de la suppression.'); }
+        }
+
+        async function updateTripStatus(tripId, payload, rowElement) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    rowElement.remove();
+                } else { alert('Erreur: ' + result.message); }
+            } catch (error) { alert('Erreur réseau lors de la mise à jour.'); }
+        }
+
+        async function togglePublish(tripId, publishState, checkbox) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}/publish`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ publish: publishState })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    alert('Erreur: ' + result.message);
+                    checkbox.checked = !publishState;
+                } else {
+                    fetchTrips();
+                }
+            } catch (error) {
+                alert('Erreur réseau lors de la publication.');
+                checkbox.checked = !publishState;
+            }
+        }
+
+        async function sendOfferEmail(tripId, button) {
+            const originalIcon = button.innerHTML;
+            button.innerHTML = '⏳';
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/send-offer`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    button.innerHTML = '✅';
+                    alert(result.message);
+                } else {
+                    button.innerHTML = '❌';
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                button.innerHTML = '❌';
+                alert('Erreur réseau lors de l\'envoi de l\'offre.');
+                console.error(error);
+            } finally {
+                setTimeout(() => {
+                    button.innerHTML = originalIcon;
+                    button.disabled = false;
+                }, 3000);
+            }
+        }
+
+        tableBody.addEventListener('click', async function(e) {
+            const button = e.target.closest('button, a');
+            if (!button || !button.dataset.action) return;
+
+            const action = button.dataset.action;
+            const tripRow = button.closest('tr');
+            const tripId = tripRow.dataset.tripId;
+            currentTripInfo = { id: tripId, rowElement: tripRow };
+
+            if (action === 'delete') {
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce voyage définitivement ?')) {
+                    deleteTrip(tripId, tripRow);
+                }
+            } else if (action === 'sell') {
+                document.getElementById('trip-id-to-assign').value = tripId;
+                clientModal.classList.add('is-open');
+            } else if (action === 'mark-paid') {
+                if (confirm('Confirmez-vous que ce voyage a été payé ?')) {
+                    updateTripStatus(tripId, { status: 'sold' }, tripRow);
+                }
+            } else if (action === 'edit-trip') {
+                const tripData = await getTripDetails(tripId);
+                if (tripData) {
+                    populateEditTripModal(tripData);
+                    editTripModal.classList.add('is-open');
+                }
+            } else if (action === 'send-offer') {
+                if (confirm('Envoyer cette offre par email au client, avec un lien de paiement ?')) {
+                    sendOfferEmail(tripId, button);
+                }
+            }
+        });
+
+        document.getElementById('client-form-dashboard').addEventListener('submit', async function(e) {
+             e.preventDefault();
+            const tripId = document.getElementById('trip-id-to-assign').value;
+            const payload = {
+                client_first_name: document.getElementById('client_first_name_dashboard').value,
+                client_last_name: document.getElementById('client_last_name_dashboard').value,
+                client_email: document.getElementById('client_email_dashboard').value,
+            };
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/assign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    clientModal.classList.remove('is-open');
+                    this.reset();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur réseau lors de l\'assignation.');
+            }
+        });
+
+        document.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = btn.closest('.modal');
+                modal.classList.remove('is-open', 'is-editing');
+            });
+        });
+
+        document.getElementById('open-edit-view-btn').addEventListener('click', () => {
+            editTripModal.classList.add('is-editing');
+        });
+        document.getElementById('close-edit-view-btn').addEventListener('click', () => {
+            editTripModal.classList.remove('is-editing');
+        });
+
+        const formatDate = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        function populateEditTripModal(tripData) {
+            const data = JSON.parse(tripData.full_data_json);
+            const form = data.form_data;
+            document.getElementById('trip-id-to-edit').value = tripData.id;
+
+            const summaryDiv = document.getElementById('trip-summary');
+            summaryDiv.innerHTML = `
+                <div class="summary-item"><i class="fas fa-calendar-alt"></i> <div>${form.date_start} au ${form.date_end}</div></div>
+                <div class="summary-item"><i class="fas fa-users"></i> <div>${form.num_people} personnes</div></div>
+                <div class="summary-item"><i class="fas fa-plane"></i> <div>${form.departure_city || 'N/A'} → ${form.arrival_airport || 'N/A'} (${form.flight_price || 0}€)</div></div>
+                <div class="summary-item"><i class="fas fa-bus"></i> <div>Transferts: ${form.transfer_cost || 0}€</div></div>
+                <div class="summary-item"><i class="fas fa-car"></i> <div>Location: ${form.car_rental_cost || 0}€</div></div>
+                <div class="summary-item"><i class="fas fa-utensils"></i> <div>${form.surcharge_type}: ${form.surcharge_cost || 0}€</div></div>
+                <div class="summary-item col-span-full"><i class="fas fa-gift"></i> <div>${form.exclusive_services.replace(/\n/g, ', ') || 'Aucun'}</div></div>
+            `;
+            
+            const priceSummaryDiv = document.getElementById('price-summary');
+            priceSummaryDiv.innerHTML = `
+                <div class="flex justify-between"><span>Hôtel Seul:</span> <strong>${form.booking_price || 0} €</strong></div>
+                <div class="flex justify-between"><span>Vol:</span> <strong>${form.flight_price || 0} €</strong></div>
+                <div class="flex justify-between"><span>Total ailleurs:</span> <strong>${data.comparison_total || 0} €</strong></div>
+                <div class="flex justify-between font-bold mt-2 border-t pt-2"><span>Votre Tarif:</span> <strong>${form.price || 0} €</strong></div>
+            `;
+
+            document.getElementById('edit_date_start').value = form.date_start;
+            document.getElementById('edit_date_end').value = form.date_end;
+            document.getElementById('edit_num_people').value = form.num_people;
+            document.getElementById('edit_departure_city').value = form.departure_city;
+            document.getElementById('edit_arrival_airport').value = form.arrival_airport;
+            document.getElementById('edit_flight_price').value = form.flight_price;
+            document.getElementById('edit_transfer_cost').value = form.transfer_cost;
+            document.getElementById('edit_car_rental_cost').value = form.car_rental_cost;
+            document.getElementById('edit_price').value = form.price;
+            document.getElementById('edit_booking_price').value = form.booking_price;
+            document.getElementById('edit_surcharge_cost').value = form.surcharge_cost;
+            document.getElementById('edit_surcharge_type').value = form.surcharge_type;
+            document.getElementById('edit_exclusive_services').value = form.exclusive_services;
+
+            if (editDatePicker) editDatePicker.destroy();
+            editDatePicker = new Litepicker({
+                element: document.getElementById('edit_date_range'),
+                singleMode: false, lang: 'fr-FR', format: 'YYYY-MM-DD',
+                startDate: form.date_start,
+                endDate: form.date_end,
+                setup: (picker) => {
+                    picker.on('selected', (date1, date2) => {
+                        document.getElementById('edit_date_start').value = formatDate(date1.dateInstance);
+                        document.getElementById('edit_date_end').value = formatDate(date2.dateInstance);
+                    });
+                },
+            });
+
+            // Initialiser l'autocomplétion Google Places pour les aéroports
+            const departureInput = document.getElementById('edit_departure_city');
+            const arrivalInput = document.getElementById('edit_arrival_airport');
+            if (window.google && window.google.maps) {
+                new google.maps.places.Autocomplete(departureInput, { types: ['airport'] });
+                new google.maps.places.Autocomplete(arrivalInput, { types: ['airport'] });
+            } else {
+                console.warn("L'API Google Places n'est pas encore chargée. L'autocomplétion des aéroports pourrait ne pas fonctionner immédiatement.");
+            }
+        }
+
+        document.getElementById('edit-trip-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tripId = document.getElementById('trip-id-to-edit').value;
+            
+            const originalTripData = await getTripDetails(tripId);
+            const originalFullData = JSON.parse(originalTripData.full_data_json);
+            
+            const updatedFormData = {
+                ...originalFullData.form_data, // Start with original data
+                date_start: document.getElementById('edit_date_start').value,
+                date_end: document.getElementById('edit_date_end').value,
+                num_people: document.getElementById('edit_num_people').value,
+                departure_city: document.getElementById('edit_departure_city').value,
+                arrival_airport: document.getElementById('edit_arrival_airport').value,
+                flight_price: document.getElementById('edit_flight_price').value,
+                transfer_cost: document.getElementById('edit_transfer_cost').value,
+                car_rental_cost: document.getElementById('edit_car_rental_cost').value,
+                price: document.getElementById('edit_price').value,
+                booking_price: document.getElementById('edit_booking_price').value,
+                surcharge_cost: document.getElementById('edit_surcharge_cost').value,
+                surcharge_type: document.getElementById('edit_surcharge_type').value,
+                exclusive_services: document.getElementById('edit_exclusive_services').value,
+            };
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedFormData)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    editTripModal.classList.remove('is-open', 'is-editing');
+                    fetchTrips();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur réseau lors de la mise à jour.');
+            }
+        });
+        
+        fetchTrips();
+    });
+</script>
+{% endblock %}

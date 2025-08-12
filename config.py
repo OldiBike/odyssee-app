@@ -9,8 +9,10 @@ class Config:
     # Clé secrète pour la sécurité des sessions
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'une-cle-secrete-par-defaut-vraiment-pas-sure'
     
-    # Configuration de la base de données SQLite
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///app.db'
+    # --- LIGNE MODIFIÉE ---
+    # Utilise la base de données de Railway (PostgreSQL) si la variable DATABASE_URL existe,
+    # sinon, utilise la base de données locale (SQLite) pour le développement.
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Clé API Google

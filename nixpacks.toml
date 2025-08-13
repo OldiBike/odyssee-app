@@ -1,3 +1,0 @@
-[phases.setup]
-# Ajoute les paquets système nécessaires via le gestionnaire de paquets Apt
-aptPkgs = ["libstdc++6"]

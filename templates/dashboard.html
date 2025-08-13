@@ -198,7 +198,7 @@
                         <td class="p-3 text-sm text-slate-600">${trip.destination}</td>
                         <td class="p-3 text-center">
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" data-action="toggle-publish" class="sr-only peer" ${trip.is_published ? 'checked' : ''}>
+                                <input type="checkbox" class="sr-only peer" ${trip.is_published ? 'checked' : ''}>
                                 <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
                         </td>
@@ -325,7 +325,19 @@
             }
         }
 
+        // CORRECTION : Gestion améliorée des événements
         tableBody.addEventListener('click', async function(e) {
+            // Gestion du toggle checkbox
+            if (e.target.type === 'checkbox') {
+                const checkbox = e.target;
+                const tripRow = checkbox.closest('tr');
+                if (tripRow && tripRow.dataset.tripId) {
+                    const tripId = tripRow.dataset.tripId;
+                    await togglePublish(tripId, checkbox.checked, checkbox);
+                    return;
+                }
+            }
+            
             const button = e.target.closest('button, a');
             if (!button || !button.dataset.action) return;
 
@@ -358,6 +370,18 @@
             }
         });
 
+        // Ajout d'un listener spécifique pour les checkboxes (au cas où)
+        tableBody.addEventListener('change', async function(e) {
+            if (e.target.type === 'checkbox') {
+                const checkbox = e.target;
+                const tripRow = checkbox.closest('tr');
+                if (tripRow && tripRow.dataset.tripId) {
+                    const tripId = tripRow.dataset.tripId;
+                    await togglePublish(tripId, checkbox.checked, checkbox);
+                }
+            }
+        });
+
         document.getElementById('client-form-dashboard').addEventListener('submit', async function(e) {
              e.preventDefault();
             const tripId = document.getElementById('trip-id-to-assign').value;
@@ -378,6 +402,7 @@
                     alert(result.message);
                     clientModal.classList.remove('is-open');
                     this.reset();
+                    fetchTrips();
                 } else {
                     alert('Erreur: ' + result.message);
                 }

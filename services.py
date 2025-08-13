@@ -476,3 +476,4 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
 </body>
 </html>"""
     return html_template
+# API Update mer. 13 août 2025 14:58:54 CEST

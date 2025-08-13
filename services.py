@@ -105,9 +105,40 @@ class PublicationService:
         return None
 
     def unpublish(self, filename, is_client_offer=False):
-        """Pour l'instant, on ne gère pas la suppression via API"""
-        print(f"⚠️ Suppression non implémentée via API")
-        return True  # On retourne True pour ne pas bloquer
+        """Supprime un fichier publié via l'API"""
+        try:
+            directory = 'clients' if is_client_offer else 'offres'
+            print(f"🗑️ Suppression via API: {filename} dans {directory}/")
+            
+            payload = {
+                'filename': filename,
+                'directory': directory
+            }
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Api-Key': self.api_key
+            }
+            
+            response = requests.delete(
+                self.api_url,
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    print(f"✅ Suppression réussie: {filename}")
+                    return True
+            
+            print(f"❌ Erreur suppression: {response.status_code}")
+            return False
+                
+        except Exception as e:
+            print(f"❌ Erreur suppression API: {e}")
+            return False
     
     def test_connection(self):
         """Test de connexion à l'API"""

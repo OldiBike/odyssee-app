@@ -10,24 +10,71 @@ import ftplib
 import ssl
 from io import BytesIO
 import unidecode
+import base64
 
 class PublicationService:
     def __init__(self, config):
         self.hostname = config.get('FTP_HOSTNAME')
         self.username = config.get('FTP_USERNAME')
         self.password = config.get('FTP_PASSWORD')
-        # Le chemin de base est maintenant le dossier parent
         self.base_remote_path = config.get('FTP_REMOTE_PATH', 'domains/voyages-privileges.be/public_html/')
         self.port = int(config.get('FTP_PORT', 21))
         
-        print(f"📡 Configuration FTP:")
+        # Nouvelle option : utiliser une API proxy si disponible
+        self.use_api_proxy = config.get('USE_FTP_API_PROXY', 'true').lower() == 'true'
+        self.api_proxy_url = config.get('FTP_API_PROXY_URL', 'https://ftp-proxy.herokuapp.com/upload')
+        
+        print(f"📡 Configuration Publication:")
+        print(f"   Mode: {'API Proxy' if self.use_api_proxy else 'FTP Direct'}")
         print(f"   Serveur: {self.hostname}:{self.port}")
         print(f"   Utilisateur: {self.username}")
         print(f"   Chemin de base: {self.base_remote_path}")
-        
-    def _connect_ftp(self):
-        # ... (Le reste de la fonction ne change pas)
+    
+    def _upload_via_api(self, filename, html_content, remote_dir):
+        """Upload via API proxy au lieu de FTP direct"""
         try:
+            print(f"📤 Upload via API: {filename}")
+            
+            # Préparer les données pour l'API
+            payload = {
+                'hostname': self.hostname,
+                'username': self.username,
+                'password': self.password,
+                'port': self.port,
+                'remote_path': remote_dir,
+                'filename': filename,
+                'content': base64.b64encode(html_content.encode('utf-8')).decode('utf-8'),
+                'content_type': 'text/html'
+            }
+            
+            # Envoyer à l'API proxy
+            response = requests.post(
+                self.api_proxy_url,
+                json=payload,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Upload réussi via API")
+                return True
+            else:
+                print(f"❌ Erreur API: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Erreur upload API: {e}")
+            return False
+    
+    def _connect_ftp(self):
+        """Tentative de connexion FTP directe (fallback)"""
+        if self.use_api_proxy:
+            print("⚠️ Mode API Proxy activé, pas de connexion FTP directe")
+            return None
+            
+        try:
+            import ftplib
+            import ssl
+            
             print(f"📡 Connexion FTP à {self.hostname}:{self.port}...")
             context = ssl.create_default_context()
             context.check_hostname = False
@@ -53,31 +100,6 @@ class PublicationService:
                 print(f"❌ Erreur de connexion FTP finale : {final_e}")
                 raise
 
-    def _navigate_to_path(self, ftp, full_path):
-        """Navigue vers le répertoire de publication, le crée si nécessaire"""
-        try:
-            ftp.cwd(full_path)
-            print(f"✅ Répertoire {full_path} trouvé")
-        except:
-            print(f"📁 Création du chemin {full_path}...")
-            try:
-                ftp.cwd('/')
-            except:
-                pass
-            
-            dirs = full_path.strip('/').split('/')
-            for d in dirs:
-                if d:
-                    try:
-                        ftp.cwd(d)
-                    except:
-                        try:
-                            ftp.mkd(d)
-                            print(f"📁 Dossier créé : {d}")
-                            ftp.cwd(d)
-                        except Exception as e:
-                            print(f"⚠️ Impossible de créer/accéder à {d}: {e}")
-
     def _generate_base_filename(self, trip_data):
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
@@ -102,13 +124,9 @@ class PublicationService:
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
         
-        # --- LIGNE CORRIGÉE POUR NETTOYER LE NOM DU CLIENT ---
         raw_name = f"{trip.client_first_name} {trip.client_last_name}"
-        # Translitère les accents (ex: é -> e) et passe en minuscules
         slug = unidecode.unidecode(raw_name).lower()
-        # Remplace les espaces, apostrophes et autres caractères non désirés par un underscore
         slug = re.sub(r"[\s']+", '_', slug)
-        # Supprime tout caractère qui n'est pas une lettre, un chiffre ou un underscore
         client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
         
         filename = f"{base_filename}_{client_name_slug}.html"
@@ -117,7 +135,7 @@ class PublicationService:
         return self._upload_file(trip, filename, remote_dir)
 
     def _upload_file(self, trip, filename, remote_dir):
-        ftp = None
+        """Upload un fichier via API ou FTP"""
         try:
             full_trip_data = json.loads(trip.full_data_json)
             html_content = generate_travel_page_html(
@@ -128,13 +146,26 @@ class PublicationService:
             )
             
             print(f"📤 Publication de {filename} dans {remote_dir}...")
+            
+            # Essayer d'abord via API si activé
+            if self.use_api_proxy:
+                if self._upload_via_api(filename, html_content, remote_dir):
+                    return filename
+                else:
+                    print("⚠️ Échec API, tentative FTP directe...")
+            
+            # Fallback sur FTP direct
             ftp = self._connect_ftp()
+            if not ftp:
+                print("❌ Impossible de publier sans connexion FTP")
+                return None
+                
+            from io import BytesIO
             self._navigate_to_path(ftp, remote_dir)
-            
             html_bytes = BytesIO(html_content.encode('utf-8'))
-            
             print(f"📤 Upload en cours...")
             ftp.storbinary(f'STOR {filename}', html_bytes)
+            ftp.quit()
             
             print(f"✅ Publié avec succès")
             return filename
@@ -142,22 +173,53 @@ class PublicationService:
         except Exception as e:
             print(f"❌ Erreur de publication : {e}")
             return None
-        finally:
-            if ftp:
-                try:
-                    ftp.quit()
-                    print("📡 Connexion FTP fermée")
-                except:
-                    pass
+
+    def _navigate_to_path(self, ftp, full_path):
+        """Navigue vers le répertoire de publication (pour FTP direct uniquement)"""
+        if not ftp:
+            return
+            
+        try:
+            ftp.cwd(full_path)
+            print(f"✅ Répertoire {full_path} trouvé")
+        except:
+            print(f"📁 Création du chemin {full_path}...")
+            try:
+                ftp.cwd('/')
+            except:
+                pass
+            
+            dirs = full_path.strip('/').split('/')
+            for d in dirs:
+                if d:
+                    try:
+                        ftp.cwd(d)
+                    except:
+                        try:
+                            ftp.mkd(d)
+                            print(f"📁 Dossier créé : {d}")
+                            ftp.cwd(d)
+                        except Exception as e:
+                            print(f"⚠️ Impossible de créer/accéder à {d}: {e}")
 
     def unpublish(self, filename, is_client_offer=False):
+        """Supprime un fichier publié"""
+        # Pour la suppression, on garde uniquement FTP pour l'instant
+        # Une API de suppression pourrait être ajoutée plus tard
         ftp = None
         try:
+            if self.use_api_proxy:
+                print("⚠️ Suppression via API non implémentée, utilisation FTP direct")
+            
             remote_dir = os.path.join(self.base_remote_path, 'clients/' if is_client_offer else 'offres/')
             full_path = os.path.join(remote_dir, filename)
             
             print(f"🗑️ Suppression de {full_path}...")
             ftp = self._connect_ftp()
+            if not ftp:
+                print("❌ Impossible de supprimer sans connexion FTP")
+                return False
+                
             self._navigate_to_path(ftp, remote_dir)
             ftp.delete(filename)
             print(f"✅ Fichier {filename} supprimé")
@@ -173,14 +235,50 @@ class PublicationService:
                 except:
                     pass
     
-    # ... (Le reste du fichier RealAPIGatherer et generate_travel_page_html ne change pas)
     def test_connection(self):
+        """Test de connexion"""
+        if self.use_api_proxy:
+            print("\n🔍 TEST DE CONNEXION API PROXY")
+            print("="*50)
+            try:
+                # Test simple avec l'API
+                test_payload = {
+                    'hostname': self.hostname,
+                    'username': self.username,
+                    'password': self.password,
+                    'port': self.port,
+                    'test': True
+                }
+                
+                response = requests.post(
+                    self.api_proxy_url.replace('/upload', '/test'),
+                    json=test_payload,
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    print("✅ Connexion API réussie")
+                    return True
+                else:
+                    print(f"❌ Échec API: {response.status_code}")
+                    return False
+            except Exception as e:
+                print(f"❌ Erreur test API: {e}")
+                return False
+        else:
+            # Test FTP direct (code original)
+            return self._test_ftp_direct()
+    
+    def _test_ftp_direct(self):
+        """Test FTP direct (code original)"""
         ftp = None
         try:
             print(f"\n🔍 TEST DE CONNEXION FTP")
             print(f"="*50)
             
             ftp = self._connect_ftp()
+            if not ftp:
+                return False
             
             print(f"\n📁 Contenu du répertoire {self.base_remote_path}:")
             self._navigate_to_path(ftp, self.base_remote_path)
@@ -193,6 +291,7 @@ class PublicationService:
             else:
                 print("   (Répertoire vide)")
             
+            from io import BytesIO
             test_filename = "test_connexion.txt"
             test_content = BytesIO(b"Test de connexion FTP reussi")
             

@@ -3,48 +3,59 @@ import os
 import requests
 import json
 import re
-import base64
 from datetime import datetime
 import google.generativeai as genai
 from bs4 import BeautifulSoup
+import ftplib
+import ssl
+from io import BytesIO
 import unidecode
+import base64
 
 class PublicationService:
     def __init__(self, config):
-        # Configuration API
-        self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
-        self.api_key = 'SecretUploadKey2025'
+        self.hostname = config.get('FTP_HOSTNAME')
+        self.username = config.get('FTP_USERNAME')
+        self.password = config.get('FTP_PASSWORD')
+        self.base_remote_path = config.get('FTP_REMOTE_PATH', 'domains/voyages-privileges.be/public_html/')
+        self.port = int(config.get('FTP_PORT', 21))
+        
+        # Nouvelle option : utiliser une API proxy si disponible
+        self.use_api_proxy = config.get('USE_FTP_API_PROXY', 'true').lower() == 'true'
+        self.api_proxy_url = config.get('FTP_API_PROXY_URL', 'https://ftp-proxy.herokuapp.com/upload')
         
         print(f"📡 Configuration Publication:")
-        print(f"   Mode: API HTTP (Railway compatible)")
-        print(f"   API URL: {self.api_url}")
-        
-    def _upload_via_api(self, filename, html_content, directory):
-        """Upload via l'API PHP sur Hostinger"""
+        print(f"   Mode: {'API Proxy' if self.use_api_proxy else 'FTP Direct'}")
+        print(f"   Serveur: {self.hostname}:{self.port}")
+        print(f"   Utilisateur: {self.username}")
+        print(f"   Chemin de base: {self.base_remote_path}")
+    
+    def _upload_via_api(self, filename, html_content, remote_dir):
+        """Upload via API proxy au lieu de FTP direct"""
         try:
-            print(f"📤 Upload via API: {filename} vers {directory}/")
+            print(f"📤 Upload via API: {filename}")
             
+            # Préparer les données pour l'API
             payload = {
+                'hostname': self.hostname,
+                'username': self.username,
+                'password': self.password,
+                'port': self.port,
+                'remote_path': remote_dir,
                 'filename': filename,
                 'content': base64.b64encode(html_content.encode('utf-8')).decode('utf-8'),
-                'directory': directory
+                'content_type': 'text/html'
             }
             
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key
-            }
-            
+            # Envoyer à l'API proxy
             response = requests.post(
-                self.api_url,
+                self.api_proxy_url,
                 json=payload,
-                headers=headers,
                 timeout=30
             )
             
             if response.status_code == 200:
-                result = response.json()
-                print(f"✅ Upload réussi: {result.get('url', '')}")
+                print(f"✅ Upload réussi via API")
                 return True
             else:
                 print(f"❌ Erreur API: {response.status_code} - {response.text}")
@@ -54,6 +65,41 @@ class PublicationService:
             print(f"❌ Erreur upload API: {e}")
             return False
     
+    def _connect_ftp(self):
+        """Tentative de connexion FTP directe (fallback)"""
+        if self.use_api_proxy:
+            print("⚠️ Mode API Proxy activé, pas de connexion FTP directe")
+            return None
+            
+        try:
+            import ftplib
+            import ssl
+            
+            print(f"📡 Connexion FTP à {self.hostname}:{self.port}...")
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            ftp = ftplib.FTP_TLS(context=context)
+            ftp.connect(self.hostname, self.port, timeout=30)
+            print(f"✅ Connecté, authentification avec {self.username}...")
+            ftp.login(self.username, self.password)
+            ftp.prot_p()
+            print("✅ Protection des données activée (FTPS)")
+            ftp.set_pasv(True)
+            return ftp
+        except Exception as e:
+            print(f"⚠️ FTPS a échoué ({e}), tentative en FTP simple...")
+            try:
+                ftp = ftplib.FTP()
+                ftp.connect(self.hostname, self.port, timeout=30)
+                ftp.login(self.username, self.password)
+                print("✅ Connecté via FTP simple")
+                ftp.set_pasv(True)
+                return ftp
+            except Exception as final_e:
+                print(f"❌ Erreur de connexion FTP finale : {final_e}")
+                raise
+
     def _generate_base_filename(self, trip_data):
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
@@ -69,17 +115,9 @@ class PublicationService:
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
         filename = f"{base_filename}.html"
+        remote_dir = os.path.join(self.base_remote_path, 'offres/')
         
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
-        )
-        
-        if self._upload_via_api(filename, html_content, 'offres'):
-            return filename
-        return None
+        return self._upload_file(trip, filename, remote_dir)
 
     def publish_client_offer(self, trip):
         """Publie une offre privée dans le dossier /clients/"""
@@ -92,77 +130,194 @@ class PublicationService:
         client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
         
         filename = f"{base_filename}_{client_name_slug}.html"
+        remote_dir = os.path.join(self.base_remote_path, 'clients/')
         
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
-        )
-        
-        if self._upload_via_api(filename, html_content, 'clients'):
-            return filename
-        return None
+        return self._upload_file(trip, filename, remote_dir)
 
-    def unpublish(self, filename, is_client_offer=False):
-        """Supprime un fichier publié via l'API"""
+    def _upload_file(self, trip, filename, remote_dir):
+        """Upload un fichier via API ou FTP"""
         try:
-            directory = 'clients' if is_client_offer else 'offres'
-            print(f"🗑️ Suppression via API: {filename} dans {directory}/")
-            
-            payload = {
-                'filename': filename,
-                'directory': directory
-            }
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key
-            }
-            
-            response = requests.delete(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=30
+            full_trip_data = json.loads(trip.full_data_json)
+            html_content = generate_travel_page_html(
+                full_trip_data['form_data'],
+                full_trip_data['api_data'],
+                full_trip_data.get('savings', 0),
+                full_trip_data.get('comparison_total', 0)
             )
             
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('success'):
-                    print(f"✅ Suppression réussie: {filename}")
-                    return True
+            print(f"📤 Publication de {filename} dans {remote_dir}...")
             
-            print(f"❌ Erreur suppression: {response.status_code}")
-            return False
+            # Essayer d'abord via API si activé
+            if self.use_api_proxy:
+                if self._upload_via_api(filename, html_content, remote_dir):
+                    return filename
+                else:
+                    print("⚠️ Échec API, tentative FTP directe...")
+            
+            # Fallback sur FTP direct
+            ftp = self._connect_ftp()
+            if not ftp:
+                print("❌ Impossible de publier sans connexion FTP")
+                return None
                 
+            from io import BytesIO
+            self._navigate_to_path(ftp, remote_dir)
+            html_bytes = BytesIO(html_content.encode('utf-8'))
+            print(f"📤 Upload en cours...")
+            ftp.storbinary(f'STOR {filename}', html_bytes)
+            ftp.quit()
+            
+            print(f"✅ Publié avec succès")
+            return filename
+            
         except Exception as e:
-            print(f"❌ Erreur suppression API: {e}")
+            print(f"❌ Erreur de publication : {e}")
+            return None
+
+    def _navigate_to_path(self, ftp, full_path):
+        """Navigue vers le répertoire de publication (pour FTP direct uniquement)"""
+        if not ftp:
+            return
+            
+        try:
+            ftp.cwd(full_path)
+            print(f"✅ Répertoire {full_path} trouvé")
+        except:
+            print(f"📁 Création du chemin {full_path}...")
+            try:
+                ftp.cwd('/')
+            except:
+                pass
+            
+            dirs = full_path.strip('/').split('/')
+            for d in dirs:
+                if d:
+                    try:
+                        ftp.cwd(d)
+                    except:
+                        try:
+                            ftp.mkd(d)
+                            print(f"📁 Dossier créé : {d}")
+                            ftp.cwd(d)
+                        except Exception as e:
+                            print(f"⚠️ Impossible de créer/accéder à {d}: {e}")
+
+    def unpublish(self, filename, is_client_offer=False):
+        """Supprime un fichier publié"""
+        # Pour la suppression, on garde uniquement FTP pour l'instant
+        # Une API de suppression pourrait être ajoutée plus tard
+        ftp = None
+        try:
+            if self.use_api_proxy:
+                print("⚠️ Suppression via API non implémentée, utilisation FTP direct")
+            
+            remote_dir = os.path.join(self.base_remote_path, 'clients/' if is_client_offer else 'offres/')
+            full_path = os.path.join(remote_dir, filename)
+            
+            print(f"🗑️ Suppression de {full_path}...")
+            ftp = self._connect_ftp()
+            if not ftp:
+                print("❌ Impossible de supprimer sans connexion FTP")
+                return False
+                
+            self._navigate_to_path(ftp, remote_dir)
+            ftp.delete(filename)
+            print(f"✅ Fichier {filename} supprimé")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Erreur de suppression : {e}")
             return False
+        finally:
+            if ftp:
+                try:
+                    ftp.quit()
+                except:
+                    pass
     
     def test_connection(self):
-        """Test de connexion à l'API"""
-        try:
-            print("\n🔍 TEST DE CONNEXION API")
+        """Test de connexion"""
+        if self.use_api_proxy:
+            print("\n🔍 TEST DE CONNEXION API PROXY")
             print("="*50)
-            
-            headers = {'X-Api-Key': self.api_key}
-            response = requests.get(self.api_url, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('success'):
-                    print(f"✅ API connectée: {result.get('message')}")
-                    print(f"   PHP Version: {result.get('php_version')}")
-                    print(f"   Timestamp: {result.get('timestamp')}")
-                    return True
-            
-            print(f"❌ Erreur connexion API: {response.status_code}")
-            return False
+            try:
+                # Test simple avec l'API
+                test_payload = {
+                    'hostname': self.hostname,
+                    'username': self.username,
+                    'password': self.password,
+                    'port': self.port,
+                    'test': True
+                }
                 
+                response = requests.post(
+                    self.api_proxy_url.replace('/upload', '/test'),
+                    json=test_payload,
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    print("✅ Connexion API réussie")
+                    return True
+                else:
+                    print(f"❌ Échec API: {response.status_code}")
+                    return False
+            except Exception as e:
+                print(f"❌ Erreur test API: {e}")
+                return False
+        else:
+            # Test FTP direct (code original)
+            return self._test_ftp_direct()
+    
+    def _test_ftp_direct(self):
+        """Test FTP direct (code original)"""
+        ftp = None
+        try:
+            print(f"\n🔍 TEST DE CONNEXION FTP")
+            print(f"="*50)
+            
+            ftp = self._connect_ftp()
+            if not ftp:
+                return False
+            
+            print(f"\n📁 Contenu du répertoire {self.base_remote_path}:")
+            self._navigate_to_path(ftp, self.base_remote_path)
+            files = ftp.nlst()
+            
+            if files:
+                for f in files:
+                    print(f"   - {f}")
+                print(f"\n✅ {len(files)} fichier(s) trouvé(s)")
+            else:
+                print("   (Répertoire vide)")
+            
+            from io import BytesIO
+            test_filename = "test_connexion.txt"
+            test_content = BytesIO(b"Test de connexion FTP reussi")
+            
+            print(f"\n📤 Test d'upload de {test_filename}...")
+            ftp.storbinary(f'STOR {test_filename}', test_content)
+            
+            files_after = ftp.nlst()
+            
+            if test_filename in files_after:
+                print(f"✅ Upload réussi")
+                ftp.delete(test_filename)
+                print(f"✅ Suppression réussie")
+            
+            print(f"\n✅ TOUS LES TESTS RÉUSSIS !")
+            return True
+            
         except Exception as e:
-            print(f"❌ Erreur test: {e}")
+            print(f"\n❌ Échec du test : {e}")
             return False
+            
+        finally:
+            if ftp:
+                try:
+                    ftp.quit()
+                except:
+                    pass
 
 class RealAPIGatherer:
     def __init__(self):
@@ -312,9 +467,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     stars = "⭐" * int(data['stars'])
     num_people = int(data.get('num_people', 2))
     price_for_text = f"pour {num_people} personnes" if num_people > 1 else "pour 1 personne"
-    
-    # Le prix principal est maintenant 'pack_price'
-    your_price = int(data.get('pack_price', 0))
+    your_price = int(data.get('price', 0))
     price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>' if num_people > 0 else ""
     
     cancellation_html = f'<p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite jusqu\'au {data.get("cancellation_date")}</p>' if data.get('has_cancellation') == 'on' and data.get('cancellation_date') else ""
@@ -353,7 +506,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>' if car_rental_cost > 0 else ""
 
     comparison_block = f"""
-        <div class="flex justify-between"><span>Hôtel ({data.get('stars')}⭐)</span><span class="font-semibold">{data.get('hotel_b2c_price', 'N/A')} €</span></div>
+        <div class="flex justify-between"><span>Hôtel ({data.get('stars')}⭐)</span><span class="font-semibold">{data.get('booking_price', 'N/A')} €</span></div>
         {flight_text_html}{transfer_text_html}{car_rental_text_html}{surcharge_text_html}
         <hr class="my-3"><div class="flex justify-between text-base font-bold text-red-600"><span>TOTAL ESTIMÉ</span><span>{comparison_total} €</span></div>
     """
@@ -455,7 +608,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             <h2 class="text-2xl font-bold">{display_hotel_name} {stars}</h2>
             <p>📍 {display_address}</p>
             <p class="mt-4">🗓️ Du {date_start} au {date_end}</p>
-            <div class="text-4xl font-bold mt-2">{your_price} €</div>
+            <div class="text-4xl font-bold mt-2">{data['price']} €</div>
             <p>{price_for_text}</p>{price_per_person_text}
             {f'<p class="text-sm mt-2">Note Google: {real_data["hotel_rating"]}/5 ({real_data["total_reviews"]} avis)</p>' if real_data.get("hotel_rating", 0) > 0 else ""}
             <div class="mt-4">{instagram_button_html}</div>
@@ -471,7 +624,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         <div class="instagram-card p-6">
             <h3 class="section-title text-xl mb-4">Pourquoi nous choisir ?</h3>
             <div class="p-4 rounded-lg border-2 border-red-200 bg-red-50 mb-4"><h4 class="font-bold text-center mb-2">Prix estimé ailleurs</h4><div class="text-sm space-y-1">{comparison_block}</div></div>{exclusive_services_html}
-            <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
+            <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{data['price']} €</div>{cancellation_html}</div>
             <div class="economy-highlight">💰 Vous économisez {savings} € !</div>
         </div>
         <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>

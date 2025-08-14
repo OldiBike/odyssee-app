@@ -108,22 +108,31 @@ def create_app(config_class=Config):
             gatherer = RealAPIGatherer()
             data = request.get_json()
             
-            required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'price', 'booking_price']
+            required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'hotel_b2b_price', 'hotel_b2c_price', 'pack_price']
             if not all(field in data and data[field] for field in required_fields):
                 return jsonify({'success': False, 'error': 'Tous les champs requis ne sont pas remplis.'}), 400
 
             real_data = gatherer.gather_all_real_data(data['hotel_name'], data['destination'])
             
             try:
-                hotel_price = int(data.get('booking_price', 0))
+                hotel_b2b_price = int(data.get('hotel_b2b_price', 0))
+                hotel_b2c_price = int(data.get('hotel_b2c_price', 0))
+                pack_price = int(data.get('pack_price', 0))
                 flight_price = int(data.get('flight_price', 0))
                 transfer_cost = int(data.get('transfer_cost', 0))
                 surcharge_cost = int(data.get('surcharge_cost', 0))
-                your_price = int(data.get('price', 0))
                 car_rental_cost = int(data.get('car_rental_cost', 0))
-                comparison_total = hotel_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
-                savings = comparison_total - your_price
+
+                # Coût total pour l'agence (base de la marge)
+                total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+                margin = pack_price - total_cost_b2b
+
+                # Coût total pour le client (base de l'économie)
+                comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+                savings = comparison_total - pack_price
+
             except (ValueError, TypeError):
+                margin = 0
                 savings = 0
                 comparison_total = 0
 
@@ -131,6 +140,7 @@ def create_app(config_class=Config):
                 'success': True, 
                 'form_data': data, 
                 'api_data': real_data,
+                'margin': margin,
                 'savings': savings,
                 'comparison_total': comparison_total
             })
@@ -165,7 +175,7 @@ def create_app(config_class=Config):
             full_data_json=json.dumps(data),
             hotel_name=form_data.get('hotel_name'),
             destination=form_data.get('destination'),
-            price=int(form_data.get('price', 0)),
+            price=int(form_data.get('pack_price', 0)), # Utilise le prix du pack
             status=data.get('status', 'proposed')
         )
         
@@ -256,25 +266,27 @@ def create_app(config_class=Config):
             full_data = json.loads(trip.full_data_json)
             full_data['form_data'] = new_form_data
             
-            hotel_price = int(new_form_data.get('booking_price', 0))
+            hotel_b2b_price = int(new_form_data.get('hotel_b2b_price', 0))
+            hotel_b2c_price = int(new_form_data.get('hotel_b2c_price', 0))
+            pack_price = int(new_form_data.get('pack_price', 0))
             flight_price = int(new_form_data.get('flight_price', 0))
             transfer_cost = int(new_form_data.get('transfer_cost', 0))
             surcharge_cost = int(new_form_data.get('surcharge_cost', 0))
-            your_price = int(new_form_data.get('price', 0))
             car_rental_cost = int(new_form_data.get('car_rental_cost', 0))
+
+            total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+            margin = pack_price - total_cost_b2b
             
-            comparison_total = hotel_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
-            savings = comparison_total - your_price
+            comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+            savings = comparison_total - pack_price
             
+            full_data['margin'] = margin
             full_data['comparison_total'] = comparison_total
             full_data['savings'] = savings
             
-            trip.price = your_price
+            trip.price = pack_price # Mettre à jour le prix principal du voyage
             trip.full_data_json = json.dumps(full_data)
             
-            # --- DÉBUT DE LA LOGIQUE CORRIGÉE ---
-            
-            # Cas 1 : Le voyage est assigné à un client
             if trip.status == 'assigned':
                 print(f"ℹ️ Mise à jour et republication du fichier client pour le voyage {trip.id}...")
                 client_filename = publication_service.publish_client_offer(trip)
@@ -283,7 +295,6 @@ def create_app(config_class=Config):
                 else:
                     return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication a échoué.'})
 
-            # Cas 2 (NOUVEAU) : Le voyage est une offre publique et est déjà publié
             elif trip.status == 'proposed' and trip.is_published:
                 print(f"ℹ️ Mise à jour et republication du fichier public pour le voyage {trip.id}...")
                 public_filename = publication_service.publish_public_offer(trip)
@@ -292,15 +303,12 @@ def create_app(config_class=Config):
                 else:
                     return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication de l\'offre publique a échoué.'})
             
-            # --- FIN DE LA LOGIQUE CORRIGÉE ---
-
             db.session.commit()
-            # Message de succès plus générique
             return jsonify({'success': True, 'message': 'Offre mise à jour et republiée avec succès !'})
 
         except Exception as e:
             print(f"❌ Erreur lors de la mise à jour du voyage {trip_id}: {e}")
-            db.session.rollback() # Annuler les changements en cas d'erreur
+            db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/trip/<int:trip_id>', methods=['DELETE'])

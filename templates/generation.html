@@ -82,9 +82,10 @@
 
             <h3 class="section-divider"><span>Détails du Prix</span></h3>
             <div class="form-row">
-                <div class="form-group"><label for="price">💰 Votre tarif (€)</label><input type="number" id="price" name="price" required placeholder="ex: 2400"></div>
-                <div class="form-group"><label for="booking_price">💳 Tarif Hôtel Seul (€)</label><div class="input-with-button"><input type="number" id="booking_price" name="booking_price" required placeholder="ex: 2800"><button type="button" id="searchBookingBtn" class="search-btn" title="Rechercher sur Booking.com">🔎</button></div></div>
+                <div class="form-group"><label for="hotel_b2b_price">💰 Tarif Hôtel B2B (€)</label><input type="number" id="hotel_b2b_price" name="hotel_b2b_price" required placeholder="ex: 2000"></div>
+                <div class="form-group"><label for="hotel_b2c_price">💳 Tarif Hôtel B2C (€)</label><div class="input-with-button"><input type="number" id="hotel_b2c_price" name="hotel_b2c_price" required placeholder="ex: 2800"><button type="button" id="searchBookingBtn" class="search-btn" title="Rechercher sur Booking.com">🔎</button></div></div>
             </div>
+             <div class="form-group"><label for="pack_price">📦 Prix du pack (€)</label><input type="number" id="pack_price" name="pack_price" required placeholder="ex: 2400"></div>
             <div class="form-group"><div style="display: flex; align-items: center; gap: 15px;"><div style="display: flex; align-items: center; flex-shrink: 0;"><input type="checkbox" id="has_cancellation" name="has_cancellation"><label for="has_cancellation" style="margin-bottom: 0;">Annulation gratuite</label></div><div id="cancellation_date_wrapper" style="display: none; flex-grow: 1;"><input type="text" id="cancellation_date" name="cancellation_date" readonly placeholder="Jusqu'au..."></div></div></div>
             <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0"><select id="surcharge_type" name="surcharge_type"><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
             
@@ -99,7 +100,6 @@
     <div class="result" id="result"></div>
 </div>
 
-<!-- MODALES -->
 <div id="htmlCodeModal" class="modal">
     <div class="modal-content">
         <span class="close-button">×</span>
@@ -247,6 +247,7 @@
                         <div class="stat-item"><div class="stat-number">${data.api_data.videos.length}</div><div class="stat-label">Vidéos</div></div>
                         <div class="stat-item"><div class="stat-number">${data.api_data.total_reviews}</div><div class="stat-label">Avis</div></div>
                         <div class="stat-item"><div class="stat-number">${Object.values(data.api_data.attractions).flat().length}</div><div class="stat-label">Attractions</div></div>
+                        <div class="stat-item"><div class="stat-number" style="color: #10b981;">${data.margin}€</div><div class="stat-label">Marge</div></div>
                         <div class="stat-item"><div class="stat-number">${data.savings}€</div><div class="stat-label">Économies</div></div>
                     </div>
                     <div class="button-container">

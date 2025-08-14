@@ -63,8 +63,6 @@
     </div>
 </div>
 
-<!-- MODALES -->
-<!-- Modal Client -->
 <div id="client-modal-dashboard" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center">
     <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
         <h2 class="text-xl font-bold mb-4">Assigner à un Client</h2>
@@ -83,15 +81,14 @@
     </div>
 </div>
 
-<!-- Modal Prix Simple (NOUVEAU) -->
 <div id="price-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center">
     <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">Modifier le prix</h2>
+        <h2 class="text-xl font-bold mb-4">Modifier le prix du pack</h2>
         <input type="hidden" id="price-trip-id">
         <div class="mb-4">
             <div id="price-comparison" class="bg-gray-50 p-4 rounded-lg mb-4 text-sm"></div>
-            <label for="new-price" class="block text-sm font-medium text-slate-700 mb-2">Nouveau prix (€)</label>
-            <input type="number" id="new-price" class="w-full rounded-md border-slate-300 shadow-sm">
+            <label for="new-pack-price" class="block text-sm font-medium text-slate-700 mb-2">Nouveau prix du pack (€)</label>
+            <input type="number" id="new-pack-price" class="w-full rounded-md border-slate-300 shadow-sm">
         </div>
         <div class="flex justify-end space-x-3">
             <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
@@ -100,11 +97,9 @@
     </div>
 </div>
 
-<!-- Modal Edit Trip (existante) -->
 <div id="edit-trip-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center overflow-y-auto p-4">
     <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl">
         <input type="hidden" id="trip-id-to-edit">
-        <!-- VUE RÉSUMÉ -->
         <div class="summary-view">
             <h2 class="text-xl font-bold mb-4">Ajuster l'offre client</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -113,7 +108,7 @@
                     <div id="trip-summary" class="summary-grid"></div>
                 </div>
                 <div>
-                    <h3 class="font-semibold mb-2 text-slate-700">Comparateur de prix</h3>
+                    <h3 class="font-semibold mb-2 text-slate-700">Analyse Financière</h3>
                     <div id="price-summary" class="text-sm space-y-2 bg-slate-50 p-4 rounded-md"></div>
                 </div>
             </div>
@@ -123,31 +118,27 @@
             </div>
         </div>
 
-        <!-- VUE ÉDITION -->
         <div class="edit-view">
             <h2 class="text-xl font-bold mb-4">Édition détaillée de l'offre</h2>
             <form id="edit-trip-form" class="space-y-4 text-sm">
-                <!-- Dates & Personnes -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label>🗓️ Période</label><input type="text" id="edit_date_range" readonly class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"><input type="hidden" id="edit_date_start"><input type="hidden" id="edit_date_end"></div>
                     <div><label>👥 Personnes</label><input type="number" id="edit_num_people" min="1" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                 </div>
-                <!-- Vols -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div><label>✈️ Départ</label><input type="text" id="edit_departure_city" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                     <div><label>🛬 Arrivée</label><input type="text" id="edit_arrival_airport" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                     <div><label>💰 Prix Vol (€)</label><input type="number" id="edit_flight_price" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                 </div>
-                <!-- Transferts & Location -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label>🚐 Transferts (€)</label><input type="number" id="edit_transfer_cost" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                     <div><label>🚗 Location (€)</label><input type="number" id="edit_car_rental_cost" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                 </div>
-                <!-- Prix & Pension -->
-                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-                    <div><label>💰 Votre Tarif (€)</label><input type="number" id="edit_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                    <div><label>💳 Tarif Hôtel Seul (€)</label><input type="number" id="edit_booking_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                    <div><label>💰 Tarif Hôtel B2B (€)</label><input type="number" id="edit_hotel_b2b_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                    <div><label>💳 Tarif Hôtel B2C (€)</label><input type="number" id="edit_hotel_b2c_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                 </div>
+                <div><label>📦 Prix du pack (€)</label><input type="number" id="edit_pack_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                 <div>
                     <label>🍽️ Surcoût Pension</label>
                     <div class="flex gap-4">
@@ -157,7 +148,6 @@
                         </select>
                     </div>
                 </div>
-                <!-- Services Exclusifs -->
                 <div><label>🎁 Services Exclusifs</label><textarea id="edit_exclusive_services" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></textarea></div>
                 
                 <div class="mt-6 flex justify-end space-x-3">
@@ -345,7 +335,7 @@
             }
         }
 
-        // NOUVEAU : Fonction pour modifier le prix
+        // Fonction pour modifier le prix
         async function openPriceModal(tripId) {
             const tripData = await getTripDetails(tripId);
             if (!tripData) return;
@@ -354,20 +344,20 @@
             const formData = fullData.form_data;
             
             document.getElementById('price-trip-id').value = tripId;
-            document.getElementById('new-price').value = formData.price;
+            document.getElementById('new-pack-price').value = formData.pack_price;
             
-            // Afficher le comparatif
             const comparisonHtml = `
-                <div class="font-semibold mb-2">Comparatif de prix</div>
-                <div class="flex justify-between"><span>Hôtel seul:</span> <span>${formData.booking_price || 0}€</span></div>
+                <div class="font-semibold mb-2">Analyse Financière</div>
+                <div class="flex justify-between"><span>Tarif Hôtel B2C:</span> <span>${formData.hotel_b2c_price || 0}€</span></div>
                 <div class="flex justify-between"><span>Vol:</span> <span>${formData.flight_price || 0}€</span></div>
-                <div class="flex justify-between"><span>Transferts:</span> <span>${formData.transfer_cost || 0}€</span></div>
-                <div class="flex justify-between"><span>Location:</span> <span>${formData.car_rental_cost || 0}€</span></div>
                 <div class="flex justify-between font-bold border-t mt-2 pt-2">
                     <span>Total ailleurs:</span> <span>${fullData.comparison_total || 0}€</span>
                 </div>
-                <div class="flex justify-between font-bold text-green-600 mt-2">
-                    <span>Votre prix actuel:</span> <span>${formData.price || 0}€</span>
+                <div class="flex justify-between font-bold text-blue-600 mt-2">
+                    <span>Votre prix (pack):</span> <span>${formData.pack_price || 0}€</span>
+                </div>
+                 <div class="flex justify-between font-bold text-green-600 mt-2">
+                    <span>Marge:</span> <span>${fullData.margin || 0}€</span>
                 </div>
             `;
             document.getElementById('price-comparison').innerHTML = comparisonHtml;
@@ -375,22 +365,20 @@
             priceModal.classList.add('is-open');
         }
 
-        // Sauvegarder le nouveau prix
         document.getElementById('save-price-btn').addEventListener('click', async function() {
             const tripId = document.getElementById('price-trip-id').value;
-            const newPrice = document.getElementById('new-price').value;
+            const newPackPrice = document.getElementById('new-pack-price').value;
             
-            if (!newPrice) {
-                alert('Veuillez entrer un prix');
+            if (!newPackPrice) {
+                alert('Veuillez entrer un prix pour le pack');
                 return;
             }
             
-            // Récupérer les données complètes
             const tripData = await getTripDetails(tripId);
             const fullData = JSON.parse(tripData.full_data_json);
             const updatedFormData = {
                 ...fullData.form_data,
-                price: newPrice
+                pack_price: newPackPrice
             };
             
             try {
@@ -412,17 +400,9 @@
             }
         });
 
-        // Gestion des événements sur le tableau
         tableBody.addEventListener('click', async function(e) {
-            // Gestion du toggle checkbox
             if (e.target.type === 'checkbox') {
-                const checkbox = e.target;
-                const tripRow = checkbox.closest('tr');
-                if (tripRow && tripRow.dataset.tripId) {
-                    const tripId = tripRow.dataset.tripId;
-                    await togglePublish(tripId, checkbox.checked, checkbox);
-                    return;
-                }
+                return;
             }
             
             const button = e.target.closest('button, a');
@@ -459,7 +439,6 @@
             }
         });
 
-        // Listener spécifique pour les checkboxes
         tableBody.addEventListener('change', async function(e) {
             if (e.target.type === 'checkbox') {
                 const checkbox = e.target;
@@ -539,10 +518,11 @@
             
             const priceSummaryDiv = document.getElementById('price-summary');
             priceSummaryDiv.innerHTML = `
-                <div class="flex justify-between"><span>Hôtel Seul:</span> <strong>${form.booking_price || 0} €</strong></div>
+                <div class="flex justify-between"><span>Tarif Hôtel B2C:</span> <strong>${form.hotel_b2c_price || 0} €</strong></div>
                 <div class="flex justify-between"><span>Vol:</span> <strong>${form.flight_price || 0} €</strong></div>
-                <div class="flex justify-between"><span>Total ailleurs:</span> <strong>${data.comparison_total || 0} €</strong></div>
-                <div class="flex justify-between font-bold mt-2 border-t pt-2"><span>Votre Tarif:</span> <strong>${form.price || 0} €</strong></div>
+                <div class="flex justify-between border-t mt-2 pt-2"><span>Total ailleurs:</span> <strong>${data.comparison_total || 0} €</strong></div>
+                <div class="flex justify-between text-blue-600 font-bold mt-2"><span>Votre Prix (Pack):</span> <strong>${form.pack_price || 0} €</strong></div>
+                <div class="flex justify-between text-green-600 font-bold mt-2"><span>Marge Estimée:</span> <strong>${data.margin || 0} €</strong></div>
             `;
 
             document.getElementById('edit_date_start').value = form.date_start;
@@ -553,8 +533,9 @@
             document.getElementById('edit_flight_price').value = form.flight_price || 0;
             document.getElementById('edit_transfer_cost').value = form.transfer_cost || 0;
             document.getElementById('edit_car_rental_cost').value = form.car_rental_cost || 0;
-            document.getElementById('edit_price').value = form.price;
-            document.getElementById('edit_booking_price').value = form.booking_price;
+            document.getElementById('edit_hotel_b2b_price').value = form.hotel_b2b_price;
+            document.getElementById('edit_hotel_b2c_price').value = form.hotel_b2c_price;
+            document.getElementById('edit_pack_price').value = form.pack_price;
             document.getElementById('edit_surcharge_cost').value = form.surcharge_cost || 0;
             document.getElementById('edit_surcharge_type').value = form.surcharge_type || 'Pension complète';
             document.getElementById('edit_exclusive_services').value = form.exclusive_services || '';
@@ -573,7 +554,6 @@
                 },
             });
 
-            // Initialiser l'autocomplétion Google Places pour les aéroports
             const departureInput = document.getElementById('edit_departure_city');
             const arrivalInput = document.getElementById('edit_arrival_airport');
             if (window.google && window.google.maps) {
@@ -586,11 +566,10 @@
             e.preventDefault();
             const tripId = document.getElementById('trip-id-to-edit').value;
             
-            const originalTripData = await getTripDetails(tripId);
-            const originalFullData = JSON.parse(originalTripData.full_data_json);
-            
             const updatedFormData = {
-                ...originalFullData.form_data,
+                hotel_name: document.getElementById('edit_hotel_name')?.value, // Assurez-vous d'avoir ces champs ou de les récupérer autrement
+                destination: document.getElementById('edit_destination')?.value,
+                stars: document.getElementById('edit_stars')?.value,
                 date_start: document.getElementById('edit_date_start').value,
                 date_end: document.getElementById('edit_date_end').value,
                 num_people: document.getElementById('edit_num_people').value,
@@ -599,8 +578,9 @@
                 flight_price: document.getElementById('edit_flight_price').value,
                 transfer_cost: document.getElementById('edit_transfer_cost').value,
                 car_rental_cost: document.getElementById('edit_car_rental_cost').value,
-                price: document.getElementById('edit_price').value,
-                booking_price: document.getElementById('edit_booking_price').value,
+                hotel_b2b_price: document.getElementById('edit_hotel_b2b_price').value,
+                hotel_b2c_price: document.getElementById('edit_hotel_b2c_price').value,
+                pack_price: document.getElementById('edit_pack_price').value,
                 surcharge_cost: document.getElementById('edit_surcharge_cost').value,
                 surcharge_type: document.getElementById('edit_surcharge_type').value,
                 exclusive_services: document.getElementById('edit_exclusive_services').value,

@@ -7,7 +7,6 @@
     <style>
         /* Styles de votre app.py original */
         .container {max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;}
-        /* La classe .header a été retirée car l'élément n'existe plus */
         .form-container {padding: 40px;}
         .form-group {margin-bottom: 25px; width: 100%;}
         label {display: block; margin-bottom: 8px; font-weight: 600; color: #333;}
@@ -46,6 +45,10 @@
         .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
         .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
         .html-textarea { width: 100%; height: 400px; border: 1px solid #ccc; padding: 10px; font-family: monospace; white-space: pre; overflow: auto; resize: vertical; border-radius: 5px; }
+        .cost-calculator { display: flex; gap: 20px; background-color: #f8fafc; padding: 15px; border-radius: 10px; margin-top: -10px; margin-bottom: 25px; }
+        .cost-calculator div { flex: 1; text-align: center; }
+        .cost-calculator p { margin: 0; color: #4b5563; font-weight: 500; font-size: 14px; }
+        .cost-calculator .cost-value { font-size: 22px; font-weight: bold; color: #1e293b; }
         @media (max-width: 768px) {.form-row {flex-direction: column; gap: 0;} .form-container {padding: 20px;}}
     </style>
 {% endblock %}
@@ -73,21 +76,27 @@
                 <div class="form-group"><label for="arrival_airport">🛬 Aéroport d'arrivée</label><input type="text" id="arrival_airport" name="arrival_airport" placeholder="Saisir un aéroport..."></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label for="flight_price">💰 Prix du vol (€)</label><div class="input-with-button"><input type="number" id="flight_price" name="flight_price" value="0"><button type="button" id="searchFlightsBtn" class="search-btn" title="Rechercher sur Google Flights">🔎</button></div></div>
-                <div class="form-group"><label for="transfer_cost">🚐 Coût des Transferts (€)</label><input type="number" id="transfer_cost" name="transfer_cost" value="0"></div>
+                <div class="form-group"><label for="flight_price">💰 Prix du vol (€)</label><div class="input-with-button"><input type="number" id="flight_price" name="flight_price" value="0" class="cost-input"><button type="button" id="searchFlightsBtn" class="search-btn" title="Rechercher sur Google Flights">🔎</button></div></div>
+                <div class="form-group"><label for="transfer_cost">🚐 Coût des Transferts (€)</label><input type="number" id="transfer_cost" name="transfer_cost" value="0" class="cost-input"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label for="car_rental_cost">🚗 Voiture de location (€)</label><input type="number" id="car_rental_cost" name="car_rental_cost" value="0"></div>
+                <div class="form-group"><label for="car_rental_cost">🚗 Voiture de location (€)</label><input type="number" id="car_rental_cost" name="car_rental_cost" value="0" class="cost-input"></div>
             </div>
 
             <h3 class="section-divider"><span>Détails du Prix</span></h3>
             <div class="form-row">
-                <div class="form-group"><label for="hotel_b2b_price">💰 Tarif Hôtel B2B (€)</label><input type="number" id="hotel_b2b_price" name="hotel_b2b_price" required placeholder="ex: 2000"></div>
-                <div class="form-group"><label for="hotel_b2c_price">💳 Tarif Hôtel B2C (€)</label><div class="input-with-button"><input type="number" id="hotel_b2c_price" name="hotel_b2c_price" required placeholder="ex: 2800"><button type="button" id="searchBookingBtn" class="search-btn" title="Rechercher sur Booking.com">🔎</button></div></div>
+                <div class="form-group"><label for="hotel_b2b_price">💰 Tarif Hôtel B2B (€)</label><input type="number" id="hotel_b2b_price" name="hotel_b2b_price" required placeholder="ex: 2000" class="cost-input"></div>
+                <div class="form-group"><label for="hotel_b2c_price">💳 Tarif Hôtel B2C (€)</label><div class="input-with-button"><input type="number" id="hotel_b2c_price" name="hotel_b2c_price" required placeholder="ex: 2800" class="cost-input"><button type="button" id="searchBookingBtn" class="search-btn" title="Rechercher sur Booking.com">🔎</button></div></div>
             </div>
              <div class="form-group"><label for="pack_price">📦 Prix du pack (€)</label><input type="number" id="pack_price" name="pack_price" required placeholder="ex: 2400"></div>
+             
+             <div class="cost-calculator">
+                <div><p>Coût Total B2B</p><span id="total-b2b-cost" class="cost-value">0 €</span></div>
+                <div><p>Coût Total B2C</p><span id="total-b2c-cost" class="cost-value">0 €</span></div>
+            </div>
+
             <div class="form-group"><div style="display: flex; align-items: center; gap: 15px;"><div style="display: flex; align-items: center; flex-shrink: 0;"><input type="checkbox" id="has_cancellation" name="has_cancellation"><label for="has_cancellation" style="margin-bottom: 0;">Annulation gratuite</label></div><div id="cancellation_date_wrapper" style="display: none; flex-grow: 1;"><input type="text" id="cancellation_date" name="cancellation_date" readonly placeholder="Jusqu'au..."></div></div></div>
-            <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0"><select id="surcharge_type" name="surcharge_type"><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
+            <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0" class="cost-input"><select id="surcharge_type" name="surcharge_type"><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
             
             <h3 class="section-divider"><span>Services Exclusifs</span></h3>
             <div class="form-group"><label for="exclusive_services">🎁 Services Exclusifs Inclus</label><textarea id="exclusive_services" name="exclusive_services" placeholder="ex: Accès au lounge VIP de l'aéroport&#10;Une bouteille de champagne en chambre&#10;Check-out tardif jusqu'à 14h"></textarea></div>
@@ -135,7 +144,6 @@
     let generatedData = null; // Variable globale pour stocker les données après génération
 
     function initializeApp() {
-        // ... (Toute la logique de votre app.py original)
         const formatDate = (d) => {
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -220,6 +228,30 @@
             const flightsUrl = `https://www.google.com/flights?hl=fr&q=vols+de+${encodeURIComponent(departureText)}+à+${encodeURIComponent(arrivalText)}+le+${checkinDate}+retour+le+${checkoutDate}`;
             window.open(flightsUrl, '_blank');
         });
+
+        // **NOUVEAU : Calculateur de coût en temps réel**
+        const costInputs = document.querySelectorAll('.cost-input');
+        costInputs.forEach(input => {
+            input.addEventListener('input', updateCostTotals);
+        });
+        updateCostTotals(); // Appel initial
+    }
+
+    function updateCostTotals() {
+        const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
+
+        const hotelB2B = getVal('hotel_b2b_price');
+        const hotelB2C = getVal('hotel_b2c_price');
+        const flight = getVal('flight_price');
+        const transfer = getVal('transfer_cost');
+        const car = getVal('car_rental_cost');
+        const surcharge = getVal('surcharge_cost');
+
+        const totalB2B = hotelB2B + flight + transfer + car + surcharge;
+        const totalB2C = hotelB2C + flight + transfer + car + surcharge;
+
+        document.getElementById('total-b2b-cost').textContent = `${totalB2B} €`;
+        document.getElementById('total-b2c-cost').textContent = `${totalB2C} €`;
     }
 
     document.getElementById('voyageForm').addEventListener('submit', function(e) {
@@ -285,6 +317,7 @@
             document.getElementById('voyageForm').reset();
             document.getElementById('cancellation_date_wrapper').style.display = 'none';
             document.getElementById('result').style.display = 'none';
+            updateCostTotals();
             document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
         });
 

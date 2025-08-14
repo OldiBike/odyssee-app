@@ -263,4 +263,369 @@
         async function getTripDetails(tripId) {
             try {
                 const response = await fetch(`/api/trip/${tripId}`);
-                if (!response.ok
+                if (!response.ok) throw new Error('Could not fetch trip details');
+                return await response.json();
+            } catch (error) {
+                alert(error.message);
+                return null;
+            }
+        }
+
+        async function deleteTrip(tripId, rowElement) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    rowElement.remove();
+                } else { alert('Erreur: ' + result.message); }
+            } catch (error) { alert('Erreur réseau lors de la suppression.'); }
+        }
+
+        async function updateTripStatus(tripId, payload, rowElement) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    rowElement.remove();
+                } else { alert('Erreur: ' + result.message); }
+            } catch (error) { alert('Erreur réseau lors de la mise à jour.'); }
+        }
+
+        async function togglePublish(tripId, publishState, checkbox) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}/publish`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ publish: publishState })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    alert('Erreur: ' + result.message);
+                    checkbox.checked = !publishState;
+                } else {
+                    fetchTrips();
+                }
+            } catch (error) {
+                alert('Erreur réseau lors de la publication.');
+                checkbox.checked = !publishState;
+            }
+        }
+
+        async function sendOfferEmail(tripId, button) {
+            const originalIcon = button.innerHTML;
+            button.innerHTML = '⏳';
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/send-offer`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    button.innerHTML = '✅';
+                    alert(result.message);
+                } else {
+                    button.innerHTML = '❌';
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                button.innerHTML = '❌';
+                alert('Erreur réseau lors de l\'envoi de l\'offre.');
+                console.error(error);
+            } finally {
+                setTimeout(() => {
+                    button.innerHTML = originalIcon;
+                    button.disabled = false;
+                }, 3000);
+            }
+        }
+
+        // NOUVEAU : Fonction pour modifier le prix
+        async function openPriceModal(tripId) {
+            const tripData = await getTripDetails(tripId);
+            if (!tripData) return;
+            
+            const fullData = JSON.parse(tripData.full_data_json);
+            const formData = fullData.form_data;
+            
+            document.getElementById('price-trip-id').value = tripId;
+            document.getElementById('new-price').value = formData.price;
+            
+            // Afficher le comparatif
+            const comparisonHtml = `
+                <div class="font-semibold mb-2">Comparatif de prix</div>
+                <div class="flex justify-between"><span>Hôtel seul:</span> <span>${formData.booking_price || 0}€</span></div>
+                <div class="flex justify-between"><span>Vol:</span> <span>${formData.flight_price || 0}€</span></div>
+                <div class="flex justify-between"><span>Transferts:</span> <span>${formData.transfer_cost || 0}€</span></div>
+                <div class="flex justify-between"><span>Location:</span> <span>${formData.car_rental_cost || 0}€</span></div>
+                <div class="flex justify-between font-bold border-t mt-2 pt-2">
+                    <span>Total ailleurs:</span> <span>${fullData.comparison_total || 0}€</span>
+                </div>
+                <div class="flex justify-between font-bold text-green-600 mt-2">
+                    <span>Votre prix actuel:</span> <span>${formData.price || 0}€</span>
+                </div>
+            `;
+            document.getElementById('price-comparison').innerHTML = comparisonHtml;
+            
+            priceModal.classList.add('is-open');
+        }
+
+        // Sauvegarder le nouveau prix
+        document.getElementById('save-price-btn').addEventListener('click', async function() {
+            const tripId = document.getElementById('price-trip-id').value;
+            const newPrice = document.getElementById('new-price').value;
+            
+            if (!newPrice) {
+                alert('Veuillez entrer un prix');
+                return;
+            }
+            
+            // Récupérer les données complètes
+            const tripData = await getTripDetails(tripId);
+            const fullData = JSON.parse(tripData.full_data_json);
+            const updatedFormData = {
+                ...fullData.form_data,
+                price: newPrice
+            };
+            
+            try {
+                const response = await fetch(`/api/trip/${tripId}/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedFormData)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Prix mis à jour !');
+                    priceModal.classList.remove('is-open');
+                    fetchTrips();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur lors de la mise à jour du prix');
+            }
+        });
+
+        // Gestion des événements sur le tableau
+        tableBody.addEventListener('click', async function(e) {
+            // Gestion du toggle checkbox
+            if (e.target.type === 'checkbox') {
+                const checkbox = e.target;
+                const tripRow = checkbox.closest('tr');
+                if (tripRow && tripRow.dataset.tripId) {
+                    const tripId = tripRow.dataset.tripId;
+                    await togglePublish(tripId, checkbox.checked, checkbox);
+                    return;
+                }
+            }
+            
+            const button = e.target.closest('button, a');
+            if (!button || !button.dataset.action) return;
+
+            const action = button.dataset.action;
+            const tripRow = button.closest('tr');
+            const tripId = tripRow.dataset.tripId;
+            currentTripInfo = { id: tripId, rowElement: tripRow };
+
+            if (action === 'delete') {
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce voyage définitivement ?')) {
+                    deleteTrip(tripId, tripRow);
+                }
+            } else if (action === 'sell') {
+                document.getElementById('trip-id-to-assign').value = tripId;
+                clientModal.classList.add('is-open');
+            } else if (action === 'mark-paid') {
+                if (confirm('Confirmez-vous que ce voyage a été payé ?')) {
+                    updateTripStatus(tripId, { status: 'sold' }, tripRow);
+                }
+            } else if (action === 'edit-trip') {
+                const tripData = await getTripDetails(tripId);
+                if (tripData) {
+                    populateEditTripModal(tripData);
+                    editTripModal.classList.add('is-open');
+                }
+            } else if (action === 'send-offer') {
+                if (confirm('Envoyer cette offre par email au client, avec un lien de paiement ?')) {
+                    sendOfferEmail(tripId, button);
+                }
+            } else if (action === 'edit-price') {
+                openPriceModal(tripId);
+            }
+        });
+
+        // Listener spécifique pour les checkboxes
+        tableBody.addEventListener('change', async function(e) {
+            if (e.target.type === 'checkbox') {
+                const checkbox = e.target;
+                const tripRow = checkbox.closest('tr');
+                if (tripRow && tripRow.dataset.tripId) {
+                    const tripId = tripRow.dataset.tripId;
+                    await togglePublish(tripId, checkbox.checked, checkbox);
+                }
+            }
+        });
+
+        document.getElementById('client-form-dashboard').addEventListener('submit', async function(e) {
+             e.preventDefault();
+            const tripId = document.getElementById('trip-id-to-assign').value;
+            const payload = {
+                client_first_name: document.getElementById('client_first_name_dashboard').value,
+                client_last_name: document.getElementById('client_last_name_dashboard').value,
+                client_email: document.getElementById('client_email_dashboard').value,
+            };
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/assign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    clientModal.classList.remove('is-open');
+                    this.reset();
+                    fetchTrips();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur réseau lors de l\'assignation.');
+            }
+        });
+
+        document.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = btn.closest('.modal');
+                modal.classList.remove('is-open', 'is-editing');
+            });
+        });
+
+        document.getElementById('open-edit-view-btn').addEventListener('click', () => {
+            editTripModal.classList.add('is-editing');
+        });
+        document.getElementById('close-edit-view-btn').addEventListener('click', () => {
+            editTripModal.classList.remove('is-editing');
+        });
+
+        const formatDate = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        function populateEditTripModal(tripData) {
+            const data = JSON.parse(tripData.full_data_json);
+            const form = data.form_data;
+            document.getElementById('trip-id-to-edit').value = tripData.id;
+
+            const summaryDiv = document.getElementById('trip-summary');
+            summaryDiv.innerHTML = `
+                <div class="summary-item"><i class="fas fa-calendar-alt"></i> <div>${form.date_start} au ${form.date_end}</div></div>
+                <div class="summary-item"><i class="fas fa-users"></i> <div>${form.num_people} personnes</div></div>
+                <div class="summary-item"><i class="fas fa-plane"></i> <div>${form.departure_city || 'N/A'} → ${form.arrival_airport || 'N/A'} (${form.flight_price || 0}€)</div></div>
+                <div class="summary-item"><i class="fas fa-bus"></i> <div>Transferts: ${form.transfer_cost || 0}€</div></div>
+                <div class="summary-item"><i class="fas fa-car"></i> <div>Location: ${form.car_rental_cost || 0}€</div></div>
+                <div class="summary-item"><i class="fas fa-utensils"></i> <div>${form.surcharge_type}: ${form.surcharge_cost || 0}€</div></div>
+                <div class="summary-item col-span-full"><i class="fas fa-gift"></i> <div>${(form.exclusive_services || '').replace(/\n/g, ', ') || 'Aucun'}</div></div>
+            `;
+            
+            const priceSummaryDiv = document.getElementById('price-summary');
+            priceSummaryDiv.innerHTML = `
+                <div class="flex justify-between"><span>Hôtel Seul:</span> <strong>${form.booking_price || 0} €</strong></div>
+                <div class="flex justify-between"><span>Vol:</span> <strong>${form.flight_price || 0} €</strong></div>
+                <div class="flex justify-between"><span>Total ailleurs:</span> <strong>${data.comparison_total || 0} €</strong></div>
+                <div class="flex justify-between font-bold mt-2 border-t pt-2"><span>Votre Tarif:</span> <strong>${form.price || 0} €</strong></div>
+            `;
+
+            document.getElementById('edit_date_start').value = form.date_start;
+            document.getElementById('edit_date_end').value = form.date_end;
+            document.getElementById('edit_num_people').value = form.num_people;
+            document.getElementById('edit_departure_city').value = form.departure_city || '';
+            document.getElementById('edit_arrival_airport').value = form.arrival_airport || '';
+            document.getElementById('edit_flight_price').value = form.flight_price || 0;
+            document.getElementById('edit_transfer_cost').value = form.transfer_cost || 0;
+            document.getElementById('edit_car_rental_cost').value = form.car_rental_cost || 0;
+            document.getElementById('edit_price').value = form.price;
+            document.getElementById('edit_booking_price').value = form.booking_price;
+            document.getElementById('edit_surcharge_cost').value = form.surcharge_cost || 0;
+            document.getElementById('edit_surcharge_type').value = form.surcharge_type || 'Pension complète';
+            document.getElementById('edit_exclusive_services').value = form.exclusive_services || '';
+
+            if (editDatePicker) editDatePicker.destroy();
+            editDatePicker = new Litepicker({
+                element: document.getElementById('edit_date_range'),
+                singleMode: false, lang: 'fr-FR', format: 'YYYY-MM-DD',
+                startDate: form.date_start,
+                endDate: form.date_end,
+                setup: (picker) => {
+                    picker.on('selected', (date1, date2) => {
+                        document.getElementById('edit_date_start').value = formatDate(date1.dateInstance);
+                        document.getElementById('edit_date_end').value = formatDate(date2.dateInstance);
+                    });
+                },
+            });
+
+            // Initialiser l'autocomplétion Google Places pour les aéroports
+            const departureInput = document.getElementById('edit_departure_city');
+            const arrivalInput = document.getElementById('edit_arrival_airport');
+            if (window.google && window.google.maps) {
+                new google.maps.places.Autocomplete(departureInput, { types: ['airport'] });
+                new google.maps.places.Autocomplete(arrivalInput, { types: ['airport'] });
+            }
+        }
+
+        document.getElementById('edit-trip-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tripId = document.getElementById('trip-id-to-edit').value;
+            
+            const originalTripData = await getTripDetails(tripId);
+            const originalFullData = JSON.parse(originalTripData.full_data_json);
+            
+            const updatedFormData = {
+                ...originalFullData.form_data,
+                date_start: document.getElementById('edit_date_start').value,
+                date_end: document.getElementById('edit_date_end').value,
+                num_people: document.getElementById('edit_num_people').value,
+                departure_city: document.getElementById('edit_departure_city').value,
+                arrival_airport: document.getElementById('edit_arrival_airport').value,
+                flight_price: document.getElementById('edit_flight_price').value,
+                transfer_cost: document.getElementById('edit_transfer_cost').value,
+                car_rental_cost: document.getElementById('edit_car_rental_cost').value,
+                price: document.getElementById('edit_price').value,
+                booking_price: document.getElementById('edit_booking_price').value,
+                surcharge_cost: document.getElementById('edit_surcharge_cost').value,
+                surcharge_type: document.getElementById('edit_surcharge_type').value,
+                exclusive_services: document.getElementById('edit_exclusive_services').value,
+            };
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedFormData)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    editTripModal.classList.remove('is-open', 'is-editing');
+                    fetchTrips();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur réseau lors de la mise à jour.');
+            }
+        });
+        
+        fetchTrips();
+    });
+</script>
+{% endblock %}

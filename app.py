@@ -272,6 +272,9 @@ def create_app(config_class=Config):
             trip.price = your_price
             trip.full_data_json = json.dumps(full_data)
             
+            # --- DÉBUT DE LA LOGIQUE CORRIGÉE ---
+            
+            # Cas 1 : Le voyage est assigné à un client
             if trip.status == 'assigned':
                 print(f"ℹ️ Mise à jour et republication du fichier client pour le voyage {trip.id}...")
                 client_filename = publication_service.publish_client_offer(trip)
@@ -280,11 +283,24 @@ def create_app(config_class=Config):
                 else:
                     return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication a échoué.'})
 
+            # Cas 2 (NOUVEAU) : Le voyage est une offre publique et est déjà publié
+            elif trip.status == 'proposed' and trip.is_published:
+                print(f"ℹ️ Mise à jour et republication du fichier public pour le voyage {trip.id}...")
+                public_filename = publication_service.publish_public_offer(trip)
+                if public_filename:
+                    trip.published_filename = public_filename
+                else:
+                    return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication de l\'offre publique a échoué.'})
+            
+            # --- FIN DE LA LOGIQUE CORRIGÉE ---
+
             db.session.commit()
-            return jsonify({'success': True, 'message': 'Offre client mise à jour et republiée !'})
+            # Message de succès plus générique
+            return jsonify({'success': True, 'message': 'Offre mise à jour et republiée avec succès !'})
 
         except Exception as e:
             print(f"❌ Erreur lors de la mise à jour du voyage {trip_id}: {e}")
+            db.session.rollback() # Annuler les changements en cas d'erreur
             return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/trip/<int:trip_id>', methods=['DELETE'])

@@ -12,3 +12,4 @@ paramiko
 unidecode
 gunicorn
 psycopg2-binary
+psycopg2

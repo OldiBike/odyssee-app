@@ -527,21 +527,22 @@
             const formData = fullData.form_data;
             const form = document.getElementById('edit-trip-form');
             form.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                     <div><label>Nom Hôtel</label><input type="text" name="hotel_name" value="${formData.hotel_name}" class="w-full p-2 border rounded"></div>
                     <div><label>Destination</label><input type="text" name="destination" value="${formData.destination}" class="w-full p-2 border rounded"></div>
+                    <div><label>Nombre de personnes</label><input type="number" name="num_people" value="${formData.num_people}" class="w-full p-2 border rounded"></div>
                     <div><label>Date Début</label><input type="text" name="date_start" value="${formData.date_start}" class="w-full p-2 border rounded"></div>
                     <div><label>Date Fin</label><input type="text" name="date_end" value="${formData.date_end}" class="w-full p-2 border rounded"></div>
+                    <div><label>Prix Vol (€)</label><input type="number" name="flight_price" value="${formData.flight_price}" class="w-full p-2 border rounded"></div>
                     <div><label>Aéroport de départ</label><input type="text" id="departure_city_edit" name="departure_city" value="${formData.departure_city || ''}" class="w-full p-2 border rounded"></div>
                     <div><label>Aéroport d'arrivée</label><input type="text" id="arrival_airport_edit" name="arrival_airport" value="${formData.arrival_airport || ''}" class="w-full p-2 border rounded"></div>
-                    <div><label>Prix Vol (€)</label><input type="number" name="flight_price" value="${formData.flight_price}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Transfert (€)</label><input type="number" name="transfer_cost" value="${formData.transfer_cost}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Location Voiture (€)</label><input type="number" name="car_rental_cost" value="${formData.car_rental_cost}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Surcoût</label><input type="number" name="surcharge_cost" value="${formData.surcharge_cost || 0}" class="w-full p-2 border rounded"></div>
                     <div><label>Tarif Hôtel B2B (€)</label><input type="number" name="hotel_b2b_price" value="${formData.hotel_b2b_price}" class="w-full p-2 border rounded"></div>
-                    <div><label>Tarif Hôtel B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
-                    <div class="md:col-span-2"><label>Prix Pack Final (€)</label><input type="number" name="pack_price" value="${formData.pack_price}" class="w-full p-2 border rounded font-bold text-lg"></div>
-                    <div class="md:col-span-2"><label>Services Exclusifs</label><textarea name="exclusive_services" class="w-full p-2 border rounded">${formData.exclusive_services || ''}</textarea></div>
+                    <div class="md:col-span-2"><label>Tarif Hôtel B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
+                    <div class="md:col-span-3"><label>Prix Pack Final (€)</label><input type="number" name="pack_price" value="${formData.pack_price}" class="w-full p-2 border rounded font-bold text-lg"></div>
+                    <div class="md:col-span-3"><label>Services Exclusifs</label><textarea name="exclusive_services" class="w-full p-2 border rounded">${formData.exclusive_services || ''}</textarea></div>
                 </div>
                 
                 <div id="financial-summary-edit" class="financial-summary"></div>
@@ -559,7 +560,7 @@
                 editTripModal.classList.remove('is-editing');
             });
 
-            form.querySelectorAll('input[type="number"], input[type="text"], textarea').forEach(input => {
+            form.querySelectorAll('input, textarea').forEach(input => {
                 input.addEventListener('input', () => {
                     const currentFormData = new FormData(form);
                     const data = Object.fromEntries(currentFormData.entries());

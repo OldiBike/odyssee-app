@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% raw %}{% extends "base.html" %}
 
 {% block title %}Génération de Voyage{% endblock %}
 
@@ -98,6 +98,19 @@
                 <div><p>Marge Finale</p><span id="final-margin" class="cost-value" style="color: #2563eb;">0 €</span></div>
             </div>
 
+            <div class="form-group">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; flex-shrink: 0;">
+                        <input type="checkbox" id="has_cancellation" name="has_cancellation">
+                        <label for="has_cancellation" style="margin-bottom: 0;">Annulation gratuite</label>
+                    </div>
+                    <div id="cancellation_date_wrapper" style="display: none; flex-grow: 1;">
+                        <input type="text" id="cancellation_date" name="cancellation_date" readonly placeholder="Jusqu'au...">
+                    </div>
+                </div>
+                <div id="cancellation-warning" class="text-sm text-orange-600 mt-2" style="display: none;"></div>
+            </div>
+            
             <div class="form-group"><div style="display: flex; align-items: center; gap: 15px;"><div style="display: flex; align-items: center; flex-shrink: 0;"><input type="checkbox" id="has_cancellation" name="has_cancellation"><label for="has_cancellation" style="margin-bottom: 0;">Annulation gratuite</label></div><div id="cancellation_date_wrapper" style="display: none; flex-grow: 1;"><input type="text" id="cancellation_date" name="cancellation_date" readonly placeholder="Jusqu'au..."></div></div></div>
             <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0" class="cost-input"><select id="surcharge_type" name="surcharge_type"><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
             
@@ -169,10 +182,28 @@
             element: document.getElementById('cancellation_date'),
             singleMode: true, lang: 'fr-FR', format: 'DD MMMM YYYY'
         });
+        
+        const cancellationCheckbox = document.getElementById('has_cancellation');
+        const cancellationDateWrapper = document.getElementById('cancellation_date_wrapper');
+        const flightPriceInput = document.getElementById('flight_price');
+        const cancellationWarning = document.getElementById('cancellation-warning');
 
-        document.getElementById('has_cancellation').addEventListener('change', function() {
-            document.getElementById('cancellation_date_wrapper').style.display = this.checked ? 'block' : 'none';
+        function updateCancellationWarning() {
+            const flightPrice = parseFloat(flightPriceInput.value) || 0;
+            if (cancellationCheckbox.checked && flightPrice > 0) {
+                cancellationWarning.textContent = `Attention : L'annulation gratuite ne s'applique qu'à l'hôtel. Les vols (${flightPrice} €) ne sont pas remboursables.`;
+                cancellationWarning.style.display = 'block';
+            } else {
+                cancellationWarning.style.display = 'none';
+            }
+        }
+
+        cancellationCheckbox.addEventListener('change', function() {
+            cancellationDateWrapper.style.display = this.checked ? 'block' : 'none';
+            updateCancellationWarning();
         });
+
+        flightPriceInput.addEventListener('input', updateCancellationWarning);
 
         document.getElementById('toggleInstagramBtn').addEventListener('click', function() {
             document.getElementById('instagram_wrapper').style.display = document.getElementById('instagram_wrapper').style.display === 'block' ? 'none' : 'block';
@@ -471,4 +502,4 @@
         }
     }
 </script>
-{% endblock %}
+{% endblock %}{% endraw %}

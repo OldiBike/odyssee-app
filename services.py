@@ -338,8 +338,17 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     your_price = int(data.get('pack_price', 0))
     price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>' if num_people > 0 else ""
     
-    cancellation_html = f'<p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite jusqu\'au {data.get("cancellation_date")}</p>' if data.get('has_cancellation') == 'on' and data.get('cancellation_date') else ""
-    
+    cancellation_html = ""
+    flight_price = int(data.get('flight_price', 0))
+    if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
+        if flight_price > 0:
+            cancellation_html = f'''
+            <p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite de l\'hôtel jusqu\'au {data.get("cancellation_date")}</p>
+            <p class="text-xs font-bold text-orange-800 mt-1 text-center">Les vols ({flight_price} €) ne sont pas remboursables.</p>
+            '''
+        else:
+            cancellation_html = f'<p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite jusqu\'au {data.get("cancellation_date")}</p>'
+
     instagram_button_html = ""
     instagram_input = data.get('instagram_handle', '').strip()
     if instagram_input:
@@ -357,7 +366,6 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     city_name = data.get('destination', '').split(',')[0].strip()
     exclusive_services_html = f'<div class="p-4 mt-4 rounded-lg border-2 border-blue-200 bg-blue-50"><h4 class="font-bold text-blue-800 mb-2">Nos Services additionnels offerts</h4><p class="text-sm text-gray-700">{data.get("exclusive_services", "").strip().replace(chr(10), "<br>")}</p></div>' if data.get('exclusive_services', '').strip() else ""
     
-    flight_price = int(data.get('flight_price', 0))
     flight_text_html = f'<div class="flex justify-between"><span>Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</span><span class="font-semibold">{flight_price}€</span></div>' if flight_price > 0 else ""
     flight_inclusion_html = f'<div class="flex items-center"><div class="feature-icon bg-blue-500"><i class="fas fa-plane"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</h4><p class="text-gray-600 text-xs">Aller-retour inclus</p></div></div>' if flight_price > 0 else ""
     baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10kg</h4><p class="text-gray-600 text-xs">Bagage cabine inclus</p></div></div>' if flight_price > 0 else ""

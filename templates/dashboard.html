@@ -163,7 +163,7 @@
         <div class="edit-view">
             <h2 class="text-xl font-bold mb-4">Édition détaillée de l'offre</h2>
             <form id="edit-trip-form" class="space-y-4 text-sm">
-                </form>
+            </form>
         </div>
     </div>
 </div>
@@ -246,7 +246,6 @@
                             <button data-action="delete" title="Supprimer la fiche client" class="text-red-500 text-xl">🗑️</button>
                         </td>`;
                 } else if (viewMode === 'sold') {
-                    // Adapté pour la vue 'sold'
                     rowHtml = `
                         <td class="p-3 text-sm text-slate-600">${trip.sold_at || 'N/A'}</td>
                         <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
@@ -352,6 +351,7 @@
             } else if (action === 'edit-trip' || action === 'view-details') {
                 const tripData = await getTripDetails(tripId);
                 if (tripData) {
+                    // La fonction populateEditTripModal n'était pas définie, la voici.
                     populateEditTripModal(tripData);
                     editTripModal.classList.add('is-open');
                 }
@@ -367,7 +367,6 @@
             }
         });
 
-        // Gestion du toggle de publication
         tableBody.addEventListener('change', async function(e) {
             if (e.target.type === 'checkbox') {
                 const tripRow = e.target.closest('tr');
@@ -380,13 +379,10 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ publish: isChecked })
                     });
-                    
                     const result = await response.json();
                     
                     if (result.success) {
-                        const viewLinkContainer = tripRow.querySelector('td:last-child');
-                        const viewLink = viewLinkContainer.querySelector('a[title="Voir la fiche en ligne"], a[title="Publiez pour voir le lien"]');
-
+                        const viewLink = tripRow.querySelector('a[title="Voir la fiche en ligne"], a[title="Publiez pour voir le lien"]');
                         if (viewLink) {
                             if (isChecked && result.trip.published_filename) {
                                 viewLink.href = `${sitePublicUrl}/offres/${result.trip.published_filename}`;
@@ -413,9 +409,6 @@
             }
         });
 
-        // --- DÉBUT DU BLOC CORRIGÉ ---
-
-        // Gestion de la soumission du formulaire d'assignation
         document.getElementById('client-form-dashboard').addEventListener('submit', async function(e) {
             e.preventDefault();
             const tripId = document.getElementById('trip-id-to-assign').value;
@@ -424,7 +417,6 @@
                 client_last_name: document.getElementById('client_last_name_dashboard').value,
                 client_email: document.getElementById('client_email_dashboard').value,
             };
-
             try {
                 const response = await fetch(`/api/trip/${tripId}/assign`, {
                     method: 'POST',
@@ -436,7 +428,7 @@
                     alert('Voyage assigné avec succès !');
                     clientModal.classList.remove('is-open');
                     this.reset();
-                    fetchTrips(); // Recharger la table
+                    fetchTrips();
                 } else {
                     alert('Erreur lors de l\'assignation: ' + result.message);
                 }
@@ -445,7 +437,39 @@
                 alert('Erreur réseau lors de l\'assignation');
             }
         });
+        
+        // --- DÉBUT DU BLOC CORRIGÉ ---
+        // Cette fonction manquait
+        function populateEditTripModal(tripData) {
+            currentEditingTripData = tripData;
+            const fullData = JSON.parse(tripData.full_data_json);
+            const formData = fullData.form_data;
+            const summaryContainer = document.getElementById('trip-summary');
+            const priceContainer = document.getElementById('price-summary');
 
+            // Populate summary view
+            summaryContainer.innerHTML = `
+                <div class="summary-item col-span-full"><i class="fas fa-hotel"></i> ${formData.hotel_name}</div>
+                <div class="summary-item"><i class="fas fa-map-marker-alt"></i> ${formData.destination}</div>
+                <div class="summary-item"><i class="fas fa-calendar-alt"></i> ${formData.date_start} au ${formData.date_end}</div>
+                <div class="summary-item"><i class="fas fa-users"></i> ${formData.num_people} personnes</div>
+                <div class="summary-item"><i class="fas fa-plane"></i> Vol: ${formData.flight_price}€</div>
+                <div class="summary-item"><i class="fas fa-bus"></i> Transfert: ${formData.transfer_cost}€</div>
+                <div class="summary-item"><i class="fas fa-car"></i> Location: ${formData.car_rental_cost}€</div>
+            `;
+            
+            priceContainer.innerHTML = `
+                <div class="flex justify-between"><span>Prix Pack Client:</span> <span class="font-bold">${formData.pack_price}€</span></div>
+                <div class="flex justify-between"><span>Coût Total B2B:</span> <span>${fullData.total_cost_b2b || 'N/A'}€</span></div>
+                <hr class="my-1">
+                <div class="flex justify-between text-blue-600"><span>Marge Finale:</span> <span class="font-bold">${fullData.margin}€</span></div>
+                <hr class="my-1">
+                <div class="flex justify-between"><span>Coût Total B2C:</span> <span>${fullData.comparison_total}€</span></div>
+                <div class="flex justify-between text-green-600"><span>Économie Client:</span> <span class="font-bold">${fullData.savings}€</span></div>
+            `;
+            
+            document.getElementById('trip-id-to-edit').value = tripData.id;
+        }
         // --- FIN DU BLOC CORRIGÉ ---
 
         async function deleteTrip(tripId, tripRow) {

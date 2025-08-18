@@ -22,6 +22,40 @@
     .cost-calculator div { flex: 1; text-align: center; }
     .cost-calculator p { margin: 0; color: #4b5563; font-weight: 500; font-size: 14px; }
     .cost-calculator .cost-value { font-size: 22px; font-weight: bold; color: #1e293b; }
+    /* Nouveaux styles pour le résumé financier dans la modale */
+    .financial-summary {
+        background-color: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+    .financial-summary .title {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.75rem;
+        font-size: 1.125rem;
+    }
+    .financial-summary .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .financial-summary .item { text-align: center; }
+    .financial-summary .label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .financial-summary .value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    .financial-summary .value.positive { color: #10b981; }
+    .financial-summary .value.negative { color: #ef4444; }
+
 </style>
 {% endblock %}
 
@@ -85,22 +119,6 @@
     </div>
 </div>
 
-<div id="price-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center">
-    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">Modifier le prix du pack</h2>
-        <input type="hidden" id="price-trip-id">
-        <div class="mb-4">
-            <div id="price-comparison" class="bg-gray-50 p-4 rounded-lg mb-4 text-sm"></div>
-            <label for="new-pack-price" class="block text-sm font-medium text-slate-700 mb-2">Nouveau prix du pack (€)</label>
-            <input type="number" id="new-pack-price" class="w-full rounded-md border-slate-300 shadow-sm">
-        </div>
-        <div class="flex justify-end space-x-3">
-            <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-            <button type="button" id="save-price-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer</button>
-        </div>
-    </div>
-</div>
-
 <div id="send-offer-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center">
     <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
         <h2 class="text-xl font-bold mb-4">Options d'envoi de l'offre</h2>
@@ -142,18 +160,22 @@
 <div id="edit-trip-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center overflow-y-auto p-4">
     <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl">
         <input type="hidden" id="trip-id-to-edit">
+        
         <div class="summary-view">
-            <h2 class="text-xl font-bold mb-4">Ajuster l'offre client</h2>
+            <h2 class="text-xl font-bold mb-4" id="edit-modal-title">Ajuster l'offre</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <h3 class="font-semibold mb-2 text-slate-700">Résumé du voyage</h3>
                     <div id="trip-summary" class="summary-grid"></div>
                 </div>
-                <div>
-                    <h3 class="font-semibold mb-2 text-slate-700">Analyse Financière</h3>
-                    <div id="price-summary" class="text-sm space-y-2 bg-slate-50 p-4 rounded-md"></div>
+                 <div>
+                    <h3 class="font-semibold mb-2 text-slate-700">Client</h3>
+                    <div id="client-summary" class="text-sm space-y-2 bg-slate-50 p-4 rounded-md"></div>
                 </div>
             </div>
+
+            <div id="financial-summary-view" class="financial-summary"></div>
+
             <div class="mt-6 flex justify-end space-x-3">
                 <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Fermer</button>
                 <button type="button" id="open-edit-view-btn" class="bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg">Modifier le voyage</button>
@@ -178,7 +200,6 @@
         const tableBody = document.getElementById('trips-table-body');
         const clientModal = document.getElementById('client-modal-dashboard');
         const editTripModal = document.getElementById('edit-trip-modal');
-        const priceModal = document.getElementById('price-modal');
         const sendOfferModal = document.getElementById('send-offer-modal');
         let currentTripInfo = { id: null, rowElement: null };
         let currentEditingTripData = null;
@@ -224,7 +245,7 @@
                         </td>
                         <td class="p-3 text-right space-x-2">
                             ${viewOnlineLink}
-                            <button data-action="edit-price" title="Modifier le prix" class="text-yellow-500 text-xl">💶</button>
+                            <button data-action="edit-trip" title="Modifier le prix/voyage" class="text-yellow-500 text-xl">⚙️</button>
                             <button data-action="whatsapp" title="Partager sur WhatsApp" class="text-green-500 text-xl">✳️</button>
                             <button data-action="sell" title="Assigner à un client" class="text-blue-500 text-xl">💰</button>
                             <button data-action="delete" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
@@ -347,8 +368,6 @@
             } else if (action === 'send-offer') {
                 document.getElementById('send-offer-trip-id').value = tripId;
                 sendOfferModal.classList.add('is-open');
-            } else if (action === 'edit-price') {
-                openPriceModal(tripId);
             } else if (action === 'whatsapp') {
                 if (confirm('Envoyer cette offre sur le canal WhatsApp ?')) {
                     sendToWhatsApp(tripId, button);
@@ -422,14 +441,15 @@
             }
         });
 
-        // --- DÉBUT DES FONCTIONS CORRIGÉES / AJOUTÉES ---
+        // --- DÉBUT DES FONCTIONS MODIFIÉES / AJOUTÉES ---
 
         function populateEditTripModal(tripData) {
             currentEditingTripData = tripData;
             const fullData = JSON.parse(tripData.full_data_json);
             const formData = fullData.form_data;
             const summaryContainer = document.getElementById('trip-summary');
-            const priceContainer = document.getElementById('price-summary');
+            const clientContainer = document.getElementById('client-summary');
+            const modalTitle = document.getElementById('edit-modal-title');
 
             summaryContainer.innerHTML = `
                 <div class="summary-item col-span-full"><i class="fas fa-hotel"></i> ${formData.hotel_name}</div>
@@ -441,17 +461,52 @@
                 <div class="summary-item"><i class="fas fa-car"></i> Location: ${formData.car_rental_cost}€</div>
             `;
             
-            priceContainer.innerHTML = `
-                <div class="flex justify-between"><span>Prix Pack Client:</span> <span class="font-bold">${formData.pack_price}€</span></div>
-                <div class="flex justify-between"><span>Coût Total B2B:</span> <span>${fullData.margin + formData.pack_price}€</span></div>
-                <hr class="my-1">
-                <div class="flex justify-between text-blue-600"><span>Marge Finale:</span> <span class="font-bold">${fullData.margin}€</span></div>
-                <hr class="my-1">
-                <div class="flex justify-between"><span>Coût Total B2C:</span> <span>${fullData.comparison_total}€</span></div>
-                <div class="flex justify-between text-green-600"><span>Économie Client:</span> <span class="font-bold">${fullData.savings}€</span></div>
+            if (tripData.status === 'assigned') {
+                modalTitle.textContent = "Ajuster l'offre client";
+                clientContainer.parentElement.style.display = 'block';
+                clientContainer.innerHTML = `
+                    <div class="summary-item"><i class="fas fa-user"></i> ${tripData.client_full_name}</div>
+                    <div class="summary-item"><i class="fas fa-envelope"></i> ${tripData.client_email || 'Non renseigné'}</div>
+                `;
+            } else {
+                modalTitle.textContent = "Modifier le voyage proposé";
+                clientContainer.parentElement.style.display = 'none';
+            }
+            
+            updateFinancialSummary(formData); // Affiche les calculs
+            document.getElementById('trip-id-to-edit').value = tripData.id;
+        }
+
+        function updateFinancialSummary(formData, containerPrefix = '') {
+            const getVal = (key) => parseFloat(formData[key]) || 0;
+            
+            const hotelB2B = getVal('hotel_b2b_price');
+            const flight = getVal('flight_price');
+            const transfer = getVal('transfer_cost');
+            const car = getVal('car_rental_cost');
+            const surcharge = getVal('surcharge_cost');
+            const hotelB2C = getVal('hotel_b2c_price');
+            const packPrice = getVal('pack_price');
+            
+            const totalB2B = hotelB2B + flight + transfer + car + surcharge;
+            const totalB2C = hotelB2C + flight + transfer + car + surcharge;
+            const margin = packPrice - totalB2B;
+            const savings = totalB2C - packPrice;
+            
+            const summaryHTML = `
+                <h3 class="title">Analyse Financière</h3>
+                <div class="grid">
+                    <div class="item"><div class="label">Coût B2B</div><div class="value">${totalB2B}€</div></div>
+                    <div class="item"><div class="label">Coût B2C</div><div class="value">${totalB2C}€</div></div>
+                    <div class="item"><div class="label">Économie Client</div><div class="value ${savings >= 0 ? 'positive' : 'negative'}">${savings}€</div></div>
+                    <div class="item"><div class="label">Marge Finale</div><div class="value ${margin >= 0 ? 'positive' : 'negative'}">${margin}€</div></div>
+                </div>
             `;
             
-            document.getElementById('trip-id-to-edit').value = tripData.id;
+            document.getElementById('financial-summary-view').innerHTML = summaryHTML;
+            if(document.getElementById('financial-summary-edit')) {
+                document.getElementById('financial-summary-edit').innerHTML = summaryHTML;
+            }
         }
 
         document.getElementById('open-edit-view-btn').addEventListener('click', function() {
@@ -464,19 +519,23 @@
             const formData = fullData.form_data;
             const form = document.getElementById('edit-trip-form');
             form.innerHTML = `
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label>Nom Hôtel</label><input type="text" name="hotel_name" value="${formData.hotel_name}" class="w-full p-2 border rounded"></div>
                     <div><label>Destination</label><input type="text" name="destination" value="${formData.destination}" class="w-full p-2 border rounded"></div>
                     <div><label>Date Début</label><input type="text" name="date_start" value="${formData.date_start}" class="w-full p-2 border rounded"></div>
                     <div><label>Date Fin</label><input type="text" name="date_end" value="${formData.date_end}" class="w-full p-2 border rounded"></div>
-                    <div><label>Prix Pack (€)</label><input type="number" name="pack_price" value="${formData.pack_price}" class="w-full p-2 border rounded"></div>
                     <div><label>Prix Vol (€)</label><input type="number" name="flight_price" value="${formData.flight_price}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Transfert (€)</label><input type="number" name="transfer_cost" value="${formData.transfer_cost}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Location Voiture (€)</label><input type="number" name="car_rental_cost" value="${formData.car_rental_cost}" class="w-full p-2 border rounded"></div>
-                    <div><label>Tarif B2B (€)</label><input type="number" name="hotel_b2b_price" value="${formData.hotel_b2b_price}" class="w-full p-2 border rounded"></div>
-                    <div><label>Tarif B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
+                    <div><label>Coût Surcoût</label><input type="number" name="surcharge_cost" value="${formData.surcharge_cost || 0}" class="w-full p-2 border rounded"></div>
+                    <div><label>Tarif Hôtel B2B (€)</label><input type="number" name="hotel_b2b_price" value="${formData.hotel_b2b_price}" class="w-full p-2 border rounded"></div>
+                    <div><label>Tarif Hôtel B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
+                    <div class="md:col-span-2"><label>Prix Pack Final (€)</label><input type="number" name="pack_price" value="${formData.pack_price}" class="w-full p-2 border rounded font-bold text-lg"></div>
                 </div>
                 <div class="mt-4"><label>Services Exclusifs</label><textarea name="exclusive_services" class="w-full p-2 border rounded">${formData.exclusive_services || ''}</textarea></div>
+                
+                <div id="financial-summary-edit" class="financial-summary"></div>
+
                 <div class="mt-6 flex justify-end space-x-3">
                     <button type="button" class="cancel-edit-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
                     <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder</button>
@@ -486,6 +545,16 @@
             form.querySelector('.cancel-edit-btn').addEventListener('click', () => {
                 editTripModal.classList.remove('is-editing');
             });
+
+            // Recalcul en temps réel
+            form.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('input', () => {
+                    const currentFormData = new FormData(form);
+                    const data = Object.fromEntries(currentFormData.entries());
+                    updateFinancialSummary(data, 'edit');
+                });
+            });
+            updateFinancialSummary(formData, 'edit'); // Affichage initial
         }
 
         document.getElementById('edit-trip-form').addEventListener('submit', async function(e) {
@@ -517,7 +586,7 @@
             }
         });
         
-        // --- FIN DES FONCTIONS CORRIGÉES / AJOUTÉES ---
+        // --- FIN DES FONCTIONS MODIFIÉES / AJOUTÉES ---
 
         async function deleteTrip(tripId, tripRow) {
             try {
@@ -564,53 +633,6 @@
                 return null;
             }
         }
-
-        async function openPriceModal(tripId) {
-            const tripData = await getTripDetails(tripId);
-            if (!tripData) return;
-            const fullData = JSON.parse(tripData.full_data_json);
-            const formData = fullData.form_data;
-            document.getElementById('price-trip-id').value = tripId;
-            document.getElementById('new-pack-price').value = formData.pack_price;
-            const comparisonDiv = document.getElementById('price-comparison');
-            comparisonDiv.innerHTML = `
-                <p><strong>Prix actuel:</strong> ${formData.pack_price}€</p>
-                <p><strong>Marge actuelle:</strong> ${fullData.margin}€</p>
-                <p><strong>Économies client:</strong> ${fullData.savings}€</p>
-            `;
-            priceModal.classList.add('is-open');
-        }
-
-        document.getElementById('save-price-btn').addEventListener('click', async function() {
-            const tripId = document.getElementById('price-trip-id').value;
-            const newPrice = document.getElementById('new-pack-price').value;
-            if (!newPrice || newPrice <= 0) {
-                alert('Veuillez entrer un prix valide');
-                return;
-            }
-            const tripData = await getTripDetails(tripId);
-            if (!tripData) return;
-            const fullData = JSON.parse(tripData.full_data_json);
-            const formData = fullData.form_data;
-            formData.pack_price = newPrice;
-            try {
-                const response = await fetch(`/api/trip/${tripId}/update`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert('Prix mis à jour avec succès !');
-                    priceModal.classList.remove('is-open');
-                    fetchTrips();
-                } else {
-                    alert('Erreur: ' + result.message);
-                }
-            } catch (error) {
-                alert('Erreur lors de la mise à jour du prix');
-            }
-        });
 
         const sendOfferForm = document.getElementById('send-offer-form');
         const downPaymentFields = document.getElementById('down-payment-fields');

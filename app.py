@@ -1,8 +1,8 @@
 # app.py
 import os
 import json
-from datetime import datetime
-import traceback # Ajout pour un logging détaillé
+from datetime import datetime, date
+import traceback
 
 from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -90,7 +90,7 @@ def create_app(config_class=Config):
                                username=session.get('username'), 
                                view_mode=view_mode,
                                site_public_url=app.config.get('SITE_PUBLIC_URL', ''),
-                               google_api_key=app.config['GOOGLE_API_KEY']) # Ajout de la clé API
+                               google_api_key=app.config['GOOGLE_API_KEY'])
                                
     @app.route('/test-ftp')
     def test_ftp():
@@ -124,11 +124,9 @@ def create_app(config_class=Config):
                 surcharge_cost = int(data.get('surcharge_cost', 0))
                 car_rental_cost = int(data.get('car_rental_cost', 0))
 
-                # Coût total pour l'agence (base de la marge)
                 total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
                 margin = pack_price - total_cost_b2b
 
-                # Coût total pour le client (base de l'économie)
                 comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
                 savings = comparison_total - pack_price
 
@@ -176,7 +174,7 @@ def create_app(config_class=Config):
             full_data_json=json.dumps(data),
             hotel_name=form_data.get('hotel_name'),
             destination=form_data.get('destination'),
-            price=int(form_data.get('pack_price', 0)), # Utilise le prix du pack
+            price=int(form_data.get('pack_price', 0)),
             status=data.get('status', 'proposed')
         )
         
@@ -285,7 +283,7 @@ def create_app(config_class=Config):
             full_data['comparison_total'] = comparison_total
             full_data['savings'] = savings
             
-            trip.price = pack_price # Mettre à jour le prix principal du voyage
+            trip.price = pack_price
             trip.full_data_json = json.dumps(full_data)
             
             if trip.status == 'assigned':
@@ -339,7 +337,7 @@ def create_app(config_class=Config):
                 return jsonify({'success': True, 'message': 'Voyage publié !', 'trip': trip.to_dict()})
             else:
                 return jsonify({'success': False, 'message': 'Erreur lors de la publication.'}), 500
-        else: # Unpublish
+        else:
             if trip.published_filename and publication_service.unpublish(trip.published_filename, is_client_offer=False):
                 trip.is_published = False
                 trip.published_filename = None
@@ -355,6 +353,7 @@ def create_app(config_class=Config):
     @app.route('/api/trip/<int:trip_id>/send-offer', methods=['POST'])
     def send_offer_email(trip_id):
         trip = Trip.query.get_or_404(trip_id)
+        data = request.get_json()
 
         if not trip.client_email:
             return jsonify({'success': False, 'message': 'Aucun email de client associé à ce voyage.'}), 400
@@ -363,22 +362,33 @@ def create_app(config_class=Config):
             return jsonify({'success': False, 'message': "L'offre pour ce client n'a pas de page privée publiée."}), 500
         
         client_offer_url = f"{app.config['SITE_PUBLIC_URL']}/clients/{trip.client_published_filename}"
+        payment_type = data.get('payment_type', 'total')
+        amount_to_pay = trip.price
+        
+        # Logique pour l'acompte
+        if payment_type == 'down_payment':
+            try:
+                down_payment_amount = int(data.get('down_payment_amount'))
+                balance_due_date_str = data.get('balance_due_date')
+                trip.down_payment_amount = down_payment_amount
+                trip.balance_due_date = datetime.strptime(balance_due_date_str, '%Y-%m-%d').date()
+                amount_to_pay = down_payment_amount
+            except (TypeError, ValueError) as e:
+                return jsonify({'success': False, 'message': f'Données d\'acompte invalides: {e}'}), 400
+        else:
+            trip.down_payment_amount = None
+            trip.balance_due_date = None
 
         try:
-            print(f"ℹ️ [Trip ID: {trip.id}] Début de l'envoi de l'offre à {trip.client_email}.")
             product_name = f"Voyage: {trip.hotel_name} pour {trip.client_first_name} {trip.client_last_name}"
             
-            print(f"ℹ️ [Trip ID: {trip.id}] Création du produit sur Stripe...")
             product = stripe.Product.create(name=product_name)
-            
-            print(f"ℹ️ [Trip ID: {trip.id}] Création du prix sur Stripe...")
             price = stripe.Price.create(
                 product=product.id,
-                unit_amount=trip.price * 100,
+                unit_amount=amount_to_pay * 100, # Montant adapté
                 currency="eur",
             )
             
-            print(f"ℹ️ [Trip ID: {trip.id}] Création de la session de paiement Stripe...")
             checkout_session = stripe.checkout.Session.create(
                 line_items=[{'price': price.id, 'quantity': 1}],
                 mode='payment',
@@ -389,7 +399,6 @@ def create_app(config_class=Config):
             )
             trip.stripe_payment_link = checkout_session.url
             db.session.commit()
-            print(f"✅ [Trip ID: {trip.id}] Lien de paiement Stripe créé et sauvegardé.")
 
         except Exception as e:
             print(f"❌ [Trip ID: {trip.id}] Erreur Stripe: {e}")
@@ -397,14 +406,32 @@ def create_app(config_class=Config):
 
         try:
             client_name = f"{trip.client_first_name} {trip.client_last_name}"
-            email_html = render_template(
-                'offer_template.html',
-                client_name=client_name,
-                hotel_name=trip.hotel_name,
-                destination=trip.destination,
-                public_offer_url=client_offer_url,
-                stripe_payment_link=trip.stripe_payment_link
-            )
+            
+            if payment_type == 'down_payment':
+                balance_amount = trip.price - trip.down_payment_amount
+                balance_due_date_formatted = trip.balance_due_date.strftime('%d/%m/%Y')
+                template = 'offer_template_down_payment.html'
+                email_context = {
+                    'client_name': client_name,
+                    'hotel_name': trip.hotel_name,
+                    'destination': trip.destination,
+                    'public_offer_url': client_offer_url,
+                    'stripe_payment_link': trip.stripe_payment_link,
+                    'down_payment_amount': trip.down_payment_amount,
+                    'balance_amount': balance_amount,
+                    'balance_due_date': balance_due_date_formatted
+                }
+            else:
+                template = 'offer_template.html'
+                email_context = {
+                    'client_name': client_name,
+                    'hotel_name': trip.hotel_name,
+                    'destination': trip.destination,
+                    'public_offer_url': client_offer_url,
+                    'stripe_payment_link': trip.stripe_payment_link
+                }
+
+            email_html = render_template(template, **email_context)
             msg = Message(
                 subject=f"Votre proposition de voyage pour {trip.destination}",
                 sender=("Voyages Privilèges", app.config['MAIL_DEFAULT_SENDER']),
@@ -412,16 +439,12 @@ def create_app(config_class=Config):
             )
             msg.html = email_html
             
-            print(f"ℹ️ [Trip ID: {trip.id}] Envoi de l'e-mail via le serveur {app.config['MAIL_SERVER']}...")
             mail.send(msg)
-            print(f"✅ [Trip ID: {trip.id}] E-mail envoyé avec succès.")
             
         except Exception as e:
-            # --- MODIFICATION POUR LE DEBUGGING ---
             print(f"❌ [Trip ID: {trip.id}] ERREUR DÉTAILLÉE LORS DE L'ENVOI DE L'EMAIL:")
-            traceback.print_exc() # Affiche l'erreur complète dans les logs
+            traceback.print_exc()
             return jsonify({'success': False, 'message': f"Erreur lors de l'envoi de l'email: {str(e)}"}), 500
-            # --- FIN DE LA MODIFICATION ---
 
         return jsonify({'success': True, 'message': 'Offre envoyée avec succès par email !'})
 
@@ -436,5 +459,4 @@ if __name__ == '__main__':
     app = create_app()
     app.run(debug=True)
 
-# Ajout pour Gunicorn - créer l'instance app au niveau du module
 app = create_app()

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Votre Proposition de Voyage - Acompte</title>
+</head>
+<body>
+    <h1>Bonjour {{ client_name }},</h1>
+    <p>Suite à notre conversation, voici la proposition de voyage pour <strong>{{ hotel_name }}</strong> à <strong>{{ destination }}</strong>.</p>
+    <p>Vous pouvez consulter tous les détails de cette offre exclusive en cliquant sur le lien ci-dessous :</p>
+    <a href="{{ public_offer_url }}">Voir mon offre personnalisée</a>
+    <br><br>
+    <h3>Confirmation de votre réservation</h3>
+    <p>
+        Pour confirmer définitivement votre voyage, veuillez régler un acompte de <strong>{{ down_payment_amount }} €</strong> dès maintenant en utilisant ce lien de paiement sécurisé :
+    </p>
+    <a href="{{ stripe_payment_link }}">Payer mon acompte</a>
+    <br><br>
+    <h3>Paiement du solde</h3>
+    <p>
+        Le solde restant de <strong>{{ balance_amount }} €</strong> devra être réglé au plus tard le <strong>{{ balance_due_date }}</strong>.
+    </p>
+    <p>
+        Le paiement du solde peut être effectué par virement bancaire aux coordonnées suivantes :
+    </p>
+    <ul>
+        <li><strong>Bénéficiaire :</strong> Ridea SRL OldiBike</li>
+        <li><strong>IBAN :</strong> BE36002010527181</li>
+        <li><strong>Communication :</strong> {{ client_name }} VP</li>
+    </ul>
+    <br>
+    <p>Cordialement,</p>
+    <p>L'équipe de Voyages Privilèges</p>
+</body>
+</html>

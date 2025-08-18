@@ -16,11 +16,9 @@ class Trip(db.Model):
     
     status = db.Column(db.String(50), nullable=False, default='proposed')
     
-    # Fichier pour l'offre publique dans /offres/
     is_published = db.Column(db.Boolean, default=False)
     published_filename = db.Column(db.String(255), nullable=True)
     
-    # --- NOUVEAU CHAMP POUR LE FICHIER PRIVÉ DANS /clients/ ---
     client_published_filename = db.Column(db.String(255), nullable=True)
     
     client_first_name = db.Column(db.String(100), nullable=True)
@@ -28,6 +26,11 @@ class Trip(db.Model):
     client_email = db.Column(db.String(120), nullable=True)
     
     stripe_payment_link = db.Column(db.Text, nullable=True)
+
+    # --- NOUVEAUX CHAMPS ---
+    down_payment_amount = db.Column(db.Integer, nullable=True)
+    balance_due_date = db.Column(db.Date, nullable=True)
+    # --- FIN DES NOUVEAUX CHAMPS ---
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     assigned_at = db.Column(db.DateTime, nullable=True)
@@ -43,11 +46,13 @@ class Trip(db.Model):
             'status': self.status,
             'is_published': self.is_published,
             'published_filename': self.published_filename,
-            'client_published_filename': self.client_published_filename, # Ajout du nouveau champ
+            'client_published_filename': self.client_published_filename,
             'client_full_name': f"{self.client_first_name or ''} {self.client_last_name or ''}".strip(),
             'created_at': self.created_at.strftime('%d/%m/%Y'),
             'assigned_at': self.assigned_at.strftime('%d/%m/%Y') if self.assigned_at else None,
             'sold_at': self.sold_at.strftime('%d/%m/%Y') if self.sold_at else None,
+            'down_payment_amount': self.down_payment_amount,
+            'balance_due_date': self.balance_due_date.strftime('%d/%m/%Y') if self.balance_due_date else None,
         }
 
     def __repr__(self):

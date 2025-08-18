@@ -127,6 +127,8 @@ class PublicationService:
                 timeout=30
             )
             
+            print(f"🔍 Réponse API DELETE: Status={response.status_code}, Body={response.text}")
+
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):

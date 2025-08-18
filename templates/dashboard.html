@@ -210,7 +210,7 @@
                 if (viewMode === 'proposed') {
                     const viewOnlineLink = trip.is_published 
                         ? `<a href="${sitePublicUrl}/offres/${trip.published_filename}" target="_blank" title="Voir la fiche en ligne" class="text-blue-500 text-xl">👁️</a>`
-                        : `<span title="Publiez pour voir le lien" class="text-gray-400 text-xl cursor-not-allowed">👁️</span>`;
+                        : `<a title="Publiez pour voir le lien" class="text-gray-400 text-xl cursor-not-allowed">👁️</a>`;
                     
                     rowHtml = `
                         <td class="p-3 text-sm text-slate-600">${trip.created_at}</td>
@@ -232,7 +232,7 @@
                 } else if (viewMode === 'assigned') {
                     const viewClientOfferLink = trip.client_published_filename
                         ? `<a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" title="Voir l'offre client" class="text-blue-500 text-xl">👁️</a>`
-                        : `<span title="L'offre client n'est pas publiée" class="text-gray-400 text-xl cursor-not-allowed">👁️</span>`;
+                        : `<a title="L'offre client n'est pas publiée" class="text-gray-400 text-xl cursor-not-allowed">👁️</a>`;
 
                      rowHtml = `
                         <td class="p-3 text-sm text-slate-600">${trip.assigned_at}</td>
@@ -358,8 +358,183 @@
                 }
             }
         });
-        
-        // Le reste de votre JS ...
+
+        // --- DÉBUT DU BLOC DE CODE AJOUTÉ ---
+
+        // Gestion du toggle de publication
+        tableBody.addEventListener('change', async function(e) {
+            if (e.target.type === 'checkbox') {
+                const tripRow = e.target.closest('tr');
+                const tripId = tripRow.dataset.tripId;
+                const isChecked = e.target.checked;
+                
+                try {
+                    const response = await fetch(`/api/trip/${tripId}/publish`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ publish: isChecked })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Mettre à jour le lien de visualisation
+                        const viewLink = tripRow.querySelector('a[title="Voir la fiche en ligne"], a[title="Publiez pour voir le lien"]');
+                        if (viewLink) {
+                            if (isChecked && result.trip.published_filename) {
+                                viewLink.href = `${sitePublicUrl}/offres/${result.trip.published_filename}`;
+                                viewLink.classList.remove('text-gray-400', 'cursor-not-allowed');
+                                viewLink.classList.add('text-blue-500');
+                                viewLink.removeAttribute('title');
+                                viewLink.setAttribute('title', 'Voir la fiche en ligne');
+                            } else {
+                                viewLink.removeAttribute('href');
+                                viewLink.classList.remove('text-blue-500');
+                                viewLink.classList.add('text-gray-400', 'cursor-not-allowed');
+                                viewLink.setAttribute('title', 'Publiez pour voir le lien');
+                            }
+                        }
+                        console.log(result.message);
+                    } else {
+                        // Reverser le checkbox en cas d'erreur
+                        e.target.checked = !isChecked;
+                        alert('Erreur: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    e.target.checked = !isChecked;
+                    alert('Erreur réseau lors de la publication/dépublication');
+                }
+            }
+        });
+
+        // Fonction pour supprimer un voyage
+        async function deleteTrip(tripId, tripRow) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    tripRow.remove();
+                    
+                    // Vérifier s'il reste des voyages
+                    const remainingRows = tableBody.querySelectorAll('tr:not(#loading-row)');
+                    if (remainingRows.length === 0) {
+                        tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Aucun voyage à afficher.</td></tr>`;
+                    }
+                } else {
+                    alert('Erreur lors de la suppression: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau lors de la suppression');
+            }
+        }
+
+        // Fonction pour mettre à jour le statut d'un voyage
+        async function updateTripStatus(tripId, statusData, tripRow) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(statusData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Recharger la table après le changement de statut
+                    fetchTrips();
+                } else {
+                    alert('Erreur lors de la mise à jour: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau lors de la mise à jour du statut');
+            }
+        }
+
+        // Fonction pour obtenir les détails d'un voyage
+        async function getTripDetails(tripId) {
+            try {
+                const response = await fetch(`/api/trip/${tripId}`);
+                if (!response.ok) throw new Error('Erreur lors de la récupération des détails');
+                return await response.json();
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur lors de la récupération des détails du voyage');
+                return null;
+            }
+        }
+
+        // Fonction pour ouvrir la modale de prix
+        async function openPriceModal(tripId) {
+            const tripData = await getTripDetails(tripId);
+            if (!tripData) return;
+            
+            const fullData = JSON.parse(tripData.full_data_json);
+            const formData = fullData.form_data;
+            
+            document.getElementById('price-trip-id').value = tripId;
+            document.getElementById('new-pack-price').value = formData.pack_price;
+            
+            // Afficher les détails actuels
+            const comparisonDiv = document.getElementById('price-comparison');
+            comparisonDiv.innerHTML = `
+                <p><strong>Prix actuel:</strong> ${formData.pack_price}€</p>
+                <p><strong>Marge actuelle:</strong> ${fullData.margin}€</p>
+                <p><strong>Économies client:</strong> ${fullData.savings}€</p>
+            `;
+            
+            priceModal.classList.add('is-open');
+        }
+
+        // Gestionnaire pour sauvegarder le nouveau prix
+        document.getElementById('save-price-btn').addEventListener('click', async function() {
+            const tripId = document.getElementById('price-trip-id').value;
+            const newPrice = document.getElementById('new-pack-price').value;
+            
+            if (!newPrice || newPrice <= 0) {
+                alert('Veuillez entrer un prix valide');
+                return;
+            }
+            
+            // Récupérer les données actuelles du voyage
+            const tripData = await getTripDetails(tripId);
+            if (!tripData) return;
+            
+            const fullData = JSON.parse(tripData.full_data_json);
+            const formData = fullData.form_data;
+            
+            // Mettre à jour le prix
+            formData.pack_price = newPrice;
+            
+            try {
+                const response = await fetch(`/api/trip/${tripId}/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Prix mis à jour avec succès !');
+                    priceModal.classList.remove('is-open');
+                    fetchTrips(); // Recharger la table
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur lors de la mise à jour du prix');
+            }
+        });
+
+        // --- FIN DU BLOC DE CODE AJOUTÉ ---
         
         // --- GESTION DE LA MODALE D'ENVOI D'OFFRE ---
         const sendOfferForm = document.getElementById('send-offer-form');

@@ -126,9 +126,8 @@ class PublicationService:
                 headers=headers,
                 timeout=30
             )
-            
             print(f"🔍 Réponse API DELETE: Status={response.status_code}, Body={response.text}")
-
+            
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
@@ -175,7 +174,6 @@ class RealAPIGatherer:
             genai.configure(api_key=self.google_api_key)
             print("✅ Clé API Google chargée")
 
-    # --- NOUVELLE FONCTION ---
     def generate_whatsapp_catchphrase(self, trip_details):
         if not self.google_api_key:
             return "Une offre à ne pas manquer !"
@@ -189,13 +187,11 @@ class RealAPIGatherer:
                 f"'Saisissez cette chance unique de découvrir {trip_details['hotel_name']} ! ✨'"
             )
             response = model.generate_content(prompt)
-            # Nettoyage simple pour enlever les astérisques ou guillemets
             clean_text = response.text.strip().replace('*', '').replace('"', '')
             return clean_text
         except Exception as e:
             print(f"❌ Erreur API Gemini (catchphrase): {e}")
             return "Découvrez notre offre exclusive pour cette destination de rêve !"
-    # --- FIN DE LA NOUVELLE FONCTION ---
             
     def get_real_hotel_photos(self, hotel_name, destination):
         if not self.google_api_key: return []

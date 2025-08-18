@@ -246,14 +246,22 @@
                             <button data-action="delete" title="Supprimer la fiche client" class="text-red-500 text-xl">🗑️</button>
                         </td>`;
                 } else if (viewMode === 'sold') {
-                    // ... code pour la vue 'sold'
+                    // Adapté pour la vue 'sold'
+                    rowHtml = `
+                        <td class="p-3 text-sm text-slate-600">${trip.sold_at || 'N/A'}</td>
+                        <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
+                        <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
+                        <td class="p-3 text-sm text-slate-600">${trip.price}€</td>
+                        <td class="p-3 text-right space-x-2">
+                             <a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" title="Voir l'offre client" class="text-blue-500 text-xl">👁️</a>
+                             <button data-action="delete" title="Supprimer l'archive" class="text-red-500 text-xl">🗑️</button>
+                        </td>`;
                 }
                 row.innerHTML = rowHtml;
                 tableBody.appendChild(row);
             });
         }
         
-        // --- NOUVELLE FONCTION WHATSAPP ---
         async function sendToWhatsApp(tripId, button) {
             const originalIcon = button.innerHTML;
             button.innerHTML = '⏳';
@@ -352,14 +360,12 @@
                 sendOfferModal.classList.add('is-open');
             } else if (action === 'edit-price') {
                 openPriceModal(tripId);
-            } else if (action === 'whatsapp') { // --- NOUVELLE ACTION ---
+            } else if (action === 'whatsapp') {
                 if (confirm('Envoyer cette offre sur le canal WhatsApp ?')) {
                     sendToWhatsApp(tripId, button);
                 }
             }
         });
-
-        // --- DÉBUT DU BLOC DE CODE AJOUTÉ ---
 
         // Gestion du toggle de publication
         tableBody.addEventListener('change', async function(e) {
@@ -378,14 +384,14 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        // Mettre à jour le lien de visualisation
-                        const viewLink = tripRow.querySelector('a[title="Voir la fiche en ligne"], a[title="Publiez pour voir le lien"]');
+                        const viewLinkContainer = tripRow.querySelector('td:last-child');
+                        const viewLink = viewLinkContainer.querySelector('a[title="Voir la fiche en ligne"], a[title="Publiez pour voir le lien"]');
+
                         if (viewLink) {
                             if (isChecked && result.trip.published_filename) {
                                 viewLink.href = `${sitePublicUrl}/offres/${result.trip.published_filename}`;
                                 viewLink.classList.remove('text-gray-400', 'cursor-not-allowed');
                                 viewLink.classList.add('text-blue-500');
-                                viewLink.removeAttribute('title');
                                 viewLink.setAttribute('title', 'Voir la fiche en ligne');
                             } else {
                                 viewLink.removeAttribute('href');
@@ -396,7 +402,6 @@
                         }
                         console.log(result.message);
                     } else {
-                        // Reverser le checkbox en cas d'erreur
                         e.target.checked = !isChecked;
                         alert('Erreur: ' + result.message);
                     }
@@ -408,21 +413,50 @@
             }
         });
 
-        // Fonction pour supprimer un voyage
+        // --- DÉBUT DU BLOC CORRIGÉ ---
+
+        // Gestion de la soumission du formulaire d'assignation
+        document.getElementById('client-form-dashboard').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tripId = document.getElementById('trip-id-to-assign').value;
+            const clientData = {
+                client_first_name: document.getElementById('client_first_name_dashboard').value,
+                client_last_name: document.getElementById('client_last_name_dashboard').value,
+                client_email: document.getElementById('client_email_dashboard').value,
+            };
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/assign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Voyage assigné avec succès !');
+                    clientModal.classList.remove('is-open');
+                    this.reset();
+                    fetchTrips(); // Recharger la table
+                } else {
+                    alert('Erreur lors de l\'assignation: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau lors de l\'assignation');
+            }
+        });
+
+        // --- FIN DU BLOC CORRIGÉ ---
+
         async function deleteTrip(tripId, tripRow) {
             try {
                 const response = await fetch(`/api/trip/${tripId}`, {
                     method: 'DELETE'
                 });
-                
                 const result = await response.json();
-                
                 if (result.success) {
                     tripRow.remove();
-                    
-                    // Vérifier s'il reste des voyages
-                    const remainingRows = tableBody.querySelectorAll('tr:not(#loading-row)');
-                    if (remainingRows.length === 0) {
+                    if (tableBody.querySelectorAll('tr:not(#loading-row)').length === 0) {
                         tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-slate-500">Aucun voyage à afficher.</td></tr>`;
                     }
                 } else {
@@ -434,7 +468,6 @@
             }
         }
 
-        // Fonction pour mettre à jour le statut d'un voyage
         async function updateTripStatus(tripId, statusData, tripRow) {
             try {
                 const response = await fetch(`/api/trip/${tripId}/status`, {
@@ -442,11 +475,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(statusData)
                 });
-                
                 const result = await response.json();
-                
                 if (result.success) {
-                    // Recharger la table après le changement de statut
                     fetchTrips();
                 } else {
                     alert('Erreur lors de la mise à jour: ' + result.message);
@@ -457,7 +487,6 @@
             }
         }
 
-        // Fonction pour obtenir les détails d'un voyage
         async function getTripDetails(tripId) {
             try {
                 const response = await fetch(`/api/trip/${tripId}`);
@@ -470,61 +499,45 @@
             }
         }
 
-        // Fonction pour ouvrir la modale de prix
         async function openPriceModal(tripId) {
             const tripData = await getTripDetails(tripId);
             if (!tripData) return;
-            
             const fullData = JSON.parse(tripData.full_data_json);
             const formData = fullData.form_data;
-            
             document.getElementById('price-trip-id').value = tripId;
             document.getElementById('new-pack-price').value = formData.pack_price;
-            
-            // Afficher les détails actuels
             const comparisonDiv = document.getElementById('price-comparison');
             comparisonDiv.innerHTML = `
                 <p><strong>Prix actuel:</strong> ${formData.pack_price}€</p>
                 <p><strong>Marge actuelle:</strong> ${fullData.margin}€</p>
                 <p><strong>Économies client:</strong> ${fullData.savings}€</p>
             `;
-            
             priceModal.classList.add('is-open');
         }
 
-        // Gestionnaire pour sauvegarder le nouveau prix
         document.getElementById('save-price-btn').addEventListener('click', async function() {
             const tripId = document.getElementById('price-trip-id').value;
             const newPrice = document.getElementById('new-pack-price').value;
-            
             if (!newPrice || newPrice <= 0) {
                 alert('Veuillez entrer un prix valide');
                 return;
             }
-            
-            // Récupérer les données actuelles du voyage
             const tripData = await getTripDetails(tripId);
             if (!tripData) return;
-            
             const fullData = JSON.parse(tripData.full_data_json);
             const formData = fullData.form_data;
-            
-            // Mettre à jour le prix
             formData.pack_price = newPrice;
-            
             try {
                 const response = await fetch(`/api/trip/${tripId}/update`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
-                
                 const result = await response.json();
-                
                 if (result.success) {
                     alert('Prix mis à jour avec succès !');
                     priceModal.classList.remove('is-open');
-                    fetchTrips(); // Recharger la table
+                    fetchTrips();
                 } else {
                     alert('Erreur: ' + result.message);
                 }
@@ -534,44 +547,31 @@
             }
         });
 
-        // --- FIN DU BLOC DE CODE AJOUTÉ ---
-        
-        // --- GESTION DE LA MODALE D'ENVOI D'OFFRE ---
         const sendOfferForm = document.getElementById('send-offer-form');
         const downPaymentFields = document.getElementById('down-payment-fields');
         const paymentTypeRadios = document.querySelectorAll('input[name="payment_type"]');
-        
         let balanceDatePicker = new Litepicker({
             element: document.getElementById('balance_due_date'),
             singleMode: true, lang: 'fr-FR', format: 'YYYY-MM-DD'
         });
-
         paymentTypeRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
-                if (e.target.value === 'down_payment') {
-                    downPaymentFields.classList.remove('hidden');
-                } else {
-                    downPaymentFields.classList.add('hidden');
-                }
+                downPaymentFields.classList.toggle('hidden', e.target.value !== 'down_payment');
             });
         });
-
         sendOfferForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const tripId = document.getElementById('send-offer-trip-id').value;
             const button = e.target.querySelector('button[type="submit"]');
-
             const payload = {
                 payment_type: document.querySelector('input[name="payment_type"]:checked').value,
                 down_payment_amount: document.getElementById('down_payment_amount').value,
                 balance_due_date: document.getElementById('balance_due_date').value,
             };
-            
             if (payload.payment_type === 'down_payment' && (!payload.down_payment_amount || !payload.balance_due_date)) {
                 alert("Veuillez renseigner le montant de l'acompte et la date d'échéance du solde.");
                 return;
             }
-
             sendOfferEmail(tripId, payload, button);
         });
         

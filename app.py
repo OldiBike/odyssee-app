@@ -1,6 +1,7 @@
 # app.py
 import os
 import json
+import requests
 from datetime import datetime, date
 import traceback
 
@@ -365,7 +366,6 @@ def create_app(config_class=Config):
         payment_type = data.get('payment_type', 'total')
         amount_to_pay = trip.price
         
-        # Logique pour l'acompte
         if payment_type == 'down_payment':
             try:
                 down_payment_amount = int(data.get('down_payment_amount'))
@@ -385,7 +385,7 @@ def create_app(config_class=Config):
             product = stripe.Product.create(name=product_name)
             price = stripe.Price.create(
                 product=product.id,
-                unit_amount=amount_to_pay * 100, # Montant adapté
+                unit_amount=amount_to_pay * 100,
                 currency="eur",
             )
             
@@ -402,6 +402,7 @@ def create_app(config_class=Config):
 
         except Exception as e:
             print(f"❌ [Trip ID: {trip.id}] Erreur Stripe: {e}")
+            db.session.rollback()
             return jsonify({'success': False, 'message': f'Erreur lors de la création du lien de paiement Stripe: {e}'}), 500
 
         try:
@@ -438,7 +439,6 @@ def create_app(config_class=Config):
                 recipients=[trip.client_email]
             )
             msg.html = email_html
-            
             mail.send(msg)
             
         except Exception as e:
@@ -447,7 +447,74 @@ def create_app(config_class=Config):
             return jsonify({'success': False, 'message': f"Erreur lors de l'envoi de l'email: {str(e)}"}), 500
 
         return jsonify({'success': True, 'message': 'Offre envoyée avec succès par email !'})
+    
+    # --- NOUVELLE ROUTE POUR WHATSAPP ---
+    @app.route('/api/trip/<int:trip_id>/send-whatsapp', methods=['POST'])
+    def send_whatsapp_offer(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        n8n_webhook_url = app.config.get('N8N_WHATSAPP_WEBHOOK')
 
+        if not n8n_webhook_url:
+            return jsonify({'success': False, 'message': 'URL du webhook N8N non configurée.'}), 500
+        
+        if not trip.is_published or not trip.published_filename:
+            return jsonify({'success': False, 'message': 'Le voyage doit être publié pour être partagé.'}), 400
+
+        try:
+            full_data = json.loads(trip.full_data_json)
+            form_data = full_data.get('form_data', {})
+            api_data = full_data.get('api_data', {})
+            savings = full_data.get('savings', 0)
+            
+            # 1. Générer la phrase d'accroche avec l'IA
+            gatherer = RealAPIGatherer()
+            catchphrase = gatherer.generate_whatsapp_catchphrase({
+                'hotel_name': trip.hotel_name,
+                'destination': trip.destination
+            })
+
+            # 2. Construire la légende
+            caption_parts = [
+                f"🌟 *{catchphrase}*",
+                f"🏨 *{trip.hotel_name}* à {trip.destination}",
+                f"💰 À partir de *{trip.price}€* (Économisez {savings}€ !)",
+            ]
+
+            services = form_data.get('exclusive_services', '').strip()
+            if services:
+                services_list = "\n".join([f"✓ {s.strip()}" for s in services.split('\n')])
+                caption_parts.append(f"\n🎁 *Services Exclusifs Offerts :*\n{services_list}")
+
+            # 3. Construire le lien de l'offre
+            offer_url = f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}"
+            caption_parts.append(f"\n👉 *Voir l'offre complète ici :* {offer_url}")
+            
+            final_caption = "\n\n".join(caption_parts)
+
+            # 4. Préparer le payload pour N8N
+            payload = {
+                "imageUrl": api_data.get('photos', [None])[0],
+                "caption": final_caption,
+                "offerUrl": offer_url
+            }
+
+            if not payload["imageUrl"]:
+                return jsonify({'success': False, 'message': 'Aucune image trouvée pour ce voyage.'}), 400
+
+            # 5. Envoyer au webhook N8N
+            response = requests.post(n8n_webhook_url, json=payload, timeout=20)
+            response.raise_for_status() # Lève une erreur si le statut n'est pas 2xx
+
+            return jsonify({'success': True, 'message': 'Offre envoyée au canal WhatsApp !'})
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Erreur en contactant le webhook N8N: {e}")
+            return jsonify({'success': False, 'message': 'Erreur de communication avec le service d\'envoi.'}), 500
+        except Exception as e:
+            print(f"❌ Erreur inattendue dans send_whatsapp_offer: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': 'Une erreur interne est survenue.'}), 500
+    # --- FIN DE LA NOUVELLE ROUTE ---
 
     @app.route('/stripe-webhook', methods=['POST'])
     def stripe_webhook():

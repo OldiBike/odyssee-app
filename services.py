@@ -173,6 +173,28 @@ class RealAPIGatherer:
             genai.configure(api_key=self.google_api_key)
             print("✅ Clé API Google chargée")
 
+    # --- NOUVELLE FONCTION ---
+    def generate_whatsapp_catchphrase(self, trip_details):
+        if not self.google_api_key:
+            return "Une offre à ne pas manquer !"
+        try:
+            model = genai.GenerativeModel('models/gemini-1.5-pro-latest')
+            prompt = (
+                f"Crée une très courte phrase marketing (maximum 15 mots) pour une publication WhatsApp concernant un voyage. "
+                f"Voici les détails : Hôtel '{trip_details['hotel_name']}' à {trip_details['destination']}. "
+                f"Le but est de donner envie de cliquer sur le lien de l'offre. Sois percutant et inspirant. "
+                f"Exemples : 'Le paradis vous attend à prix d'ami ! 🌴', 'Évadez-vous sous le soleil de {trip_details['destination']} à un tarif jamais vu !', "
+                f"'Saisissez cette chance unique de découvrir {trip_details['hotel_name']} ! ✨'"
+            )
+            response = model.generate_content(prompt)
+            # Nettoyage simple pour enlever les astérisques ou guillemets
+            clean_text = response.text.strip().replace('*', '').replace('"', '')
+            return clean_text
+        except Exception as e:
+            print(f"❌ Erreur API Gemini (catchphrase): {e}")
+            return "Découvrez notre offre exclusive pour cette destination de rêve !"
+    # --- FIN DE LA NOUVELLE FONCTION ---
+            
     def get_real_hotel_photos(self, hotel_name, destination):
         if not self.google_api_key: return []
         try:
@@ -313,7 +335,6 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     num_people = int(data.get('num_people', 2))
     price_for_text = f"pour {num_people} personnes" if num_people > 1 else "pour 1 personne"
     
-    # Le prix principal est maintenant 'pack_price'
     your_price = int(data.get('pack_price', 0))
     price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>' if num_people > 0 else ""
     

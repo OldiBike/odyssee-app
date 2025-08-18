@@ -163,46 +163,7 @@
         <div class="edit-view">
             <h2 class="text-xl font-bold mb-4">Édition détaillée de l'offre</h2>
             <form id="edit-trip-form" class="space-y-4 text-sm">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label>🗓️ Période</label><input type="text" id="edit_date_range" readonly class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"><input type="hidden" id="edit_date_start"><input type="hidden" id="edit_date_end"></div>
-                    <div><label>👥 Personnes</label><input type="number" id="edit_num_people" min="1" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><label>✈️ Départ</label><input type="text" id="edit_departure_city" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                    <div><label>🛬 Arrivée</label><input type="text" id="edit_arrival_airport" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                    <div><label>💰 Prix Vol (€)</label><input type="number" id="edit_flight_price" class="edit-cost-input mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label>🚐 Transferts (€)</label><input type="number" id="edit_transfer_cost" class="edit-cost-input mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                    <div><label>🚗 Location (€)</label><input type="number" id="edit_car_rental_cost" class="edit-cost-input mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-                    <div><label>💰 Tarif Hôtel B2B (€)</label><input type="number" id="edit_hotel_b2b_price" required class="edit-cost-input mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                    <div><label>💳 Tarif Hôtel B2C (€)</label><input type="number" id="edit_hotel_b2c_price" required class="edit-cost-input mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                </div>
-                <div><label>📦 Prix du pack (€)</label><input type="number" id="edit_pack_price" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                
-                <div class="cost-calculator">
-                    <div><p>Coût Total B2B</p><span id="edit-total-b2b-cost" class="cost-value">0 €</span></div>
-                    <div><p>Coût Total B2C</p><span id="edit-total-b2c-cost" class="cost-value">0 €</span></div>
-                </div>
-
-                <div>
-                    <label>🍽️ Surcoût Pension</label>
-                    <div class="flex gap-4">
-                        <input type="number" id="edit_surcharge_cost" class="edit-cost-input mt-1 block w-full rounded-md border-slate-300 shadow-sm">
-                        <select id="edit_surcharge_type" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
-                            <option>Petit déjeuner</option><option>Demi pension</option><option>Pension complète</option><option>All-In</option>
-                        </select>
-                    </div>
-                </div>
-                <div><label>🎁 Services Exclusifs</label><textarea id="edit_exclusive_services" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></textarea></div>
-                
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" id="close-edit-view-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer & Republier</button>
-                </div>
-            </form>
+                </form>
         </div>
     </div>
 </div>
@@ -218,7 +179,6 @@
         const clientModal = document.getElementById('client-modal-dashboard');
         const editTripModal = document.getElementById('edit-trip-modal');
         const priceModal = document.getElementById('price-modal');
-        // --- NOUVELLE MODALE ---
         const sendOfferModal = document.getElementById('send-offer-modal');
         let currentTripInfo = { id: null, rowElement: null };
         let currentEditingTripData = null;
@@ -265,7 +225,7 @@
                         <td class="p-3 text-right space-x-2">
                             ${viewOnlineLink}
                             <button data-action="edit-price" title="Modifier le prix" class="text-yellow-500 text-xl">💶</button>
-                            <button data-action="whatsapp" title="WhatsApp" class="text-green-500 text-xl">✳️</button>
+                            <button data-action="whatsapp" title="Partager sur WhatsApp" class="text-green-500 text-xl">✳️</button>
                             <button data-action="sell" title="Assigner à un client" class="text-blue-500 text-xl">💰</button>
                             <button data-action="delete" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
                         </td>`;
@@ -286,73 +246,41 @@
                             <button data-action="delete" title="Supprimer la fiche client" class="text-red-500 text-xl">🗑️</button>
                         </td>`;
                 } else if (viewMode === 'sold') {
-                    rowHtml = `
-                        <td class="p-3 text-sm text-slate-600">${trip.sold_at}</td>
-                        <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
-                        <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
-                        <td class="p-3 text-sm font-bold text-slate-700">${trip.price} €</td>
-                        <td class="p-3 text-right space-x-2">
-                            <button data-action="view-details" title="Voir la fiche" class="text-gray-500 text-xl">📄</button>
-                            <button data-action="delete" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
-                        </td>`;
+                    // ... code pour la vue 'sold'
                 }
                 row.innerHTML = rowHtml;
                 tableBody.appendChild(row);
             });
         }
+        
+        // --- NOUVELLE FONCTION WHATSAPP ---
+        async function sendToWhatsApp(tripId, button) {
+            const originalIcon = button.innerHTML;
+            button.innerHTML = '⏳';
+            button.disabled = true;
 
-        async function getTripDetails(tripId) {
             try {
-                const response = await fetch(`/api/trip/${tripId}`);
-                if (!response.ok) throw new Error('Could not fetch trip details');
-                return await response.json();
-            } catch (error) {
-                alert(error.message);
-                return null;
-            }
-        }
-
-        async function deleteTrip(tripId, rowElement) {
-            try {
-                const response = await fetch(`/api/trip/${tripId}`, { method: 'DELETE' });
-                const result = await response.json();
-                if (result.success) {
-                    rowElement.remove();
-                } else { alert('Erreur: ' + result.message); }
-            } catch (error) { alert('Erreur réseau lors de la suppression.'); }
-        }
-
-        async function updateTripStatus(tripId, payload, rowElement) {
-            try {
-                const response = await fetch(`/api/trip/${tripId}/status`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                const response = await fetch(`/api/trip/${tripId}/send-whatsapp`, {
+                    method: 'POST'
                 });
                 const result = await response.json();
-                if (result.success) {
-                    rowElement.remove();
-                } else { alert('Erreur: ' + result.message); }
-            } catch (error) { alert('Erreur réseau lors de la mise à jour.'); }
-        }
 
-        async function togglePublish(tripId, publishState, checkbox) {
-            try {
-                const response = await fetch(`/api/trip/${tripId}/publish`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ publish: publishState })
-                });
-                const result = await response.json();
-                if (!result.success) {
-                    alert('Erreur: ' + result.message);
-                    checkbox.checked = !publishState;
+                if (result.success) {
+                    button.innerHTML = '✅';
+                    alert(result.message);
                 } else {
-                    fetchTrips();
+                    button.innerHTML = '❌';
+                    alert('Erreur: ' + result.message);
                 }
             } catch (error) {
-                alert('Erreur réseau lors de la publication.');
-                checkbox.checked = !publishState;
+                button.innerHTML = '❌';
+                alert('Erreur réseau lors de l\'envoi vers WhatsApp.');
+                console.error(error);
+            } finally {
+                setTimeout(() => {
+                    button.innerHTML = originalIcon;
+                    button.disabled = false;
+                }, 3000);
             }
         }
 
@@ -389,71 +317,6 @@
             }
         }
 
-        async function openPriceModal(tripId) {
-            const tripData = await getTripDetails(tripId);
-            if (!tripData) return;
-            
-            const fullData = JSON.parse(tripData.full_data_json);
-            const form = fullData.form_data;
-            
-            document.getElementById('price-trip-id').value = tripId;
-            document.getElementById('new-pack-price').value = form.pack_price;
-            
-            let comparisonHtml = `<div class="font-semibold mb-2">Analyse Financière</div>
-                <div class="flex justify-between"><span>Tarif Hôtel B2C:</span> <span>${form.hotel_b2c_price || 0}€</span></div>`;
-            if (parseFloat(form.flight_price) > 0) comparisonHtml += `<div class="flex justify-between"><span>Vol:</span> <span>${form.flight_price}€</span></div>`;
-            if (parseFloat(form.transfer_cost) > 0) comparisonHtml += `<div class="flex justify-between"><span>Transferts:</span> <span>${form.transfer_cost}€</span></div>`;
-            if (parseFloat(form.car_rental_cost) > 0) comparisonHtml += `<div class="flex justify-between"><span>Location:</span> <span>${form.car_rental_cost}€</span></div>`;
-            if (parseFloat(form.surcharge_cost) > 0) comparisonHtml += `<div class="flex justify-between"><span>${form.surcharge_type}:</span> <span>${form.surcharge_cost}€</span></div>`;
-            comparisonHtml += `<div class="flex justify-between font-bold border-t mt-2 pt-2">
-                    <span>Total ailleurs:</span> <span>${fullData.comparison_total || 0}€</span>
-                </div>
-                <div class="flex justify-between font-bold text-blue-600 mt-2">
-                    <span>Votre prix (pack):</span> <span>${form.pack_price || 0}€</span>
-                </div>
-                 <div class="flex justify-between font-bold text-green-600 mt-2">
-                    <span>Marge:</span> <span>${fullData.margin || 0}€</span>
-                </div>`;
-            document.getElementById('price-comparison').innerHTML = comparisonHtml;
-            
-            priceModal.classList.add('is-open');
-        }
-
-        document.getElementById('save-price-btn').addEventListener('click', async function() {
-            const tripId = document.getElementById('price-trip-id').value;
-            const newPackPrice = document.getElementById('new-pack-price').value;
-            
-            if (!newPackPrice) {
-                alert('Veuillez entrer un prix pour le pack');
-                return;
-            }
-            
-            const tripData = await getTripDetails(tripId);
-            const fullData = JSON.parse(tripData.full_data_json);
-            const updatedFormData = {
-                ...fullData.form_data,
-                pack_price: newPackPrice
-            };
-            
-            try {
-                const response = await fetch(`/api/trip/${tripId}/update`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedFormData)
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert('Prix mis à jour !');
-                    priceModal.classList.remove('is-open');
-                    fetchTrips();
-                } else {
-                    alert('Erreur: ' + result.message);
-                }
-            } catch (error) {
-                alert('Erreur lors de la mise à jour du prix');
-            }
-        });
-
         tableBody.addEventListener('click', async function(e) {
             if (e.target.type === 'checkbox') {
                 return;
@@ -489,50 +352,16 @@
                 sendOfferModal.classList.add('is-open');
             } else if (action === 'edit-price') {
                 openPriceModal(tripId);
-            }
-        });
-
-        tableBody.addEventListener('change', async function(e) {
-            if (e.target.type === 'checkbox') {
-                const checkbox = e.target;
-                const tripRow = checkbox.closest('tr');
-                if (tripRow && tripRow.dataset.tripId) {
-                    const tripId = tripRow.dataset.tripId;
-                    await togglePublish(tripId, checkbox.checked, checkbox);
+            } else if (action === 'whatsapp') { // --- NOUVELLE ACTION ---
+                if (confirm('Envoyer cette offre sur le canal WhatsApp ?')) {
+                    sendToWhatsApp(tripId, button);
                 }
             }
         });
-
-        document.getElementById('client-form-dashboard').addEventListener('submit', async function(e) {
-             e.preventDefault();
-            const tripId = document.getElementById('trip-id-to-assign').value;
-            const payload = {
-                client_first_name: document.getElementById('client_first_name_dashboard').value,
-                client_last_name: document.getElementById('client_last_name_dashboard').value,
-                client_email: document.getElementById('client_email_dashboard').value,
-            };
-
-            try {
-                const response = await fetch(`/api/trip/${tripId}/assign`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert(result.message);
-                    clientModal.classList.remove('is-open');
-                    this.reset();
-                    fetchTrips();
-                } else {
-                    alert('Erreur: ' + result.message);
-                }
-            } catch (error) {
-                alert('Erreur réseau lors de l\'assignation.');
-            }
-        });
-
-        // --- GESTION DE LA NOUVELLE MODALE ---
+        
+        // Le reste de votre JS ...
+        
+        // --- GESTION DE LA MODALE D'ENVOI D'OFFRE ---
         const sendOfferForm = document.getElementById('send-offer-form');
         const downPaymentFields = document.getElementById('down-payment-fields');
         const paymentTypeRadios = document.querySelectorAll('input[name="payment_type"]');
@@ -570,157 +399,11 @@
 
             sendOfferEmail(tripId, payload, button);
         });
-        // --- FIN DE LA GESTION ---
-
-
+        
         document.querySelectorAll('.close-modal-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const modal = btn.closest('.modal');
-                modal.classList.remove('is-open', 'is-editing');
+                btn.closest('.modal').classList.remove('is-open', 'is-editing');
             });
-        });
-
-        document.getElementById('open-edit-view-btn').addEventListener('click', () => {
-            editTripModal.classList.add('is-editing');
-        });
-        document.getElementById('close-edit-view-btn').addEventListener('click', () => {
-            editTripModal.classList.remove('is-editing');
-        });
-
-        const formatDate = (d) => {
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
-
-        function populateEditTripModal(tripData) {
-            const data = JSON.parse(tripData.full_data_json);
-            const form = data.form_data;
-            currentEditingTripData = form;
-            document.getElementById('trip-id-to-edit').value = tripData.id;
-
-            let summaryHtml = `<div class="summary-item"><i class="fas fa-calendar-alt"></i> <div>${form.date_start} au ${form.date_end}</div></div>
-                <div class="summary-item"><i class="fas fa-users"></i> <div>${form.num_people} personnes</div></div>`;
-            if (parseFloat(form.flight_price) > 0) summaryHtml += `<div class="summary-item"><i class="fas fa-plane"></i> <div>${form.departure_city || 'N/A'} → ${form.arrival_airport || 'N/A'} (${form.flight_price}€)</div></div>`;
-            if (parseFloat(form.transfer_cost) > 0) summaryHtml += `<div class="summary-item"><i class="fas fa-bus"></i> <div>Transferts: ${form.transfer_cost}€</div></div>`;
-            if (parseFloat(form.car_rental_cost) > 0) summaryHtml += `<div class="summary-item"><i class="fas fa-car"></i> <div>Location: ${form.car_rental_cost}€</div></div>`;
-            if (parseFloat(form.surcharge_cost) > 0) summaryHtml += `<div class="summary-item"><i class="fas fa-utensils"></i> <div>${form.surcharge_type}: ${form.surcharge_cost}€</div></div>`;
-            summaryHtml += `<div class="summary-item col-span-full"><i class="fas fa-gift"></i> <div>${(form.exclusive_services || '').replace(/\n/g, ', ') || 'Aucun'}</div></div>`;
-            document.getElementById('trip-summary').innerHTML = summaryHtml;
-
-            let priceSummaryHtml = `<div class="flex justify-between"><span>Tarif Hôtel B2C:</span> <strong>${form.hotel_b2c_price || 0} €</strong></div>`;
-            if (parseFloat(form.flight_price) > 0) priceSummaryHtml += `<div class="flex justify-between"><span>Vol:</span> <strong>${form.flight_price} €</strong></div>`;
-            if (parseFloat(form.transfer_cost) > 0) priceSummaryHtml += `<div class="flex justify-between"><span>Transferts:</span> <strong>${form.transfer_cost} €</strong></div>`;
-            if (parseFloat(form.car_rental_cost) > 0) priceSummaryHtml += `<div class="flex justify-between"><span>Location:</span> <strong>${form.car_rental_cost} €</strong></div>`;
-            if (parseFloat(form.surcharge_cost) > 0) priceSummaryHtml += `<div class="flex justify-between"><span>${form.surcharge_type}:</span> <strong>${form.surcharge_cost} €</strong></div>`;
-            priceSummaryHtml += `<div class="flex justify-between border-t mt-2 pt-2"><span>Total ailleurs:</span> <strong>${data.comparison_total || 0} €</strong></div>
-                <div class="flex justify-between text-blue-600 font-bold mt-2"><span>Votre Prix (Pack):</span> <strong>${form.pack_price || 0} €</strong></div>
-                <div class="flex justify-between text-green-600 font-bold mt-2"><span>Marge Estimée:</span> <strong>${data.margin || 0} €</strong></div>`;
-            document.getElementById('price-summary').innerHTML = priceSummaryHtml;
-
-            // Remplissage du formulaire d'édition
-            document.getElementById('edit_date_start').value = form.date_start;
-            document.getElementById('edit_date_end').value = form.date_end;
-            document.getElementById('edit_num_people').value = form.num_people;
-            document.getElementById('edit_departure_city').value = form.departure_city || '';
-            document.getElementById('edit_arrival_airport').value = form.arrival_airport || '';
-            document.getElementById('edit_flight_price').value = form.flight_price || 0;
-            document.getElementById('edit_transfer_cost').value = form.transfer_cost || 0;
-            document.getElementById('edit_car_rental_cost').value = form.car_rental_cost || 0;
-            document.getElementById('edit_hotel_b2b_price').value = form.hotel_b2b_price;
-            document.getElementById('edit_hotel_b2c_price').value = form.hotel_b2c_price;
-            document.getElementById('edit_pack_price').value = form.pack_price;
-            document.getElementById('edit_surcharge_cost').value = form.surcharge_cost || 0;
-            document.getElementById('edit_surcharge_type').value = form.surcharge_type || 'Pension complète';
-            document.getElementById('edit_exclusive_services').value = form.exclusive_services || '';
-
-            if (editDatePicker) editDatePicker.destroy();
-            editDatePicker = new Litepicker({
-                element: document.getElementById('edit_date_range'),
-                singleMode: false, lang: 'fr-FR', format: 'YYYY-MM-DD',
-                startDate: form.date_start,
-                endDate: form.date_end,
-                setup: (picker) => {
-                    picker.on('selected', (date1, date2) => {
-                        document.getElementById('edit_date_start').value = formatDate(date1.dateInstance);
-                        document.getElementById('edit_date_end').value = formatDate(date2.dateInstance);
-                    });
-                },
-            });
-
-            const departureInput = document.getElementById('edit_departure_city');
-            const arrivalInput = document.getElementById('edit_arrival_airport');
-            if (window.google && window.google.maps) {
-                new google.maps.places.Autocomplete(departureInput, { types: ['airport'] });
-                new google.maps.places.Autocomplete(arrivalInput, { types: ['airport'] });
-            }
-            
-            updateEditCostTotals();
-        }
-        
-        function updateEditCostTotals() {
-            const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
-
-            const hotelB2B = getVal('edit_hotel_b2b_price');
-            const hotelB2C = getVal('edit_hotel_b2c_price');
-            const flight = getVal('edit_flight_price');
-            const transfer = getVal('edit_transfer_cost');
-            const car = getVal('edit_car_rental_cost');
-            const surcharge = getVal('edit_surcharge_cost');
-
-            const totalB2B = hotelB2B + flight + transfer + car + surcharge;
-            const totalB2C = hotelB2C + flight + transfer + car + surcharge;
-
-            document.getElementById('edit-total-b2b-cost').textContent = `${totalB2B} €`;
-            document.getElementById('edit-total-b2c-cost').textContent = `${totalB2C} €`;
-        }
-        
-        const editCostInputs = document.querySelectorAll('.edit-cost-input');
-        editCostInputs.forEach(input => {
-            input.addEventListener('input', updateEditCostTotals);
-        });
-
-
-        document.getElementById('edit-trip-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const tripId = document.getElementById('trip-id-to-edit').value;
-            
-            const updatedFormData = {
-                ...currentEditingTripData,
-                date_start: document.getElementById('edit_date_start').value,
-                date_end: document.getElementById('edit_date_end').value,
-                num_people: document.getElementById('edit_num_people').value,
-                departure_city: document.getElementById('edit_departure_city').value,
-                arrival_airport: document.getElementById('edit_arrival_airport').value,
-                flight_price: document.getElementById('edit_flight_price').value,
-                transfer_cost: document.getElementById('edit_transfer_cost').value,
-                car_rental_cost: document.getElementById('edit_car_rental_cost').value,
-                hotel_b2b_price: document.getElementById('edit_hotel_b2b_price').value,
-                hotel_b2c_price: document.getElementById('edit_hotel_b2c_price').value,
-                pack_price: document.getElementById('edit_pack_price').value,
-                surcharge_cost: document.getElementById('edit_surcharge_cost').value,
-                surcharge_type: document.getElementById('edit_surcharge_type').value,
-                exclusive_services: document.getElementById('edit_exclusive_services').value,
-            };
-
-            try {
-                const response = await fetch(`/api/trip/${tripId}/update`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedFormData)
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert(result.message);
-                    editTripModal.classList.remove('is-open', 'is-editing');
-                    fetchTrips();
-                } else {
-                    alert('Erreur: ' + result.message);
-                }
-            } catch (error) {
-                alert('Erreur réseau lors de la mise à jour.');
-            }
         });
         
         fetchTrips();

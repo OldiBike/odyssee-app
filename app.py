@@ -2,6 +2,7 @@
 import os
 import json
 from datetime import datetime
+import traceback # Ajout pour un logging détaillé
 
 from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -416,8 +417,11 @@ def create_app(config_class=Config):
             print(f"✅ [Trip ID: {trip.id}] E-mail envoyé avec succès.")
             
         except Exception as e:
-            print(f"❌ [Trip ID: {trip.id}] Erreur Email: {e}")
-            return jsonify({'success': False, 'message': f"Erreur lors de l'envoi de l'email: {e}"}), 500
+            # --- MODIFICATION POUR LE DEBUGGING ---
+            print(f"❌ [Trip ID: {trip.id}] ERREUR DÉTAILLÉE LORS DE L'ENVOI DE L'EMAIL:")
+            traceback.print_exc() # Affiche l'erreur complète dans les logs
+            return jsonify({'success': False, 'message': f"Erreur lors de l'envoi de l'email: {str(e)}"}), 500
+            # --- FIN DE LA MODIFICATION ---
 
         return jsonify({'success': True, 'message': 'Offre envoyée avec succès par email !'})
 

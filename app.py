@@ -189,7 +189,6 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Voyage enregistré !', 'trip': new_trip.to_dict()})
 
-    # --- DÉBUT DU BLOC CORRIGÉ ---
     @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
     def assign_trip_to_client(trip_id):
         try:
@@ -220,20 +219,17 @@ def create_app(config_class=Config):
                 print(f"✅ Publication réussie: {client_filename}")
                 return jsonify({'success': True, 'message': 'Voyage assigné au client et page privée créée.'})
             else:
-                # La publication a échoué, mais on ne crashe pas. On renvoie un message d'erreur clair.
-                db.session.rollback() # On annule la création du voyage pour pouvoir réessayer.
+                db.session.rollback() 
                 db.session.delete(new_trip)
                 db.session.commit()
                 print(f"❌ La publication a échoué. Le voyage {new_trip.id} a été annulé.")
                 return jsonify({'success': False, 'message': 'Le voyage n\'a pas pu être assigné car la publication du fichier sur le serveur a échoué. Vérifiez les logs de Railway pour les détails de l\'erreur réseau.'})
 
         except Exception as e:
-            # Gère toutes les autres erreurs potentielles (ex: base de données)
             db.session.rollback()
             print(f"❌ Erreur critique dans assign_trip_to_client: {e}")
             traceback.print_exc()
             return jsonify({'success': False, 'message': f'Une erreur interne est survenue: {str(e)}'}), 500
-    # --- FIN DU BLOC CORRIGÉ ---
 
     @app.route('/api/trips', methods=['GET'])
     def get_trips():
@@ -311,6 +307,7 @@ def create_app(config_class=Config):
                 else:
                     return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication a échoué.'})
 
+            # --- DÉBUT DE LA MODIFICATION ---
             elif trip.status == 'proposed' and trip.is_published:
                 print(f"ℹ️ Mise à jour et republication du fichier public pour le voyage {trip.id}...")
                 public_filename = publication_service.publish_public_offer(trip)
@@ -318,6 +315,7 @@ def create_app(config_class=Config):
                     trip.published_filename = public_filename
                 else:
                     return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication de l\'offre publique a échoué.'})
+            # --- FIN DE LA MODIFICATION ---
             
             db.session.commit()
             return jsonify({'success': True, 'message': 'Offre mise à jour et republiée avec succès !'})

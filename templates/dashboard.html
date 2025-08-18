@@ -477,7 +477,7 @@
             document.getElementById('trip-id-to-edit').value = tripData.id;
         }
 
-        function updateFinancialSummary(formData, containerPrefix = '') {
+        function updateFinancialSummary(formData) {
             const getVal = (key) => parseFloat(formData[key]) || 0;
             
             const hotelB2B = getVal('hotel_b2b_price');
@@ -503,10 +503,11 @@
                 </div>
             `;
             
-            document.getElementById('financial-summary-view').innerHTML = summaryHTML;
-            if(document.getElementById('financial-summary-edit')) {
-                document.getElementById('financial-summary-edit').innerHTML = summaryHTML;
-            }
+            const viewContainer = document.getElementById('financial-summary-view');
+            if (viewContainer) viewContainer.innerHTML = summaryHTML;
+
+            const editContainer = document.getElementById('financial-summary-edit');
+            if(editContainer) editContainer.innerHTML = summaryHTML;
         }
 
         document.getElementById('open-edit-view-btn').addEventListener('click', function() {
@@ -519,7 +520,7 @@
             const formData = fullData.form_data;
             const form = document.getElementById('edit-trip-form');
             form.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <div><label>Nom Hôtel</label><input type="text" name="hotel_name" value="${formData.hotel_name}" class="w-full p-2 border rounded"></div>
                     <div><label>Destination</label><input type="text" name="destination" value="${formData.destination}" class="w-full p-2 border rounded"></div>
                     <div><label>Date Début</label><input type="text" name="date_start" value="${formData.date_start}" class="w-full p-2 border rounded"></div>
@@ -531,8 +532,8 @@
                     <div><label>Tarif Hôtel B2B (€)</label><input type="number" name="hotel_b2b_price" value="${formData.hotel_b2b_price}" class="w-full p-2 border rounded"></div>
                     <div><label>Tarif Hôtel B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
                     <div class="md:col-span-2"><label>Prix Pack Final (€)</label><input type="number" name="pack_price" value="${formData.pack_price}" class="w-full p-2 border rounded font-bold text-lg"></div>
+                    <div class="md:col-span-2"><label>Services Exclusifs</label><textarea name="exclusive_services" class="w-full p-2 border rounded">${formData.exclusive_services || ''}</textarea></div>
                 </div>
-                <div class="mt-4"><label>Services Exclusifs</label><textarea name="exclusive_services" class="w-full p-2 border rounded">${formData.exclusive_services || ''}</textarea></div>
                 
                 <div id="financial-summary-edit" class="financial-summary"></div>
 
@@ -546,15 +547,14 @@
                 editTripModal.classList.remove('is-editing');
             });
 
-            // Recalcul en temps réel
             form.querySelectorAll('input[type="number"]').forEach(input => {
                 input.addEventListener('input', () => {
                     const currentFormData = new FormData(form);
                     const data = Object.fromEntries(currentFormData.entries());
-                    updateFinancialSummary(data, 'edit');
+                    updateFinancialSummary(data);
                 });
             });
-            updateFinancialSummary(formData, 'edit'); // Affichage initial
+            updateFinancialSummary(formData);
         }
 
         document.getElementById('edit-trip-form').addEventListener('submit', async function(e) {
@@ -563,7 +563,6 @@
             const formData = new FormData(this);
             const data = Object.fromEntries(formData.entries());
 
-            // Merge with existing non-form data to keep things like stars, num_people etc.
             const originalFormData = JSON.parse(currentEditingTripData.full_data_json).form_data;
             const updatedFormData = { ...originalFormData, ...data };
 
@@ -586,8 +585,6 @@
             }
         });
         
-        // --- FIN DES FONCTIONS MODIFIÉES / AJOUTÉES ---
-
         async function deleteTrip(tripId, tripRow) {
             try {
                 const response = await fetch(`/api/trip/${tripId}`, { method: 'DELETE' });

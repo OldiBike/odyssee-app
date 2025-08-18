@@ -100,9 +100,9 @@ def create_app(config_class=Config):
         
         success = publication_service.test_connection()
         if success:
-            return "✅ Connexion FTP/SFTP réussie !"
+            return "✅ Connexion API réussie !"
         else:
-            return "❌ Échec de connexion - Vérifiez les logs du terminal pour plus de détails."
+            return "❌ Échec de connexion API - Vérifiez les logs du terminal pour plus de détails."
 
     @app.route('/api/generate-preview', methods=['POST'])
     def generate_preview():
@@ -189,35 +189,51 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Voyage enregistré !', 'trip': new_trip.to_dict()})
 
+    # --- DÉBUT DU BLOC CORRIGÉ ---
     @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
     def assign_trip_to_client(trip_id):
-        source_trip = Trip.query.get_or_404(trip_id)
-        client_data = request.get_json()
+        try:
+            source_trip = Trip.query.get_or_404(trip_id)
+            client_data = request.get_json()
 
-        new_trip = Trip(
-            full_data_json=source_trip.full_data_json,
-            hotel_name=source_trip.hotel_name,
-            destination=source_trip.destination,
-            price=source_trip.price,
-            status='assigned',
-            client_first_name=client_data.get('client_first_name'),
-            client_last_name=client_data.get('client_last_name'),
-            client_email=client_data.get('client_email'),
-            assigned_at=datetime.utcnow()
-        )
-        
-        db.session.add(new_trip)
-        db.session.commit()
-
-        client_filename = publication_service.publish_client_offer(new_trip)
-        if client_filename:
-            new_trip.client_published_filename = client_filename
+            new_trip = Trip(
+                full_data_json=source_trip.full_data_json,
+                hotel_name=source_trip.hotel_name,
+                destination=source_trip.destination,
+                price=source_trip.price,
+                status='assigned',
+                client_first_name=client_data.get('client_first_name'),
+                client_last_name=client_data.get('client_last_name'),
+                client_email=client_data.get('client_email'),
+                assigned_at=datetime.utcnow()
+            )
+            
+            db.session.add(new_trip)
             db.session.commit()
-        else:
-            return jsonify({'success': False, 'message': 'Le voyage a été assigné, mais la publication du fichier client a échoué.'})
-        
-        return jsonify({'success': True, 'message': 'Voyage assigné au client et page privée créée.'})
 
+            print(f"ℹ️ Tentative de publication du fichier pour le voyage {new_trip.id}...")
+            client_filename = publication_service.publish_client_offer(new_trip)
+            
+            if client_filename:
+                new_trip.client_published_filename = client_filename
+                db.session.commit()
+                print(f"✅ Publication réussie: {client_filename}")
+                return jsonify({'success': True, 'message': 'Voyage assigné au client et page privée créée.'})
+            else:
+                # La publication a échoué, mais on ne crashe pas. On renvoie un message d'erreur clair.
+                db.session.rollback() # On annule la création du voyage pour pouvoir réessayer.
+                db.session.delete(new_trip)
+                db.session.commit()
+                print(f"❌ La publication a échoué. Le voyage {new_trip.id} a été annulé.")
+                return jsonify({'success': False, 'message': 'Le voyage n\'a pas pu être assigné car la publication du fichier sur le serveur a échoué. Vérifiez les logs de Railway pour les détails de l\'erreur réseau.'})
+
+        except Exception as e:
+            # Gère toutes les autres erreurs potentielles (ex: base de données)
+            db.session.rollback()
+            print(f"❌ Erreur critique dans assign_trip_to_client: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': f'Une erreur interne est survenue: {str(e)}'}), 500
+    # --- FIN DU BLOC CORRIGÉ ---
 
     @app.route('/api/trips', methods=['GET'])
     def get_trips():
@@ -448,7 +464,6 @@ def create_app(config_class=Config):
 
         return jsonify({'success': True, 'message': 'Offre envoyée avec succès par email !'})
     
-    # --- NOUVELLE ROUTE POUR WHATSAPP ---
     @app.route('/api/trip/<int:trip_id>/send-whatsapp', methods=['POST'])
     def send_whatsapp_offer(trip_id):
         trip = Trip.query.get_or_404(trip_id)
@@ -466,14 +481,12 @@ def create_app(config_class=Config):
             api_data = full_data.get('api_data', {})
             savings = full_data.get('savings', 0)
             
-            # 1. Générer la phrase d'accroche avec l'IA
             gatherer = RealAPIGatherer()
             catchphrase = gatherer.generate_whatsapp_catchphrase({
                 'hotel_name': trip.hotel_name,
                 'destination': trip.destination
             })
 
-            # 2. Construire la légende
             caption_parts = [
                 f"🌟 *{catchphrase}*",
                 f"🏨 *{trip.hotel_name}* à {trip.destination}",
@@ -485,13 +498,11 @@ def create_app(config_class=Config):
                 services_list = "\n".join([f"✓ {s.strip()}" for s in services.split('\n')])
                 caption_parts.append(f"\n🎁 *Services Exclusifs Offerts :*\n{services_list}")
 
-            # 3. Construire le lien de l'offre
             offer_url = f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}"
             caption_parts.append(f"\n👉 *Voir l'offre complète ici :* {offer_url}")
             
             final_caption = "\n\n".join(caption_parts)
 
-            # 4. Préparer le payload pour N8N
             payload = {
                 "imageUrl": api_data.get('photos', [None])[0],
                 "caption": final_caption,
@@ -501,9 +512,8 @@ def create_app(config_class=Config):
             if not payload["imageUrl"]:
                 return jsonify({'success': False, 'message': 'Aucune image trouvée pour ce voyage.'}), 400
 
-            # 5. Envoyer au webhook N8N
             response = requests.post(n8n_webhook_url, json=payload, timeout=20)
-            response.raise_for_status() # Lève une erreur si le statut n'est pas 2xx
+            response.raise_for_status() 
 
             return jsonify({'success': True, 'message': 'Offre envoyée au canal WhatsApp !'})
 
@@ -514,7 +524,6 @@ def create_app(config_class=Config):
             print(f"❌ Erreur inattendue dans send_whatsapp_offer: {e}")
             traceback.print_exc()
             return jsonify({'success': False, 'message': 'Une erreur interne est survenue.'}), 500
-    # --- FIN DE LA NOUVELLE ROUTE ---
 
     @app.route('/stripe-webhook', methods=['POST'])
     def stripe_webhook():

@@ -163,7 +163,7 @@
         <div class="edit-view">
             <h2 class="text-xl font-bold mb-4">Édition détaillée de l'offre</h2>
             <form id="edit-trip-form" class="space-y-4 text-sm">
-            </form>
+                </form>
         </div>
     </div>
 </div>
@@ -267,11 +267,8 @@
             button.disabled = true;
 
             try {
-                const response = await fetch(`/api/trip/${tripId}/send-whatsapp`, {
-                    method: 'POST'
-                });
+                const response = await fetch(`/api/trip/${tripId}/send-whatsapp`, { method: 'POST' });
                 const result = await response.json();
-
                 if (result.success) {
                     button.innerHTML = '✅';
                     alert(result.message);
@@ -282,7 +279,6 @@
             } catch (error) {
                 button.innerHTML = '❌';
                 alert('Erreur réseau lors de l\'envoi vers WhatsApp.');
-                console.error(error);
             } finally {
                 setTimeout(() => {
                     button.innerHTML = originalIcon;
@@ -295,7 +291,6 @@
             const originalIcon = button.innerHTML;
             button.innerHTML = '⏳';
             button.disabled = true;
-
             try {
                 const response = await fetch(`/api/trip/${tripId}/send-offer`, {
                     method: 'POST',
@@ -303,7 +298,6 @@
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
-
                 if (result.success) {
                     button.innerHTML = '✅';
                     alert(result.message);
@@ -315,7 +309,6 @@
             } catch (error) {
                 button.innerHTML = '❌';
                 alert('Erreur réseau lors de l\'envoi de l\'offre.');
-                console.error(error);
             } finally {
                 setTimeout(() => {
                     button.innerHTML = originalIcon;
@@ -325,10 +318,7 @@
         }
 
         tableBody.addEventListener('click', async function(e) {
-            if (e.target.type === 'checkbox') {
-                return;
-            }
-            
+            if (e.target.type === 'checkbox') return;
             const button = e.target.closest('button, a');
             if (!button || !button.dataset.action) return;
 
@@ -346,12 +336,11 @@
                 clientModal.classList.add('is-open');
             } else if (action === 'mark-paid') {
                 if (confirm('Confirmez-vous que ce voyage a été payé ?')) {
-                    updateTripStatus(tripId, { status: 'sold' }, tripRow);
+                    updateTripStatus(tripId, { status: 'sold' });
                 }
-            } else if (action === 'edit-trip' || action === 'view-details') {
+            } else if (action === 'edit-trip') {
                 const tripData = await getTripDetails(tripId);
                 if (tripData) {
-                    // La fonction populateEditTripModal n'était pas définie, la voici.
                     populateEditTripModal(tripData);
                     editTripModal.classList.add('is-open');
                 }
@@ -372,7 +361,6 @@
                 const tripRow = e.target.closest('tr');
                 const tripId = tripRow.dataset.tripId;
                 const isChecked = e.target.checked;
-                
                 try {
                     const response = await fetch(`/api/trip/${tripId}/publish`, {
                         method: 'POST',
@@ -380,7 +368,6 @@
                         body: JSON.stringify({ publish: isChecked })
                     });
                     const result = await response.json();
-                    
                     if (result.success) {
                         const viewLink = tripRow.querySelector('a[title="Voir la fiche en ligne"], a[title="Publiez pour voir le lien"]');
                         if (viewLink) {
@@ -396,13 +383,11 @@
                                 viewLink.setAttribute('title', 'Publiez pour voir le lien');
                             }
                         }
-                        console.log(result.message);
                     } else {
                         e.target.checked = !isChecked;
                         alert('Erreur: ' + result.message);
                     }
                 } catch (error) {
-                    console.error('Erreur:', error);
                     e.target.checked = !isChecked;
                     alert('Erreur réseau lors de la publication/dépublication');
                 }
@@ -433,13 +418,12 @@
                     alert('Erreur lors de l\'assignation: ' + result.message);
                 }
             } catch (error) {
-                console.error('Erreur:', error);
                 alert('Erreur réseau lors de l\'assignation');
             }
         });
-        
-        // --- DÉBUT DU BLOC CORRIGÉ ---
-        // Cette fonction manquait
+
+        // --- DÉBUT DES FONCTIONS CORRIGÉES / AJOUTÉES ---
+
         function populateEditTripModal(tripData) {
             currentEditingTripData = tripData;
             const fullData = JSON.parse(tripData.full_data_json);
@@ -447,7 +431,6 @@
             const summaryContainer = document.getElementById('trip-summary');
             const priceContainer = document.getElementById('price-summary');
 
-            // Populate summary view
             summaryContainer.innerHTML = `
                 <div class="summary-item col-span-full"><i class="fas fa-hotel"></i> ${formData.hotel_name}</div>
                 <div class="summary-item"><i class="fas fa-map-marker-alt"></i> ${formData.destination}</div>
@@ -460,7 +443,7 @@
             
             priceContainer.innerHTML = `
                 <div class="flex justify-between"><span>Prix Pack Client:</span> <span class="font-bold">${formData.pack_price}€</span></div>
-                <div class="flex justify-between"><span>Coût Total B2B:</span> <span>${fullData.total_cost_b2b || 'N/A'}€</span></div>
+                <div class="flex justify-between"><span>Coût Total B2B:</span> <span>${fullData.margin + formData.pack_price}€</span></div>
                 <hr class="my-1">
                 <div class="flex justify-between text-blue-600"><span>Marge Finale:</span> <span class="font-bold">${fullData.margin}€</span></div>
                 <hr class="my-1">
@@ -470,13 +453,75 @@
             
             document.getElementById('trip-id-to-edit').value = tripData.id;
         }
-        // --- FIN DU BLOC CORRIGÉ ---
+
+        document.getElementById('open-edit-view-btn').addEventListener('click', function() {
+            populateEditForm(currentEditingTripData);
+            editTripModal.classList.add('is-editing');
+        });
+
+        function populateEditForm(tripData) {
+            const fullData = JSON.parse(tripData.full_data_json);
+            const formData = fullData.form_data;
+            const form = document.getElementById('edit-trip-form');
+            form.innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label>Nom Hôtel</label><input type="text" name="hotel_name" value="${formData.hotel_name}" class="w-full p-2 border rounded"></div>
+                    <div><label>Destination</label><input type="text" name="destination" value="${formData.destination}" class="w-full p-2 border rounded"></div>
+                    <div><label>Date Début</label><input type="text" name="date_start" value="${formData.date_start}" class="w-full p-2 border rounded"></div>
+                    <div><label>Date Fin</label><input type="text" name="date_end" value="${formData.date_end}" class="w-full p-2 border rounded"></div>
+                    <div><label>Prix Pack (€)</label><input type="number" name="pack_price" value="${formData.pack_price}" class="w-full p-2 border rounded"></div>
+                    <div><label>Prix Vol (€)</label><input type="number" name="flight_price" value="${formData.flight_price}" class="w-full p-2 border rounded"></div>
+                    <div><label>Coût Transfert (€)</label><input type="number" name="transfer_cost" value="${formData.transfer_cost}" class="w-full p-2 border rounded"></div>
+                    <div><label>Coût Location Voiture (€)</label><input type="number" name="car_rental_cost" value="${formData.car_rental_cost}" class="w-full p-2 border rounded"></div>
+                    <div><label>Tarif B2B (€)</label><input type="number" name="hotel_b2b_price" value="${formData.hotel_b2b_price}" class="w-full p-2 border rounded"></div>
+                    <div><label>Tarif B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
+                </div>
+                <div class="mt-4"><label>Services Exclusifs</label><textarea name="exclusive_services" class="w-full p-2 border rounded">${formData.exclusive_services || ''}</textarea></div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" class="cancel-edit-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                    <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder</button>
+                </div>
+            `;
+
+            form.querySelector('.cancel-edit-btn').addEventListener('click', () => {
+                editTripModal.classList.remove('is-editing');
+            });
+        }
+
+        document.getElementById('edit-trip-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tripId = document.getElementById('trip-id-to-edit').value;
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            // Merge with existing non-form data to keep things like stars, num_people etc.
+            const originalFormData = JSON.parse(currentEditingTripData.full_data_json).form_data;
+            const updatedFormData = { ...originalFormData, ...data };
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedFormData)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Voyage mis à jour avec succès !');
+                    editTripModal.classList.remove('is-open', 'is-editing');
+                    fetchTrips();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur réseau lors de la mise à jour.');
+            }
+        });
+        
+        // --- FIN DES FONCTIONS CORRIGÉES / AJOUTÉES ---
 
         async function deleteTrip(tripId, tripRow) {
             try {
-                const response = await fetch(`/api/trip/${tripId}`, {
-                    method: 'DELETE'
-                });
+                const response = await fetch(`/api/trip/${tripId}`, { method: 'DELETE' });
                 const result = await response.json();
                 if (result.success) {
                     tripRow.remove();
@@ -487,12 +532,11 @@
                     alert('Erreur lors de la suppression: ' + result.message);
                 }
             } catch (error) {
-                console.error('Erreur:', error);
                 alert('Erreur réseau lors de la suppression');
             }
         }
 
-        async function updateTripStatus(tripId, statusData, tripRow) {
+        async function updateTripStatus(tripId, statusData) {
             try {
                 const response = await fetch(`/api/trip/${tripId}/status`, {
                     method: 'PUT',
@@ -506,7 +550,6 @@
                     alert('Erreur lors de la mise à jour: ' + result.message);
                 }
             } catch (error) {
-                console.error('Erreur:', error);
                 alert('Erreur réseau lors de la mise à jour du statut');
             }
         }
@@ -517,7 +560,6 @@
                 if (!response.ok) throw new Error('Erreur lors de la récupération des détails');
                 return await response.json();
             } catch (error) {
-                console.error('Erreur:', error);
                 alert('Erreur lors de la récupération des détails du voyage');
                 return null;
             }
@@ -566,7 +608,6 @@
                     alert('Erreur: ' + result.message);
                 }
             } catch (error) {
-                console.error('Erreur:', error);
                 alert('Erreur lors de la mise à jour du prix');
             }
         });

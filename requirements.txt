@@ -12,7 +12,4 @@ paramiko
 unidecode
 gunicorn
 psycopg2-binary
-<<<<<<< HEAD
 psycopg2
-=======
->>>>>>> bc577d55ca1acd1998ad2f38fa902e18cded7302

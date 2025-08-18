@@ -526,6 +526,8 @@
                     <div><label>Destination</label><input type="text" name="destination" value="${formData.destination}" class="w-full p-2 border rounded"></div>
                     <div><label>Date Début</label><input type="text" name="date_start" value="${formData.date_start}" class="w-full p-2 border rounded"></div>
                     <div><label>Date Fin</label><input type="text" name="date_end" value="${formData.date_end}" class="w-full p-2 border rounded"></div>
+                    <div><label>Aéroport de départ</label><input type="text" id="departure_city_edit" name="departure_city" value="${formData.departure_city || ''}" class="w-full p-2 border rounded"></div>
+                    <div><label>Aéroport d'arrivée</label><input type="text" id="arrival_airport_edit" name="arrival_airport" value="${formData.arrival_airport || ''}" class="w-full p-2 border rounded"></div>
                     <div><label>Prix Vol (€)</label><input type="number" name="flight_price" value="${formData.flight_price}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Transfert (€)</label><input type="number" name="transfer_cost" value="${formData.transfer_cost}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Location Voiture (€)</label><input type="number" name="car_rental_cost" value="${formData.car_rental_cost}" class="w-full p-2 border rounded"></div>
@@ -543,12 +545,15 @@
                     <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder</button>
                 </div>
             `;
+            
+            new google.maps.places.Autocomplete(document.getElementById('departure_city_edit'), { types: ['airport'] });
+            new google.maps.places.Autocomplete(document.getElementById('arrival_airport_edit'), { types: ['airport'] });
 
             form.querySelector('.cancel-edit-btn').addEventListener('click', () => {
                 editTripModal.classList.remove('is-editing');
             });
 
-            form.querySelectorAll('input[type="number"]').forEach(input => {
+            form.querySelectorAll('input[type="number"], input[type="text"], textarea').forEach(input => {
                 input.addEventListener('input', () => {
                     const currentFormData = new FormData(form);
                     const data = Object.fromEntries(currentFormData.entries());

@@ -22,7 +22,6 @@
     .cost-calculator div { flex: 1; text-align: center; }
     .cost-calculator p { margin: 0; color: #4b5563; font-weight: 500; font-size: 14px; }
     .cost-calculator .cost-value { font-size: 22px; font-weight: bold; color: #1e293b; }
-    /* Nouveaux styles pour le résumé financier dans la modale */
     .financial-summary {
         background-color: #f8fafc;
         border: 1px solid #e5e7eb;
@@ -110,6 +109,7 @@
                 <div><label for="client_first_name_dashboard" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                 <div><label for="client_last_name_dashboard" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
                 <div><label for="client_email_dashboard" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div><label for="client_phone_dashboard" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone_dashboard" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
             </div>
             <div class="mt-6 flex justify-end space-x-3">
                 <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
@@ -420,6 +420,7 @@
                 client_first_name: document.getElementById('client_first_name_dashboard').value,
                 client_last_name: document.getElementById('client_last_name_dashboard').value,
                 client_email: document.getElementById('client_email_dashboard').value,
+                client_phone: document.getElementById('client_phone_dashboard').value,
             };
             try {
                 const response = await fetch(`/api/trip/${tripId}/assign`, {
@@ -440,8 +441,6 @@
                 alert('Erreur réseau lors de l\'assignation');
             }
         });
-
-        // --- DÉBUT DES FONCTIONS MODIFIÉES / AJOUTÉES ---
 
         function populateEditTripModal(tripData) {
             currentEditingTripData = tripData;
@@ -467,13 +466,14 @@
                 clientContainer.innerHTML = `
                     <div class="summary-item"><i class="fas fa-user"></i> ${tripData.client_full_name}</div>
                     <div class="summary-item"><i class="fas fa-envelope"></i> ${tripData.client_email || 'Non renseigné'}</div>
+                    <div class="summary-item"><i class="fas fa-phone"></i> ${tripData.client_phone || 'Non renseigné'}</div>
                 `;
             } else {
                 modalTitle.textContent = "Modifier le voyage proposé";
                 clientContainer.parentElement.style.display = 'none';
             }
             
-            updateFinancialSummary(formData); // Affiche les calculs
+            updateFinancialSummary(formData);
             document.getElementById('trip-id-to-edit').value = tripData.id;
         }
 

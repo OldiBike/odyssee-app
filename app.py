@@ -183,6 +183,7 @@ def create_app(config_class=Config):
             new_trip.client_first_name=data.get('client_first_name')
             new_trip.client_last_name=data.get('client_last_name')
             new_trip.client_email=data.get('client_email')
+            new_trip.client_phone=data.get('client_phone') # --- LIGNE AJOUTÉE ---
             new_trip.assigned_at = datetime.utcnow()
 
         db.session.add(new_trip)
@@ -204,6 +205,7 @@ def create_app(config_class=Config):
                 client_first_name=client_data.get('client_first_name'),
                 client_last_name=client_data.get('client_last_name'),
                 client_email=client_data.get('client_email'),
+                client_phone=client_data.get('client_phone'), # --- LIGNE AJOUTÉE ---
                 assigned_at=datetime.utcnow()
             )
             
@@ -265,6 +267,7 @@ def create_app(config_class=Config):
             trip.client_email = None
             trip.assigned_at = None
             trip.client_published_filename = None
+            trip.client_phone = None # --- LIGNE AJOUTÉE ---
 
         db.session.commit()
         return jsonify({'success': True, 'message': 'Statut mis à jour.'})
@@ -307,7 +310,6 @@ def create_app(config_class=Config):
                 else:
                     return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication a échoué.'})
 
-            # --- DÉBUT DE LA MODIFICATION ---
             elif trip.status == 'proposed' and trip.is_published:
                 print(f"ℹ️ Mise à jour et republication du fichier public pour le voyage {trip.id}...")
                 public_filename = publication_service.publish_public_offer(trip)
@@ -315,7 +317,6 @@ def create_app(config_class=Config):
                     trip.published_filename = public_filename
                 else:
                     return jsonify({'success': False, 'message': 'Les données ont été sauvegardées, mais la republication de l\'offre publique a échoué.'})
-            # --- FIN DE LA MODIFICATION ---
             
             db.session.commit()
             return jsonify({'success': True, 'message': 'Offre mise à jour et republiée avec succès !'})

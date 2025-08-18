@@ -24,13 +24,12 @@ class Trip(db.Model):
     client_first_name = db.Column(db.String(100), nullable=True)
     client_last_name = db.Column(db.String(100), nullable=True)
     client_email = db.Column(db.String(120), nullable=True)
-    
+    client_phone = db.Column(db.String(50), nullable=True) # --- CHAMP AJOUTÉ ---
+
     stripe_payment_link = db.Column(db.Text, nullable=True)
 
-    # --- NOUVEAUX CHAMPS ---
     down_payment_amount = db.Column(db.Integer, nullable=True)
     balance_due_date = db.Column(db.Date, nullable=True)
-    # --- FIN DES NOUVEAUX CHAMPS ---
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     assigned_at = db.Column(db.DateTime, nullable=True)
@@ -48,6 +47,8 @@ class Trip(db.Model):
             'published_filename': self.published_filename,
             'client_published_filename': self.client_published_filename,
             'client_full_name': f"{self.client_first_name or ''} {self.client_last_name or ''}".strip(),
+            'client_email': self.client_email, # --- LIGNE AJOUTÉE ---
+            'client_phone': self.client_phone, # --- LIGNE AJOUTÉE ---
             'created_at': self.created_at.strftime('%d/%m/%Y'),
             'assigned_at': self.assigned_at.strftime('%d/%m/%Y') if self.assigned_at else None,
             'sold_at': self.sold_at.strftime('%d/%m/%Y') if self.sold_at else None,

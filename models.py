@@ -27,7 +27,7 @@ class Trip(db.Model):
     client_last_name = db.Column(db.String(100), nullable=True)
     client_email = db.Column(db.String(120), nullable=True)
     
-    stripe_payment_link = db.Column(db.String(255), nullable=True)
+    stripe_payment_link = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     assigned_at = db.Column(db.DateTime, nullable=True)

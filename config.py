@@ -1,7 +1,5 @@
 # config.py
 import os
-# La ligne "from dotenv import load_dotenv" a été déplacée dans app.py
-# La ligne "load_dotenv()" a été déplacée dans app.py
 
 class Config:
     """Configuration de l'application Flask."""
@@ -9,7 +7,6 @@ class Config:
     # Clé secrète pour la sécurité des sessions
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'une-cle-secrete-par-defaut-vraiment-pas-sure'
     
-    # --- LIGNE MODIFIÉE ---
     # Utilise la base de données de Railway (PostgreSQL) si la variable DATABASE_URL existe,
     # sinon, utilise la base de données locale (SQLite) pour le développement.
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'
@@ -21,7 +18,13 @@ class Config:
     # Configuration pour l'envoi d'emails
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
     MAIL_PORT = int(os.environ.get('MAIL_PORT') or 587)
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+    
+    # --- MODIFICATION IMPORTANTE ---
+    # Gère correctement SSL pour le port 465 et TLS pour les autres ports.
+    MAIL_USE_SSL = str(os.environ.get('MAIL_PORT')) == '465'
+    MAIL_USE_TLS = not MAIL_USE_SSL
+    # --- FIN DE LA MODIFICATION ---
+    
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_USERNAME')

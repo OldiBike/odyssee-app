@@ -364,13 +364,20 @@ def create_app(config_class=Config):
         client_offer_url = f"{app.config['SITE_PUBLIC_URL']}/clients/{trip.client_published_filename}"
 
         try:
+            print(f"ℹ️ [Trip ID: {trip.id}] Début de l'envoi de l'offre à {trip.client_email}.")
             product_name = f"Voyage: {trip.hotel_name} pour {trip.client_first_name} {trip.client_last_name}"
+            
+            print(f"ℹ️ [Trip ID: {trip.id}] Création du produit sur Stripe...")
             product = stripe.Product.create(name=product_name)
+            
+            print(f"ℹ️ [Trip ID: {trip.id}] Création du prix sur Stripe...")
             price = stripe.Price.create(
                 product=product.id,
                 unit_amount=trip.price * 100,
                 currency="eur",
             )
+            
+            print(f"ℹ️ [Trip ID: {trip.id}] Création de la session de paiement Stripe...")
             checkout_session = stripe.checkout.Session.create(
                 line_items=[{'price': price.id, 'quantity': 1}],
                 mode='payment',
@@ -381,8 +388,10 @@ def create_app(config_class=Config):
             )
             trip.stripe_payment_link = checkout_session.url
             db.session.commit()
+            print(f"✅ [Trip ID: {trip.id}] Lien de paiement Stripe créé et sauvegardé.")
+
         except Exception as e:
-            print(f"❌ Erreur Stripe: {e}")
+            print(f"❌ [Trip ID: {trip.id}] Erreur Stripe: {e}")
             return jsonify({'success': False, 'message': f'Erreur lors de la création du lien de paiement Stripe: {e}'}), 500
 
         try:
@@ -401,9 +410,13 @@ def create_app(config_class=Config):
                 recipients=[trip.client_email]
             )
             msg.html = email_html
+            
+            print(f"ℹ️ [Trip ID: {trip.id}] Envoi de l'e-mail via le serveur {app.config['MAIL_SERVER']}...")
             mail.send(msg)
+            print(f"✅ [Trip ID: {trip.id}] E-mail envoyé avec succès.")
+            
         except Exception as e:
-            print(f"❌ Erreur Email: {e}")
+            print(f"❌ [Trip ID: {trip.id}] Erreur Email: {e}")
             return jsonify({'success': False, 'message': f"Erreur lors de l'envoi de l'email: {e}"}), 500
 
         return jsonify({'success': True, 'message': 'Offre envoyée avec succès par email !'})

@@ -340,10 +340,10 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     flight_price = int(data.get('flight_price', 0))
     if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
         if flight_price > 0:
-            cancellation_html = f'''
-            <p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite de l\'hôtel jusqu\'au {data.get("cancellation_date")}</p>
+            cancellation_html = f"""
+            <p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite de l'hôtel jusqu'au {data.get("cancellation_date")}</p>
             <p class="text-xs font-bold text-orange-800 mt-1 text-center">Les vols ({flight_price} €) ne sont pas remboursables.</p>
-            '''
+            """
         else:
             cancellation_html = f'<p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite jusqu\'au {data.get("cancellation_date")}</p>'
 
@@ -394,7 +394,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     if real_data.get('videos'):
         embed_url = f"https://www.youtube.com/embed/{real_data['videos'][0]['id']}"
         video_title = real_data['videos'][0]['title']
-        video_html_block = f'<div id="video-section-wrapper" class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Vidéo</h3><div><h4 class="font-semibold mb-2">Visite de l\'hôtel</h4><div class="video-container aspect-w-16 aspect-h-9"><iframe src="{embed_url}" title="{video_title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full rounded-lg"></iframe></div></div></div>'
+        video_html_block = f"""<div id="video-section-wrapper" class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Vidéo</h3><div><h4 class="font-semibold mb-2">Visite de l'hôtel</h4><div class="video-container aspect-w-16 aspect-h-9"><iframe src="{embed_url}" title="{video_title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full rounded-lg"></iframe></div></div></div>"""
 
     reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="mt-2 text-gray-700">"{r["text"]}"</p></div>' for r in real_data.get('reviews', [])])
 

@@ -81,7 +81,6 @@ def create_app(config_class=Config):
     def home():
         return redirect(url_for('generation_tool'))
 
-    # ▼▼▼ MODIFICATION ICI ▼▼▼
     @app.route('/api/published-trips')
     def published_trips():
         trips = Trip.query.filter_by(is_published=True).order_by(Trip.created_at.desc()).all()
@@ -90,19 +89,17 @@ def create_app(config_class=Config):
             full_data = json.loads(trip.full_data_json)
             image_url = full_data.get('api_data', {}).get('photos', [None])[0]
             savings = full_data.get('savings', 0)
-            # Simplifie le nom de l'hôtel pour l'affichage
             hotel_name_only = trip.hotel_name.split(',')[0].strip()
 
             trips_data.append({
-                'hotel_name': hotel_name_only, # Envoie le nom simplifié
+                'hotel_name': hotel_name_only,
                 'destination': trip.destination,
                 'price': trip.price,
                 'image_url': image_url,
                 'offer_url': f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}",
-                'savings': savings # Ajoute l'économie
+                'savings': savings
             })
         return jsonify(trips_data)
-    # ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
 
     @app.route('/generation')
     def generation_tool():
@@ -130,7 +127,6 @@ def create_app(config_class=Config):
         else:
             return "❌ Échec de connexion API - Vérifiez les logs du terminal pour plus de détails."
 
-    # ... (le reste de vos routes API reste inchangé)
     @app.route('/api/generate-preview', methods=['POST'])
     def generate_preview():
         try:
@@ -404,6 +400,13 @@ def create_app(config_class=Config):
         if not trip.client_published_filename:
             return jsonify({'success': False, 'message': "L'offre pour ce client n'a pas de page privée publiée."}), 500
         
+        # ▼▼▼ MODIFICATIONS STRICTEMENT NÉCESSAIRES ▼▼▼
+        full_data = json.loads(trip.full_data_json)
+        header_photo = full_data.get('api_data', {}).get('photos', [None])[0]
+        hotel_name_only = trip.hotel_name.split(',')[0].strip()
+        client_first_name_only = trip.client_first_name.split(' ')[0].strip() if trip.client_first_name else ""
+        # ▲▲▲ FIN DES MODIFICATIONS ▲▲▲
+
         client_offer_url = f"{app.config['SITE_PUBLIC_URL']}/clients/{trip.client_published_filename}"
         payment_type = data.get('payment_type', 'total')
         amount_to_pay = trip.price
@@ -456,22 +459,26 @@ def create_app(config_class=Config):
                 template = 'offer_template_down_payment.html'
                 email_context = {
                     'client_name': client_name,
-                    'hotel_name': trip.hotel_name,
+                    'client_first_name': client_first_name_only,
+                    'hotel_name': hotel_name_only,
                     'destination': trip.destination,
                     'public_offer_url': client_offer_url,
                     'stripe_payment_link': trip.stripe_payment_link,
                     'down_payment_amount': trip.down_payment_amount,
                     'balance_amount': balance_amount,
-                    'balance_due_date': balance_due_date_formatted
+                    'balance_due_date': balance_due_date_formatted,
+                    'header_photo': header_photo
                 }
             else:
                 template = 'offer_template.html'
                 email_context = {
                     'client_name': client_name,
-                    'hotel_name': trip.hotel_name,
+                    'client_first_name': client_first_name_only,
+                    'hotel_name': hotel_name_only,
                     'destination': trip.destination,
                     'public_offer_url': client_offer_url,
-                    'stripe_payment_link': trip.stripe_payment_link
+                    'stripe_payment_link': trip.stripe_payment_link,
+                    'header_photo': header_photo
                 }
 
             email_html = render_template(template, **email_context)

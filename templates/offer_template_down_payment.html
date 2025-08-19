@@ -1,34 +1,69 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Votre Proposition de Voyage - Acompte</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .header { background-color: #003366; padding: 20px; text-align: center; }
+        .header img { max-height: 50px; }
+        .content { padding: 30px; color: #333333; line-height: 1.6; }
+        .content p, .content h3 { margin: 0 0 15px; }
+        .offer-card { border: 1px solid #e0e0e0; border-radius: 8px; margin: 20px 0; text-decoration: none; display: block; color: inherit; }
+        .offer-card img { width: 100%; height: auto; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .offer-card-content { padding: 20px; }
+        .offer-card-content h3 { margin: 0; font-size: 18px; }
+        .offer-card-content p { margin: 5px 0 0; font-size: 14px; color: #666; }
+        .button { display: inline-block; background-color: #28a745; color: #ffffff; padding: 12px 25px; border-radius: 5px; text-decoration: none; font-weight: bold; text-align: center; }
+        .payment-details { background-color: #f9f9f9; border-left: 4px solid #003366; padding: 15px; margin: 20px 0; }
+        .payment-details ul { list-style: none; padding: 0; margin: 0; }
+        .payment-details li { margin-bottom: 5px; }
+        .footer { background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #888888; }
+    </style>
 </head>
 <body>
-    <h1>Bonjour {{ client_name }},</h1>
-    <p>Voici la proposition de voyage pour <strong>{{ hotel_name }}</strong> à <strong>{{ destination }}</strong>.</p>
-    <p>Vous pouvez consulter tous les détails de cette offre exclusive en cliquant sur le lien ci-dessous :</p>
-    <a href="{{ public_offer_url }}">Voir mon offre personnalisée</a>
-    <br><br>
-    <h3>Confirmation de votre réservation</h3>
-    <p>
-        Pour confirmer définitivement votre voyage, veuillez régler un acompte de <strong>{{ down_payment_amount }} €</strong> dès maintenant en utilisant ce lien de paiement sécurisé :
-    </p>
-    <a href="{{ stripe_payment_link }}">Payer mon acompte</a>
-    <br><br>
-    <h3>Paiement du solde</h3>
-    <p>
-        Le solde restant de <strong>{{ balance_amount }} €</strong> devra être réglé au plus tard le <strong>{{ balance_due_date }}</strong>.
-    </p>
-    <p>
-        Le paiement du solde peut être effectué par virement bancaire aux coordonnées suivantes :
-    </p>
-    <ul>
-        <li><strong>Bénéficiaire :</strong> Ridea SRL OldiBike</li>
-        <li><strong>IBAN :</strong> BE36002010527181</li>
-        <li><strong>Communication :</strong> {{ client_name }} VP</li>
-    </ul>
-    <br>
-    <p>Cordialement,</p>
-    <p>L'équipe de Voyages Privilèges</p>
+    <div class="container">
+        <div class="header">
+            <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges">
+        </div>
+        <div class="content">
+            <p>Bonjour {{ client_first_name }},</p>
+            <p>Voici la proposition de voyage mise à jour pour <strong>{{ hotel_name }}</strong> à <strong>{{ destination }}</strong>.</p>
+            <p>Vous pouvez consulter tous les détails de cette offre exclusive en cliquant sur le lien ci-dessous :</p>
+            
+            <a href="{{ public_offer_url }}" class="offer-card">
+                {% if header_photo %}
+                <img src="{{ header_photo }}" alt="Image de {{ hotel_name }}">
+                {% endif %}
+                <div class="offer-card-content">
+                    <h3>Voir mon offre personnalisée</h3>
+                    <p>Cliquez ici pour découvrir votre voyage en détail</p>
+                </div>
+            </a>
+
+            <h3>Confirmation de votre réservation</h3>
+            <p>Pour confirmer définitivement votre voyage, veuillez régler un acompte de <strong>{{ down_payment_amount }} €</strong> dès maintenant en utilisant ce lien de paiement sécurisé :</p>
+            <p style="text-align: center; margin: 25px 0;">
+                <a href="{{ stripe_payment_link }}" class="button">Payer mon acompte</a>
+            </p>
+
+            <h3>Paiement du solde</h3>
+            <p>Le solde restant de <strong>{{ balance_amount }} €</strong> devra être réglé au plus tard le <strong>{{ balance_due_date }}</strong>.</p>
+            <p>Le paiement du solde peut être effectué par virement bancaire aux coordonnées suivantes :</p>
+            <div class="payment-details">
+                <ul>
+                    <li><strong>Bénéficiaire :</strong> Ridea SRL OldiBike</li>
+                    <li><strong>IBAN :</strong> BE36002010527181</li>
+                    <li><strong>Communication :</strong> {{ client_name }} VP</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">
+            <p>Cordialement,<br>L'équipe de Voyages Privilèges</p>
+            <p>Rue Winston Churchill 38, 6180 Courcelles | +32 488 43 33 44</p>
+        </div>
+    </div>
 </body>
 </html>

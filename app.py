@@ -90,6 +90,9 @@ def create_app(config_class=Config):
             image_url = full_data.get('api_data', {}).get('photos', [None])[0]
             savings = full_data.get('savings', 0)
             hotel_name_only = trip.hotel_name.split(',')[0].strip()
+            
+            # LIGNE AJOUTÉE
+            num_people = full_data.get('form_data', {}).get('num_people', 2)
 
             trips_data.append({
                 'hotel_name': hotel_name_only,
@@ -97,7 +100,8 @@ def create_app(config_class=Config):
                 'price': trip.price,
                 'image_url': image_url,
                 'offer_url': f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}",
-                'savings': savings
+                'savings': savings,
+                'num_people': num_people # On ajoute le nombre de personnes ici
             })
         return jsonify(trips_data)
 
@@ -400,12 +404,10 @@ def create_app(config_class=Config):
         if not trip.client_published_filename:
             return jsonify({'success': False, 'message': "L'offre pour ce client n'a pas de page privée publiée."}), 500
         
-        # ▼▼▼ MODIFICATIONS STRICTEMENT NÉCESSAIRES ▼▼▼
         full_data = json.loads(trip.full_data_json)
         header_photo = full_data.get('api_data', {}).get('photos', [None])[0]
         hotel_name_only = trip.hotel_name.split(',')[0].strip()
         client_first_name_only = trip.client_first_name.split(' ')[0].strip() if trip.client_first_name else ""
-        # ▲▲▲ FIN DES MODIFICATIONS ▲▲▲
 
         client_offer_url = f"{app.config['SITE_PUBLIC_URL']}/clients/{trip.client_published_filename}"
         payment_type = data.get('payment_type', 'total')

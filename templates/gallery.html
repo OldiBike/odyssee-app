@@ -66,7 +66,10 @@
                                     <div class="p-4">
                                         <h2 class="font-semibold text-lg text-slate-800">${trip.hotel_name}</h2>
                                         <p class="text-sm text-slate-600">${trip.destination}</p>
-                                        <p class="text-xl font-bold text-blue-600 mt-2">À partir de ${trip.price}€</p>
+                                        <div class="mt-2">
+                                            <p class="text-xl font-bold text-blue-600">À partir de ${trip.price}€</p>
+                                            <p class="text-xs text-slate-500">pour ${trip.num_people} personnes</p>
+                                        </div>
                                     </div>
                                 </a>
                             </div>

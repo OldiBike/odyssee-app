@@ -435,6 +435,13 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
              <p class="text-gray-700">Les dates ou la durée de ce séjour ne vous conviennent pas ? Contactez-nous ! Nous pouvons vous créer une offre sur mesure.</p>
              <p class="text-sm text-gray-500 mt-2">Notez que le tarif concurrentiel de cette offre est spécifique à ces dates et conditions.</p>
         </div>
+        
+        <div class="instagram-card p-6 text-center">
+            <a href="https://www.voyages-privileges.be" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors" style="display: inline-block;">
+                Toutes nos offres
+            </a>
+        </div>
+
         <div class="instagram-card p-6 text-center">
             <h3 class="text-xl font-semibold mb-4">📞 Contact & Infos</h3>
             <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" class="h-12 mx-auto mb-4">

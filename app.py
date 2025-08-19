@@ -17,7 +17,7 @@ else:
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response
 from flask_migrate import Migrate
 from flask_mail import Mail, Message
-from flask_cors import CORS # <--- NOUVEL IMPORT
+from flask_cors import CORS
 
 from config import Config
 from models import db, Trip
@@ -31,9 +31,7 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # ▼▼▼ NOUVEAUTÉ : Configuration de CORS ▼▼▼
     CORS(app, resources={r"/api/*": {"origins": ["https://voyages-privileges.be", "https://www.voyages-privileges.be"]}})
-    # ▲▲▲ FIN DE LA NOUVEAUTÉ ▲▲▲
 
     print(f"🔑 Clé API Google chargée : {'Oui' if app.config.get('GOOGLE_API_KEY') else 'Non'}")
     print(f"🔑 Clé API Stripe chargée : {'Oui' if app.config.get('STRIPE_API_KEY') else 'Non'}")
@@ -58,7 +56,6 @@ def create_app(config_class=Config):
 
     @app.before_request
     def require_login():
-        # L'API des voyages publiés n'a pas besoin de login
         if not check_auth() and request.endpoint not in ['login', 'static', 'stripe_webhook', 'published_trips']:
             return redirect(url_for('login'))
 
@@ -70,7 +67,7 @@ def create_app(config_class=Config):
             if username in USERS and USERS[username] == password:
                 session['authenticated'] = True
                 session['username'] = username
-                return redirect(url_for('generation_tool')) # Redirige vers l'outil après login
+                return redirect(url_for('generation_tool'))
             else:
                 return render_template('login.html', error="Identifiants incorrects")
         return render_template('login.html')
@@ -82,26 +79,30 @@ def create_app(config_class=Config):
 
     @app.route('/')
     def home():
-        # La page d'accueil est maintenant sur Hostinger, on peut rediriger vers l'outil de génération
         return redirect(url_for('generation_tool'))
 
-    # L'API pour récupérer les voyages publiés pour la page d'accueil
+    # ▼▼▼ MODIFICATION ICI ▼▼▼
     @app.route('/api/published-trips')
     def published_trips():
         trips = Trip.query.filter_by(is_published=True).order_by(Trip.created_at.desc()).all()
         trips_data = []
         for trip in trips:
             full_data = json.loads(trip.full_data_json)
-            image_url = full_data.get('api_data', {}).get('photos', [None])[0] 
+            image_url = full_data.get('api_data', {}).get('photos', [None])[0]
+            savings = full_data.get('savings', 0)
+            # Simplifie le nom de l'hôtel pour l'affichage
+            hotel_name_only = trip.hotel_name.split(',')[0].strip()
+
             trips_data.append({
-                'hotel_name': trip.hotel_name,
+                'hotel_name': hotel_name_only, # Envoie le nom simplifié
                 'destination': trip.destination,
                 'price': trip.price,
                 'image_url': image_url,
-                'offer_url': f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}"
+                'offer_url': f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}",
+                'savings': savings # Ajoute l'économie
             })
         return jsonify(trips_data)
-
+    # ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
 
     @app.route('/generation')
     def generation_tool():
@@ -129,7 +130,7 @@ def create_app(config_class=Config):
         else:
             return "❌ Échec de connexion API - Vérifiez les logs du terminal pour plus de détails."
 
-    # ... (toutes vos autres routes API restent inchangées)
+    # ... (le reste de vos routes API reste inchangé)
     @app.route('/api/generate-preview', methods=['POST'])
     def generate_preview():
         try:

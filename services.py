@@ -445,7 +445,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         <div class="instagram-card p-6 text-center">
             <h3 class="text-xl font-semibold mb-4">📞 Contact & Infos</h3>
             <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" class="h-12 mx-auto mb-4">
-            <p class="text-gray-800">📍 Rue Winston Churchill 38, 6180 Courcelles</p>
+            <p class="text-gray-800">📍 Rue Philippe Monnoyer 21, 6180 Courcelles</p>
             <p class="text-gray-800 my-2">📞 <a href="tel:+32488433344" class="text-blue-600">+32 488 43 33 44</a></p>
             <p class="text-gray-800">✉️ <a href="mailto:infos@voyages-privileges.be" class="text-blue-600">infos@voyages-privileges.be</a></p>
             <hr class="my-4">

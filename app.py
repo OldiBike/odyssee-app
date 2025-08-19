@@ -53,7 +53,7 @@ def create_app(config_class=Config):
 
     @app.before_request
     def require_login():
-        if not check_auth() and request.endpoint not in ['login', 'static', 'stripe_webhook']:
+        if not check_auth() and request.endpoint not in ['login', 'static', 'stripe_webhook', 'gallery', 'published_trips', 'home']:
             return redirect(url_for('login'))
 
     @app.route('/login', methods=['GET', 'POST'])
@@ -64,7 +64,7 @@ def create_app(config_class=Config):
             if username in USERS and USERS[username] == password:
                 session['authenticated'] = True
                 session['username'] = username
-                return redirect(url_for('home'))
+                return redirect(url_for('dashboard')) # Redirect to dashboard after login
             else:
                 return render_template('login.html', error="Identifiants incorrects")
         return render_template('login.html')
@@ -74,9 +74,34 @@ def create_app(config_class=Config):
         session.clear()
         return redirect(url_for('login'))
 
+    # MODIFICATION : La route d'accueil redirige vers la galerie
     @app.route('/')
     def home():
-        return redirect(url_for('generation_tool'))
+        return redirect(url_for('gallery'))
+
+    # NOUVEAUTÉ : La route pour la galerie
+    @app.route('/gallery')
+    def gallery():
+        return render_template('gallery.html')
+
+    # NOUVEAUTÉ : L'API pour récupérer les voyages publiés
+    @app.route('/api/published-trips')
+    def published_trips():
+        trips = Trip.query.filter_by(is_published=True).order_by(Trip.created_at.desc()).all()
+        trips_data = []
+        for trip in trips:
+            full_data = json.loads(trip.full_data_json)
+            # Prend la première photo comme image de couverture
+            image_url = full_data.get('api_data', {}).get('photos', [None])[0] 
+            trips_data.append({
+                'hotel_name': trip.hotel_name,
+                'destination': trip.destination,
+                'price': trip.price,
+                'image_url': image_url,
+                'offer_url': f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}"
+            })
+        return jsonify(trips_data)
+
 
     @app.route('/generation')
     def generation_tool():

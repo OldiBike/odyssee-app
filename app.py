@@ -17,6 +17,7 @@ else:
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response
 from flask_migrate import Migrate
 from flask_mail import Mail, Message
+from flask_cors import CORS # <--- NOUVEL IMPORT
 
 from config import Config
 from models import db, Trip
@@ -29,6 +30,10 @@ migrate = Migrate()
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # ▼▼▼ NOUVEAUTÉ : Configuration de CORS ▼▼▼
+    CORS(app, resources={r"/api/*": {"origins": ["https://voyages-privileges.be", "https://www.voyages-privileges.be"]}})
+    # ▲▲▲ FIN DE LA NOUVEAUTÉ ▲▲▲
 
     print(f"🔑 Clé API Google chargée : {'Oui' if app.config.get('GOOGLE_API_KEY') else 'Non'}")
     print(f"🔑 Clé API Stripe chargée : {'Oui' if app.config.get('STRIPE_API_KEY') else 'Non'}")
@@ -53,7 +58,8 @@ def create_app(config_class=Config):
 
     @app.before_request
     def require_login():
-        if not check_auth() and request.endpoint not in ['login', 'static', 'stripe_webhook', 'gallery', 'published_trips', 'home']:
+        # L'API des voyages publiés n'a pas besoin de login
+        if not check_auth() and request.endpoint not in ['login', 'static', 'stripe_webhook', 'published_trips']:
             return redirect(url_for('login'))
 
     @app.route('/login', methods=['GET', 'POST'])
@@ -64,7 +70,7 @@ def create_app(config_class=Config):
             if username in USERS and USERS[username] == password:
                 session['authenticated'] = True
                 session['username'] = username
-                return redirect(url_for('dashboard')) # Redirect to dashboard after login
+                return redirect(url_for('generation_tool')) # Redirige vers l'outil après login
             else:
                 return render_template('login.html', error="Identifiants incorrects")
         return render_template('login.html')
@@ -74,24 +80,18 @@ def create_app(config_class=Config):
         session.clear()
         return redirect(url_for('login'))
 
-    # MODIFICATION : La route d'accueil redirige vers la galerie
     @app.route('/')
     def home():
-        return redirect(url_for('gallery'))
+        # La page d'accueil est maintenant sur Hostinger, on peut rediriger vers l'outil de génération
+        return redirect(url_for('generation_tool'))
 
-    # NOUVEAUTÉ : La route pour la galerie
-    @app.route('/gallery')
-    def gallery():
-        return render_template('gallery.html')
-
-    # NOUVEAUTÉ : L'API pour récupérer les voyages publiés
+    # L'API pour récupérer les voyages publiés pour la page d'accueil
     @app.route('/api/published-trips')
     def published_trips():
         trips = Trip.query.filter_by(is_published=True).order_by(Trip.created_at.desc()).all()
         trips_data = []
         for trip in trips:
             full_data = json.loads(trip.full_data_json)
-            # Prend la première photo comme image de couverture
             image_url = full_data.get('api_data', {}).get('photos', [None])[0] 
             trips_data.append({
                 'hotel_name': trip.hotel_name,
@@ -129,6 +129,7 @@ def create_app(config_class=Config):
         else:
             return "❌ Échec de connexion API - Vérifiez les logs du terminal pour plus de détails."
 
+    # ... (toutes vos autres routes API restent inchangées)
     @app.route('/api/generate-preview', methods=['POST'])
     def generate_preview():
         try:

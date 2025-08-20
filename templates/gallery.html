@@ -18,9 +18,32 @@
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column;
         }
         .gallery-card:hover {
             transform: translateY(-5px);
+        }
+        .card-content {
+            padding: 1rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+        @-webkit-keyframes spin {
+            to { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .modal {
+            transition: opacity 0.3s ease;
         }
     </style>
 </head>
@@ -29,7 +52,7 @@
     <header class="bg-white shadow-sm sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
             <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo" class="h-10">
-            <a href="mailto:infos@voyages-privileges.be" class="text-sm font-semibold text-blue-600 hover:underline">Contactez-nous</a>
+            <button id="openModalBtn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">Créer mon voyage</button>
         </div>
     </header>
 
@@ -37,21 +60,57 @@
         <h1 class="text-3xl font-bold text-center text-slate-800 mb-8">Découvrez nos dernières offres de voyages</h1>
 
         <div id="gallery-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full text-center text-slate-500">
+                <div class="inline-block h-8 w-8 border-4 border-gray-200 rounded-full loader"></div>
+                <p class="mt-4">Chargement des offres...</p>
             </div>
+        </div>
     </main>
 
     <footer class="text-center py-8 text-sm text-slate-500">
-        <p>&copy; 2025 Voyages Privilèges. Tous droits réservés.</p>
-        <p>Rue Winston Churchill 38, 6180 Courcelles</p>
+        <p>&copy; 2025 Voyages Privilèges</p>
+        <p>Marque de RIDEA SRL - 1024.916.054 - OldiBike.</p>
+        <p>Rue Philippe Monnoyer 21, 6180 Courcelles</p>
     </footer>
+
+    <div id="customTripModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-4">
+            <h2 class="text-2xl font-bold mb-4">Créez le Voyage de Vos Rêves</h2>
+            <p class="text-slate-600 mb-6">Chez Voyages Privilèges, nous transformons vos envies en réalité. Pour recevoir des offres exclusives ou pour discuter d'un projet de voyage sur mesure, nous vous invitons à nous rejoindre sur WhatsApp. C'est simple, rapide et direct !</p>
+
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-semibold text-lg">Canal Exclusif</h3>
+                    <p class="text-sm text-slate-500 mb-2">Cliquez sur le lien pour rejoindre notre canal privé et découvrir nos offres flash, nos nouveautés et des bons plans exclusifs.</p>
+                    <a href="https://whatsapp.com/channel/0029VbAoDMiK0IBpEDb1682P" target="_blank" class="block w-full text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">Rejoindre le canal</a>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg">Discussion Directe</h3>
+                    <p class="text-sm text-slate-500 mb-2">Vous avez déjà une idée en tête ? Écrivez-nous directement sur WhatsApp en cliquant sur le numéro. On se fera un plaisir de trouver pour vous le bon plan pour vos vacances.</p>
+                    <a href="https://wa.me/32488433344" target="_blank" class="block w-full text-center bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">Écrire sur WhatsApp</a>
+                </div>
+            </div>
+
+            <div class="mt-6 text-right">
+                <button id="closeModalBtn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Fermer</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            fetch('/api/published-trips')
-                .then(response => response.json())
+            const apiUrl = 'https://web-production-8e590.up.railway.app/api/published-trips';
+
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('La réponse du réseau était incorrecte, statut : ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(trips => {
                     const galleryContainer = document.getElementById('gallery-container');
-                    galleryContainer.innerHTML = ''; // Vide le conteneur avant d'ajouter les nouvelles cartes
+                    galleryContainer.innerHTML = ''; 
 
                     if (trips.length === 0) {
                         galleryContainer.innerHTML = '<p class="col-span-full text-center text-slate-500">Aucun voyage publié pour le moment.</p>';
@@ -59,19 +118,27 @@
                     }
 
                     trips.forEach(trip => {
+                        const savingsHTML = trip.savings > 0 
+                            ? `<div class="mt-2 inline-block bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
+                                  Économisez ${trip.savings}€
+                                 </div>` 
+                            : '';
+
                         const card = `
                             <div class="gallery-card">
-                                <a href="${trip.offer_url}" target="_blank">
+                                <a href="${trip.offer_url}" target="_blank" class="flex flex-col h-full">
                                     <img src="${trip.image_url || 'https://placehold.co/600x400?text=Voyage'}" alt="${trip.hotel_name}" class="w-full h-48 object-cover">
-                                    <div class="p-4">
-                                        <h2 class="font-semibold text-lg text-slate-800">${trip.hotel_name}</h2>
-                                        <p class="text-sm text-slate-600">${trip.destination}</p>
-                                        <div class="mt-2">
+                                    <div class="card-content">
+                                        <div>
+                                            <h2 class="font-bold text-lg text-slate-800">${trip.hotel_name}</h2>
+                                            <p class="text-sm text-slate-600">${trip.destination}</p>
+                                        </div>
+                                        <div class="mt-4">
                                             <p class="text-xl font-bold text-blue-600">À partir de ${trip.price}€</p>
-                                            <p class="text-xs text-slate-500">pour ${trip.num_people} personnes</p>
+                                            ${savingsHTML}
                                         </div>
                                     </div>
-                                </a>
+                                a>
                             </div>
                         `;
                         galleryContainer.innerHTML += card;
@@ -80,8 +147,23 @@
                 .catch(error => {
                     console.error('Erreur lors de la récupération des voyages:', error);
                     const galleryContainer = document.getElementById('gallery-container');
-                    galleryContainer.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les voyages. Veuillez réessayer plus tard.</p>';
+                    galleryContainer.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les voyages. Veuillez vérifier la console pour plus de détails.</p>';
                 });
+
+            // Logique de la modale
+            const openModalBtn = document.getElementById('openModalBtn');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const modal = document.getElementById('customTripModal');
+
+            openModalBtn.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            });
         });
     </script>
 

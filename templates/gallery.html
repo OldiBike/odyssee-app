@@ -20,7 +20,6 @@
             transition: transform 0.2s ease-in-out;
             display: flex;
             flex-direction: column;
-            position: relative; /* Ajouté pour le positionnement du bandeau */
         }
         .gallery-card:hover {
             transform: translateY(-5px);
@@ -74,26 +73,26 @@
         <p>Rue Philippe Monnoyer 21, 6180 Courcelles</p>
     </footer>
 
-    <div id="customTripModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center hidden">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-4">
-            <h2 class="text-2xl font-bold mb-4">Créez le Voyage de Vos Rêves</h2>
-            <p class="text-slate-600 mb-6">Chez Voyages Privilèges, nous transformons vos envies en réalité. Pour recevoir des offres exclusives ou pour discuter d'un projet de voyage sur mesure, nous vous invitons à nous rejoindre sur WhatsApp. C'est simple, rapide et direct !</p>
+    <div id="customTripModal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center hidden px-4">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h2 class="text-xl font-bold mb-3">Créez le Voyage de Vos Rêves</h2>
+            <p class="text-sm text-slate-600 mb-4">Chez Voyages Privilèges, nous transformons vos envies en réalité. Pour recevoir des offres exclusives ou pour discuter d'un projet de voyage sur mesure, nous vous invitons à nous rejoindre sur WhatsApp. C'est simple, rapide et direct !</p>
 
-            <div class="space-y-4">
+            <div class="space-y-3">
                 <div>
-                    <h3 class="font-semibold text-lg">Canal Exclusif</h3>
-                    <p class="text-sm text-slate-500 mb-2">Cliquez sur le lien pour rejoindre notre canal privé et découvrir nos offres flash, nos nouveautés et des bons plans exclusifs.</p>
-                    <a href="https://whatsapp.com/channel/0029VbAoDMiK0IBpEDb1682P" target="_blank" class="block w-full text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">Rejoindre le canal</a>
+                    <h3 class="font-semibold">Canal Exclusif</h3>
+                    <p class="text-xs text-slate-500 mb-2">Cliquez sur le lien pour rejoindre notre canal privé et découvrir nos offres flash, nos nouveautés et des bons plans exclusifs.</p>
+                    <a href="https://whatsapp.com/channel/0029VbAoDMiK0IBpEDb1682P" target="_blank" class="block w-full text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm">Rejoindre le canal</a>
                 </div>
                 <div>
-                    <h3 class="font-semibold text-lg">Discussion Directe</h3>
-                    <p class="text-sm text-slate-500 mb-2">Vous avez déjà une idée en tête ? Écrivez-nous directement sur WhatsApp en cliquant sur le numéro. On se fera un plaisir de trouver pour vous le bon plan pour vos vacances.</p>
-                    <a href="https://wa.me/32488433344" target="_blank" class="block w-full text-center bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">Écrire sur WhatsApp</a>
+                    <h3 class="font-semibold">Discussion Directe</h3>
+                    <p class="text-xs text-slate-500 mb-2">Vous avez déjà une idée en tête ? Écrivez-nous directement sur WhatsApp en cliquant sur le numéro. On se fera un plaisir de trouver pour vous le bon plan pour vos vacances.</p>
+                    <a href="https://wa.me/32488433344" target="_blank" class="block w-full text-center bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors text-sm">Écrire sur WhatsApp</a>
                 </div>
             </div>
 
-            <div class="mt-6 text-right">
-                <button id="closeModalBtn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Fermer</button>
+            <div class="mt-4 text-right">
+                <button id="closeModalBtn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg text-sm">Fermer</button>
             </div>
         </div>
     </div>
@@ -119,19 +118,17 @@
                     }
 
                     trips.forEach(trip => {
-                        const savingsHTML = trip.savings > 0 
-                            ? `<div class="mt-2 inline-block bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
+                        let bottomBannerHTML = '';
+                        if (trip.is_ultra_budget) {
+                            bottomBannerHTML = `<div class="mt-2 inline-block bg-red-100 text-red-800 text-sm font-semibold px-3 py-1 rounded-full">Ultra Budget</div>`;
+                        } else if (trip.savings > 0) {
+                            bottomBannerHTML = `<div class="mt-2 inline-block bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
                                   Économisez ${trip.savings}€
-                                 </div>` 
-                            : '';
-                        
-                        const ultraBudgetBannerHTML = trip.is_ultra_budget
-                            ? `<div class="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg">Ultra Budget</div>`
-                            : '';
+                                 </div>`;
+                        }
 
                         const card = `
                             <div class="gallery-card">
-                                ${ultraBudgetBannerHTML}
                                 <a href="${trip.offer_url}" target="_blank" class="flex flex-col h-full">
                                     <img src="${trip.image_url || 'https://placehold.co/600x400?text=Voyage'}" alt="${trip.hotel_name}" class="w-full h-48 object-cover">
                                     <div class="card-content">
@@ -142,7 +139,7 @@
                                         <div class="mt-4">
                                             <p class="text-xl font-bold text-blue-600">À partir de ${trip.price}€</p>
                                             <p class="text-xs text-slate-500">pour ${trip.num_people} personnes</p>
-                                            ${savingsHTML}
+                                            ${bottomBannerHTML}
                                         </div>
                                     </div>
                                 </a>

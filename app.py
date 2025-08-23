@@ -144,13 +144,13 @@ def create_app(config_class=Config):
             real_data = gatherer.gather_all_real_data(data['hotel_name'], data['destination'])
             
             try:
-                hotel_b2b_price = int(data.get('hotel_b2b_price', 0))
-                hotel_b2c_price = int(data.get('hotel_b2c_price', 0))
-                pack_price = int(data.get('pack_price', 0))
-                flight_price = int(data.get('flight_price', 0))
-                transfer_cost = int(data.get('transfer_cost', 0))
-                surcharge_cost = int(data.get('surcharge_cost', 0))
-                car_rental_cost = int(data.get('car_rental_cost', 0))
+                hotel_b2b_price = int(data.get('hotel_b2b_price') or 0)
+                hotel_b2c_price = int(data.get('hotel_b2c_price') or 0)
+                pack_price = int(data.get('pack_price') or 0)
+                flight_price = int(data.get('flight_price') or 0)
+                transfer_cost = int(data.get('transfer_cost') or 0)
+                surcharge_cost = int(data.get('surcharge_cost') or 0)
+                car_rental_cost = int(data.get('car_rental_cost') or 0)
 
                 total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
                 margin = pack_price - total_cost_b2b
@@ -173,6 +173,7 @@ def create_app(config_class=Config):
             })
         except Exception as e:
             print(f"Erreur dans /api/generate-preview: {e}")
+            traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
 
     @app.route('/api/render-html-preview', methods=['POST'])
@@ -202,7 +203,7 @@ def create_app(config_class=Config):
             full_data_json=json.dumps(data),
             hotel_name=form_data.get('hotel_name'),
             destination=form_data.get('destination'),
-            price=int(form_data.get('pack_price', 0)),
+            price=int(form_data.get('pack_price') or 0),
             status=data.get('status', 'proposed'),
             is_ultra_budget=form_data.get('is_ultra_budget', False)
         )
@@ -310,13 +311,13 @@ def create_app(config_class=Config):
             full_data = json.loads(trip.full_data_json)
             full_data['form_data'] = new_form_data
             
-            hotel_b2b_price = int(new_form_data.get('hotel_b2b_price', 0))
-            hotel_b2c_price = int(new_form_data.get('hotel_b2c_price', 0))
-            pack_price = int(new_form_data.get('pack_price', 0))
-            flight_price = int(new_form_data.get('flight_price', 0))
-            transfer_cost = int(new_form_data.get('transfer_cost', 0))
-            surcharge_cost = int(new_form_data.get('surcharge_cost', 0))
-            car_rental_cost = int(new_form_data.get('car_rental_cost', 0))
+            hotel_b2b_price = int(new_form_data.get('hotel_b2b_price') or 0)
+            hotel_b2c_price = int(new_form_data.get('hotel_b2c_price') or 0)
+            pack_price = int(new_form_data.get('pack_price') or 0)
+            flight_price = int(new_form_data.get('flight_price') or 0)
+            transfer_cost = int(new_form_data.get('transfer_cost') or 0)
+            surcharge_cost = int(new_form_data.get('surcharge_cost') or 0)
+            car_rental_cost = int(new_form_data.get('car_rental_cost') or 0)
 
             total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
             margin = pack_price - total_cost_b2b
@@ -353,6 +354,7 @@ def create_app(config_class=Config):
 
         except Exception as e:
             print(f"❌ Erreur lors de la mise à jour du voyage {trip_id}: {e}")
+            traceback.print_exc()
             db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
 

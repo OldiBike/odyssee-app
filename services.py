@@ -329,17 +329,17 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
 
     date_start = datetime.strptime(data['date_start'], '%Y-%m-%d').strftime('%d %B %Y')
     date_end = datetime.strptime(data['date_end'], '%Y-%m-%d').strftime('%d %B %Y')
-    stars = "⭐" * int(data['stars'])
-    num_people = int(data.get('num_people', 2))
+    stars = "⭐" * int(data.get('stars', 0))
+    num_people = int(data.get('num_people') or 2)
     price_for_text = f"pour {num_people} personnes" if num_people > 1 else "pour 1 personne"
     
-    your_price = int(data.get('pack_price', 0))
+    your_price = int(data.get('pack_price') or 0)
     price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>' if num_people > 0 else ""
     
     is_ultra_budget = data.get('is_ultra_budget', False)
 
     cancellation_html = ""
-    flight_price = int(data.get('flight_price', 0))
+    flight_price = int(data.get('flight_price') or 0)
     if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
         if flight_price > 0:
             cancellation_html = f"""
@@ -378,11 +378,11 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     elif baggage_option == 'Pas de bagages':
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-400"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Pas de bagages</h4><p class="text-gray-600 text-xs">Peuvent être ajouté en option</p></div></div>'
 
-    transfer_cost = int(data.get('transfer_cost', 0))
+    transfer_cost = int(data.get('transfer_cost') or 0)
     transfer_text_html = f'<div class="flex justify-between"><span>+ Transferts</span><span class="font-semibold">~{transfer_cost}€</span></div>' if transfer_cost > 0 else ""
     transfer_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-green-500"><i class="fas fa-bus"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Transfert aéroport ↔ hôtel</h4><p class="text-gray-600 text-xs">Prise en charge complète</p></div></div>' if transfer_cost > 0 else ""
 
-    surcharge_cost = int(data.get('surcharge_cost', 0))
+    surcharge_cost = int(data.get('surcharge_cost') or 0)
     surcharge_text_html = f'<div class="flex justify-between"><span>+ Surcoût {data.get("surcharge_type", "")}</span><span class="font-semibold">~{surcharge_cost}€</span></div>' if surcharge_cost > 0 else ""
     
     pension_html = ''
@@ -399,7 +399,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         </div>
         '''
 
-    car_rental_cost = int(data.get('car_rental_cost', 0))
+    car_rental_cost = int(data.get('car_rental_cost') or 0)
     car_rental_text_html = f'<div class="flex justify-between"><span>+ Voiture de location (sans franchise)</span><span class="font-semibold">~{car_rental_cost}€</span></div>' if car_rental_cost > 0 else ""
     car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>' if car_rental_cost > 0 else ""
 
@@ -423,150 +423,3 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="mt-2 text-gray-700">"{r["text"]}"</p></div>' for r in real_data.get('reviews', [])])
 
     destination_section = ""
-    if real_data.get('cultural_attraction_image'):
-        cultural_attraction_name = real_data.get('attractions', {}).get('culture', [''])[0]
-        destination_section += f'<div class="mb-6 rounded-lg overflow-hidden shadow-lg"><img src="{real_data["cultural_attraction_image"]}" alt="Image de {cultural_attraction_name}" class="w-full h-48 object-cover"><div class="p-4 bg-gray-50"><h4 class="font-bold text-gray-800">Incontournable : {cultural_attraction_name}</h4></div></div>'
-
-    if real_data.get('restaurants'):
-        restaurants_list_items = "".join([f'<li class="flex items-center"><i class="fas fa-utensils text-yellow-500 mr-3"></i><span>{resto.get("name")}</span></li>' for resto in real_data['restaurants']])
-        destination_section += f'<div class="mb-6"><h4 class="font-semibold text-lg mb-3 text-gray-800">🍴 Top 3 Restaurants</h4><ul class="space-y-2 text-gray-700">{restaurants_list_items}</ul></div>'
-
-    icons = {'plages': 'fa-water', 'culture': 'fa-monument', 'gastronomie': 'fa-utensils', 'activites': 'fa-map-signs'}
-    colors = {'plages': 'bg-blue-500', 'culture': 'bg-purple-500', 'gastronomie': 'bg-green-500', 'activites': 'bg-orange-500'}
-    categories = {'plages': 'Plages & Nature', 'culture': 'Culture & Histoire', 'gastronomie': 'Gastronomie Locale', 'activites': 'Activités & Loisirs'}
-    
-    flat_attractions = []
-    for category, attractions in real_data.get('attractions', {}).items():
-        start_index = 1 if category == 'culture' and real_data.get('cultural_attraction_image') else 0
-        for attraction_name in attractions[start_index:]:
-            flat_attractions.append({'name': attraction_name, 'category': category})
-
-    if flat_attractions:
-        other_attractions_items = "".join([f'<div class="flex items-start space-x-3"><div class="feature-icon {colors.get(attr["category"], "bg-gray-500")}" style="width: 35px; height: 35px; font-size: 16px; flex-shrink: 0;"><i class="fas {icons.get(attr["category"], "fa-question")}"></i></div><div><h5 class="font-semibold text-sm text-gray-800">{attr["name"]}</h5><p class="text-gray-500 text-xs">{categories.get(attr["category"])}</p></div></div>' for attr in flat_attractions[:4]])
-        destination_section += f'<div><h4 class="font-semibold text-lg mb-3 text-gray-800">À explorer également</h4><div class="space-y-4">{other_attractions_items}</div></div>'
-
-    footer_html = f"""
-        <div class="instagram-card p-6 bg-blue-500 text-white text-center">
-            <h3 class="text-2xl font-bold mb-2">🌟 Réservez votre évasion !</h3>
-            <p>Les places sont très limitées pour cette offre exclusive. Pour garantir votre place :</p>
-            <div class="mt-4 flex flex-col sm:flex-row justify-center gap-4">
-                <a href="tel:+32488433344" class="block w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full">📞 Appeler maintenant</a>
-                <a href="mailto:infos@voyages-privileges.be" class="block w-full sm:w-auto bg-white hover:bg-gray-100 text-blue-500 font-bold py-3 px-6 rounded-full">✉️ Envoyer un email</a>
-            </div>
-        </div>
-        <div class="instagram-card p-6 text-center">
-             <h3 class="text-xl font-semibold mb-2">🗓️ Voyagez à vos dates</h3>
-             <p class="text-gray-700">Les dates ou la durée de ce séjour ne vous conviennent pas ? Contactez-nous ! Nous pouvons vous créer une offre sur mesure.</p>
-             <p class="text-sm text-gray-500 mt-2">Notez que le tarif concurrentiel de cette offre est spécifique à ces dates et conditions.</p>
-        </div>
-        
-        <div class="instagram-card p-6 text-center">
-            <a href="https://www.voyages-privileges.be" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors" style="display: inline-block;">
-                Toutes nos offres
-            </a>
-        </div>
-
-        <div class="instagram-card p-6 text-center">
-            <h3 class="text-xl font-semibold mb-4">📞 Contact & Infos</h3>
-            <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" class="h-12 mx-auto mb-4">
-            <p class="text-gray-800">📍 Rue Philippe Monnoyer 21, 6180 Courcelles</p>
-            <p class="text-gray-800 my-2">📞 <a href="tel:+32488433344" class="text-blue-600">+32 488 43 33 44</a></p>
-            <p class="text-gray-800">✉️ <a href="mailto:infos@voyages-privileges.be" class="text-blue-600">infos@voyages-privileges.be</a></p>
-            <hr class="my-4">
-            <p class="text-xs text-gray-500">SRL RIDEA (OldiBike)<br>Numéro de société : 1024.916.054 - RC Exploitation : 99730451</p>
-        </div>
-    """
-    
-    story_card_style = "background: linear-gradient(135deg, #FECACA 0%, #F87171 100%);" if is_ultra_budget else "background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);"
-
-    html_template = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Voyages Privilèges - {display_hotel_name}</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com?plugins=aspect-ratio"></script>
-    <style>
-        body {{ font-family: 'Poppins', sans-serif; }} .section-title {{ font-family: 'Playfair Display', serif; }}
-        .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; }}
-        .story-card, .instagram-card + .instagram-card {{ margin-top: 20px; }}
-        .story-card {{ {story_card_style} border-radius: 25px; padding: 25px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); margin-top: 0; }}
-        .image-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }}
-        .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px;}}
-        .economy-highlight {{ background: linear-gradient(45deg, #ffd700, #ffb347); color: #333; padding: 15px; border-radius: 15px; text-align: center; margin-top: 20px; font-weight: bold;}}
-        .feature-icon {{ width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }}
-        .modal-photos {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; overflow-y: auto; padding: 20px; }}
-        .modal-photos-content {{ max-width: 800px; margin: 0 auto; padding-top: 60px; }}
-        .close-photos {{ position: fixed; top: 20px; right: 30px; font-size: 40px; color: white; cursor: pointer; z-index: 1001; font-weight: bold; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); border-radius: 50%; }}
-        .close-photos:hover {{ background: rgba(255,255,255,0.2); }}
-        .modal-photo {{ width: 100%; margin-bottom: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }}
-        .photo-counter {{ position: fixed; top: 20px; left: 30px; color: white; background: rgba(0,0,0,0.5); padding: 10px 15px; border-radius: 20px; font-weight: bold; z-index: 1001; }}
-        @media (max-width: 768px) {{ .close-photos {{ top: 15px; right: 15px; font-size: 30px; width: 40px; height: 40px; }} .photo-counter {{ top: 15px; left: 15px; padding: 8px 12px; font-size: 14px; }} .modal-photos-content {{ padding-top: 80px; padding-left: 10px; padding-right: 10px; }} }}
-    </style>
-</head>
-<body>
-    <div style="max-width: 600px; margin: auto; padding: 10px;">
-        <div style="text-align: center; padding-top: 20px; padding-bottom: 10px;">
-            <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" style="max-height: 50px; margin: auto;">
-        </div>
-        <div class="story-card">
-            <img src="{real_data['photos'][0] if real_data['photos'] else ''}" alt="{data['hotel_name']}" style="width: 100%; height: 256px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-            <h2 class="text-2xl font-bold">{display_hotel_name} {stars}</h2>
-            <p>📍 {display_address}</p>
-            <p class="mt-4">🗓️ Du {date_start} au {date_end}</p>
-            <div class="text-4xl font-bold mt-2">{your_price} €</div>
-            <p>{price_for_text}</p>{price_per_person_text}
-            {f'<p class="text-sm mt-2">Note Google: {real_data["hotel_rating"]}/5 ({real_data["total_reviews"]} avis)</p>' if real_data.get("hotel_rating", 0) > 0 else ""}
-            <div class="mt-4">{instagram_button_html}</div>
-        </div>
-        <div class="instagram-card p-6">
-            <h3 class="section-title text-xl mb-4">Inclus dans votre séjour</h3>
-            <div class="space-y-5">{flight_inclusion_html}{transfer_inclusion_html}{car_rental_inclusion_html}
-                <div class="flex items-center"><div class="feature-icon bg-purple-500"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel {stars} {display_hotel_name}</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>
-                {pension_html}
-                {baggage_inclusion_html}
-                {ultra_budget_warning_html}
-            </div>
-        </div>
-        <div class="instagram-card p-6">
-            <h3 class="section-title text-xl mb-4">Pourquoi nous choisir ?</h3>
-            <div class="p-4 rounded-lg border-2 border-red-200 bg-red-50 mb-4"><h4 class="font-bold text-center mb-2">Prix estimé ailleurs</h4><div class="text-sm space-y-1">{comparison_block}</div></div>{exclusive_services_html}
-            <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
-            <div class="economy-highlight">💰 Vous économisez {savings} € !</div>
-        </div>
-        <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>
-        <div id="photosModal" class="modal-photos"><span class="close-photos" id="closePhotos">×</span><div class="photo-counter" id="photoCounter">Photo 1 sur {total_photos}</div><div class="modal-photos-content">{modal_all_photos}</div></div>
-        {video_html_block}
-        <div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Avis des clients</h3><div class="space-y-4">{reviews_section}</div></div>
-        <div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Découvrir {city_name}</h3>{destination_section}</div>
-        {footer_html}
-    </div>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {{
-        const voirPlusBtn = document.getElementById('voirPlusPhotos');
-        const modal = document.getElementById('photosModal');
-        const closeBtn = document.getElementById('closePhotos');
-        const photoCounter = document.getElementById('photoCounter');
-        const modalPhotos = document.querySelectorAll('.modal-photo');
-        if (voirPlusBtn) {{ voirPlusBtn.addEventListener('click', function() {{ if (modal) modal.style.display = 'block'; document.body.style.overflow = 'hidden'; }}); }}
-        function closeModal() {{ if (modal) modal.style.display = 'none'; document.body.style.overflow = 'auto'; }}
-        if (closeBtn) {{ closeBtn.addEventListener('click', closeModal); }}
-        if (modal) {{ modal.addEventListener('click', function(e) {{ if (e.target === modal) {{ closeModal(); }} }}); }}
-        document.addEventListener('keydown', function(e) {{ if (e.key === 'Escape' && modal && modal.style.display === 'block') {{ closeModal(); }} }});
-        if (modalPhotos.length > 0) {{
-            const observer = new IntersectionObserver(function(entries) {{
-                entries.forEach(function(entry) {{
-                    if (entry.isIntersecting) {{
-                        const index = Array.from(modalPhotos).indexOf(entry.target) + 1;
-                        if (photoCounter) {{ photoCounter.textContent = `Photo ${{index}} sur ${{modalPhotos.length}}`; }}
-                    }}
-                }});
-            }}, {{ threshold: 0.5 }});
-            modalPhotos.forEach(function(photo) {{ observer.observe(photo); }});
-        }}
-    }});
-    </script>
-</body>
-</html>"""
-    return html_template

@@ -404,7 +404,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         ultra_budget_warning_html = '''
         <div class="mt-4 p-3 rounded-lg border-2 border-red-200 bg-red-50 text-sm">
             <h4 class="font-bold text-red-800 mb-2">⚠️ Offre Ultra Budget</h4>
-            <p class="text-xs text-red-700">Tarif minimum avec conditions (pas de bagage cabine, caution voiture élevée, hôtel non remboursable, horaires de vols non optimisés).</p>
+            <p class="text-xs text-red-700">Tarif minimum avec conditions (pas de bagage cabine, caution voiture, hôtel non remboursable, horaires de vols non optimisés).</p>
             <p class="text-xs text-blue-700 mt-2">💡 Possibilité d’ajouter des services à la carte sur demande.</p>
         </div>
         '''

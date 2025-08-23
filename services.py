@@ -371,7 +371,9 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     
     baggage_option = data.get('baggage_type', 'bagages 10 kilos')
     baggage_inclusion_html = ''
-    if baggage_option == 'bagages 10 kilos':
+    if is_ultra_budget and baggage_option == 'Pas de bagages':
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-400"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages à main uniquement</h4><p class="text-gray-600 text-xs">Pas de bagages cabine</p></div></div>'
+    elif baggage_option == 'bagages 10 kilos':
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 10 kilos</h4><p class="text-gray-600 text-xs">1 bagage inclus par personne en cabine</p></div></div>'
     elif baggage_option == 'bagages 10 kilos + 1x 20 kilos':
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10 kilos + 1x 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage 10 kilos inclus par personne en cabine et un bagage 20 kilo en soute</p></div></div>'
@@ -401,10 +403,30 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
 
     pricing_block_html = ''
     if is_ultra_budget:
-        ultra_budget_warning_html = '''
+        conditions = []
+        if flight_price == 0:
+            conditions.append("<li>- Pas de vols inclus</li>")
+        else:
+            conditions.append("<li>- Pas de bagage cabine</li>")
+        
+        if car_rental_cost > 0:
+            conditions.append("<li>- Caution pour la voiture de location</li>")
+        elif transfer_cost == 0:
+            conditions.append("<li>- Transfert aéroport non compris</li>")
+
+        if not (data.get('has_cancellation') == 'on' and data.get('cancellation_date')):
+            conditions.append("<li>- Hôtel non remboursable</li>")
+        else:
+            conditions.append(f"<li>- Hôtel remboursable jusqu'au {data.get('cancellation_date')}</li>")
+
+        conditions.append("<li>- Horaires des vols non optimisés</li>")
+        
+        conditions_list_html = "".join(conditions)
+
+        ultra_budget_warning_html = f'''
         <div class="mt-4 p-3 rounded-lg border-2 border-red-200 bg-red-50 text-sm">
-            <h4 class="font-bold text-red-800 mb-2">⚠️ Offre Ultra Budget</h4>
-            <p class="text-xs text-red-700">Tarif minimum avec conditions (pas de bagage cabine, caution voiture, hôtel non remboursable, horaires de vols non optimisés).</p>
+            <h4 class="font-bold text-red-800 mb-2">⚠️ Tarif minimum avec les conditions suivantes :</h4>
+            <ul class="text-xs text-red-700 list-none pl-0">{conditions_list_html}</ul>
             <p class="text-xs text-blue-700 mt-2">💡 Possibilité d’ajouter des services à la carte sur demande.</p>
         </div>
         '''

@@ -389,7 +389,17 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     if data.get('surcharge_type') != 'Logement seul':
         pension_html = f'<div class="flex items-center"><div class="feature-icon bg-yellow-500"><i class="fas fa-utensils"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{data.get("surcharge_type", "Pension complète")}</h4><p class="text-gray-600 text-xs">Inclus dans le forfait</p></div></div>'
 
-    ultra_budget_warning_html = ''
+    car_rental_cost = int(data.get('car_rental_cost') or 0)
+    car_rental_text_html = f'<div class="flex justify-between"><span>+ Voiture de location (sans franchise)</span><span class="font-semibold">~{car_rental_cost}€</span></div>' if car_rental_cost > 0 else ""
+    
+    car_rental_inclusion_html = ''
+    if car_rental_cost > 0:
+        if is_ultra_budget:
+            car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location</h4><p class="text-gray-600 text-xs">Franchise à partir de 1100€</p></div></div>'
+        else:
+            car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>'
+
+    pricing_block_html = ''
     if is_ultra_budget:
         ultra_budget_warning_html = '''
         <div class="mt-4 p-3 rounded-lg border-2 border-red-200 bg-red-50 text-sm">
@@ -398,16 +408,27 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             <p class="text-xs text-blue-700 mt-2">💡 Possibilité d’ajouter des services à la carte sur demande.</p>
         </div>
         '''
-
-    car_rental_cost = int(data.get('car_rental_cost') or 0)
-    car_rental_text_html = f'<div class="flex justify-between"><span>+ Voiture de location (sans franchise)</span><span class="font-semibold">~{car_rental_cost}€</span></div>' if car_rental_cost > 0 else ""
-    car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>' if car_rental_cost > 0 else ""
-
-    comparison_block = f"""
-        <div class="flex justify-between"><span>Hôtel ({data.get('stars')}⭐)</span><span class="font-semibold">{data.get('hotel_b2c_price', 'N/A')} €</span></div>
-        {flight_text_html}{transfer_text_html}{car_rental_text_html}{surcharge_text_html}
-        <hr class="my-3"><div class="flex justify-between text-base font-bold text-red-600"><span>TOTAL ESTIMÉ</span><span>{comparison_total} €</span></div>
-    """
+        pricing_block_html = f"""
+        <div class="instagram-card p-6">
+            <h3 class="section-title text-xl mb-4">Prix Ultra Budget</h3>
+            <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
+            {ultra_budget_warning_html}
+        </div>
+        """
+    else:
+        comparison_block = f"""
+            <div class="flex justify-between"><span>Hôtel ({data.get('stars')}⭐)</span><span class="font-semibold">{data.get('hotel_b2c_price', 'N/A')} €</span></div>
+            {flight_text_html}{transfer_text_html}{car_rental_text_html}{surcharge_text_html}
+            <hr class="my-3"><div class="flex justify-between text-base font-bold text-red-600"><span>TOTAL ESTIMÉ</span><span>{comparison_total} €</span></div>
+        """
+        pricing_block_html = f"""
+        <div class="instagram-card p-6">
+            <h3 class="section-title text-xl mb-4">Pourquoi nous choisir ?</h3>
+            <div class="p-4 rounded-lg border-2 border-red-200 bg-red-50 mb-4"><h4 class="font-bold text-center mb-2">Prix estimé ailleurs</h4><div class="text-sm space-y-1">{comparison_block}</div></div>{exclusive_services_html}
+            <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
+            <div class="economy-highlight">💰 Vous économisez {savings} € !</div>
+        </div>
+        """
     
     total_photos = len(real_data['photos'])
     image_gallery = "".join([f'<div class="image-item"><img src="{url}" alt="Photo de {data["hotel_name"]}"></div>' for url in real_data['photos'][:6]]) or '<p>Aucune photo disponible.</p>'
@@ -526,15 +547,9 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
                 <div class="flex items-center"><div class="feature-icon bg-purple-500"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel {stars} {display_hotel_name}</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>
                 {pension_html}
                 {baggage_inclusion_html}
-                {ultra_budget_warning_html}
             </div>
         </div>
-        <div class="instagram-card p-6">
-            <h3 class="section-title text-xl mb-4">Pourquoi nous choisir ?</h3>
-            <div class="p-4 rounded-lg border-2 border-red-200 bg-red-50 mb-4"><h4 class="font-bold text-center mb-2">Prix estimé ailleurs</h4><div class="text-sm space-y-1">{comparison_block}</div></div>{exclusive_services_html}
-            <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
-            <div class="economy-highlight">💰 Vous économisez {savings} € !</div>
-        </div>
+        {pricing_block_html}
         <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>
         <div id="photosModal" class="modal-photos"><span class="close-photos" id="closePhotos">×</span><div class="photo-counter" id="photoCounter">Photo 1 sur {total_photos}</div><div class="modal-photos-content">{modal_all_photos}</div></div>
         {video_html_block}

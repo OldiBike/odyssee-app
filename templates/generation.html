@@ -76,6 +76,9 @@
                 <div class="form-group"><label for="arrival_airport">🛬 Aéroport d'arrivée</label><input type="text" id="arrival_airport" name="arrival_airport" placeholder="Saisir un aéroport..."></div>
             </div>
             <div class="form-row">
+                 <div class="form-group"><label for="baggage_type">🧳 Bagages</label><select id="baggage_type" name="baggage_type"><option>Pas de bagages</option><option selected>bagages 10 kilos</option><option>bagages 10 kilos + 1x 20 kilos</option></select></div>
+            </div>
+            <div class="form-row">
                 <div class="form-group"><label for="flight_price">💰 Prix du vol (€)</label><div class="input-with-button"><input type="number" id="flight_price" name="flight_price" value="0" class="cost-input"><button type="button" id="searchFlightsBtn" class="search-btn" title="Rechercher sur Google Flights">🔎</button></div></div>
                 <div class="form-group"><label for="transfer_cost">🚐 Coût des Transferts (€)</label><input type="number" id="transfer_cost" name="transfer_cost" value="0" class="cost-input"></div>
             </div>
@@ -111,7 +114,7 @@
                 <div id="cancellation-warning" class="text-sm text-orange-600 mt-2" style="display: none;"></div>
             </div>
 
-            <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0" class="cost-input"><select id="surcharge_type" name="surcharge_type"><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
+            <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0" class="cost-input"><select id="surcharge_type" name="surcharge_type"><option>Logement seul</option><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
 
             <h3 class="section-divider"><span>Services Exclusifs</span></h3>
             <div class="form-group"><label for="exclusive_services">🎁 Services Exclusifs Inclus</label><textarea id="exclusive_services" name="exclusive_services" placeholder="ex: Accès au lounge VIP de l'aéroport&#10;Une bouteille de champagne en chambre&#10;Check-out tardif jusqu'à 14h"></textarea></div>

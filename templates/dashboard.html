@@ -526,6 +526,13 @@
             const fullData = JSON.parse(tripData.full_data_json);
             const formData = fullData.form_data;
             const form = document.getElementById('edit-trip-form');
+            
+            const surchargeOptions = ['Logement seul', 'Petit déjeuner', 'Demi pension', 'Pension complète', 'All-In'];
+            const surchargeSelect = surchargeOptions.map(opt => `<option value="${opt}" ${formData.surcharge_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
+            
+            const baggageOptions = ['Pas de bagages', 'bagages 10 kilos', 'bagages 10 kilos + 1x 20 kilos'];
+            const baggageSelect = baggageOptions.map(opt => `<option value="${opt}" ${formData.baggage_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
+
             form.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                     <div><label>Nom Hôtel</label><input type="text" name="hotel_name" value="${formData.hotel_name}" class="w-full p-2 border rounded"></div>
@@ -536,8 +543,10 @@
                     <div><label>Prix Vol (€)</label><input type="number" name="flight_price" value="${formData.flight_price}" class="w-full p-2 border rounded"></div>
                     <div><label>Aéroport de départ</label><input type="text" id="departure_city_edit" name="departure_city" value="${formData.departure_city || ''}" class="w-full p-2 border rounded"></div>
                     <div><label>Aéroport d'arrivée</label><input type="text" id="arrival_airport_edit" name="arrival_airport" value="${formData.arrival_airport || ''}" class="w-full p-2 border rounded"></div>
+                    <div><label>Bagages</label><select name="baggage_type" class="w-full p-2 border rounded">${baggageSelect}</select></div>
                     <div><label>Coût Transfert (€)</label><input type="number" name="transfer_cost" value="${formData.transfer_cost}" class="w-full p-2 border rounded"></div>
                     <div><label>Coût Location Voiture (€)</label><input type="number" name="car_rental_cost" value="${formData.car_rental_cost}" class="w-full p-2 border rounded"></div>
+                    <div><label>Type de Pension</label><select name="surcharge_type" class="w-full p-2 border rounded">${surchargeSelect}</select></div>
                     <div><label>Coût Surcoût</label><input type="number" name="surcharge_cost" value="${formData.surcharge_cost || 0}" class="w-full p-2 border rounded"></div>
                     <div><label>Tarif Hôtel B2B (€)</label><input type="number" name="hotel_b2b_price" value="${formData.hotel_b2b_price}" class="w-full p-2 border rounded"></div>
                     <div class="md:col-span-2"><label>Tarif Hôtel B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
@@ -560,7 +569,7 @@
                 editTripModal.classList.remove('is-editing');
             });
 
-            form.querySelectorAll('input, textarea').forEach(input => {
+            form.querySelectorAll('input, textarea, select').forEach(input => {
                 input.addEventListener('input', () => {
                     const currentFormData = new FormData(form);
                     const data = Object.fromEntries(currentFormData.entries());

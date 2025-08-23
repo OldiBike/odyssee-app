@@ -366,7 +366,15 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     
     flight_text_html = f'<div class="flex justify-between"><span>Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</span><span class="font-semibold">{flight_price}€</span></div>' if flight_price > 0 else ""
     flight_inclusion_html = f'<div class="flex items-center"><div class="feature-icon bg-blue-500"><i class="fas fa-plane"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</h4><p class="text-gray-600 text-xs">Aller-retour inclus</p></div></div>' if flight_price > 0 else ""
-    baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10kg</h4><p class="text-gray-600 text-xs">Bagage cabine inclus</p></div></div>' if flight_price > 0 else ""
+    
+    baggage_option = data.get('baggage_type', 'bagages 10 kilos')
+    baggage_inclusion_html = ''
+    if baggage_option == 'bagages 10 kilos':
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 10 kilos</h4><p class="text-gray-600 text-xs">1 bagage inclus par personne en cabine</p></div></div>'
+    elif baggage_option == 'bagages 10 kilos + 1x 20 kilos':
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10 kilos + 1x 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage 10 kilos inclus par personne en cabine et un bagage 20 kilo en soute</p></div></div>'
+    elif baggage_option == 'Pas de bagages':
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-400"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Pas de bagages</h4><p class="text-gray-600 text-xs">Peuvent être ajouté en option</p></div></div>'
 
     transfer_cost = int(data.get('transfer_cost', 0))
     transfer_text_html = f'<div class="flex justify-between"><span>+ Transferts</span><span class="font-semibold">~{transfer_cost}€</span></div>' if transfer_cost > 0 else ""
@@ -374,6 +382,11 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
 
     surcharge_cost = int(data.get('surcharge_cost', 0))
     surcharge_text_html = f'<div class="flex justify-between"><span>+ Surcoût {data.get("surcharge_type", "")}</span><span class="font-semibold">~{surcharge_cost}€</span></div>' if surcharge_cost > 0 else ""
+    
+    pension_html = ''
+    if data.get('surcharge_type') != 'Logement seul':
+        pension_html = f'<div class="flex items-center"><div class="feature-icon bg-yellow-500"><i class="fas fa-utensils"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{data.get("surcharge_type", "Pension complète")}</h4><p class="text-gray-600 text-xs">Inclus dans le forfait</p></div></div>'
+
 
     car_rental_cost = int(data.get('car_rental_cost', 0))
     car_rental_text_html = f'<div class="flex justify-between"><span>+ Voiture de location (sans franchise)</span><span class="font-semibold">~{car_rental_cost}€</span></div>' if car_rental_cost > 0 else ""
@@ -498,7 +511,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             <h3 class="section-title text-xl mb-4">Inclus dans votre séjour</h3>
             <div class="space-y-5">{flight_inclusion_html}{transfer_inclusion_html}{car_rental_inclusion_html}
                 <div class="flex items-center"><div class="feature-icon bg-purple-500"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel {stars} {display_hotel_name}</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>
-                <div class="flex items-center"><div class="feature-icon bg-yellow-500"><i class="fas fa-utensils"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{data.get('surcharge_type', 'Pension complète')}</h4><p class="text-gray-600 text-xs">Inclus dans le forfait</p></div></div>
+                {pension_html}
                 {baggage_inclusion_html}
             </div>
         </div>

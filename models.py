@@ -39,6 +39,9 @@ class Trip(db.Model):
 
     def to_dict(self):
         """Retourne une représentation dictionnaire du voyage."""
+        full_data = json.loads(self.full_data_json)
+        form_data = full_data.get('form_data', {})
+        
         return {
             'id': self.id,
             'hotel_name': self.hotel_name,
@@ -57,6 +60,8 @@ class Trip(db.Model):
             'sold_at': self.sold_at.strftime('%d/%m/%Y') if self.sold_at else None,
             'down_payment_amount': self.down_payment_amount,
             'balance_due_date': self.balance_due_date.strftime('%d/%m/%Y') if self.balance_due_date else None,
+            'date_start': form_data.get('date_start'),
+            'date_end': form_data.get('date_end')
         }
 
     def __repr__(self):

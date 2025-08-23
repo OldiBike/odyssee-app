@@ -86,12 +86,22 @@ def create_app(config_class=Config):
         trips = Trip.query.filter_by(is_published=True).order_by(Trip.created_at.desc()).all()
         trips_data = []
         for trip in trips:
+            trip_dict = trip.to_dict()
             full_data = json.loads(trip.full_data_json)
             image_url = full_data.get('api_data', {}).get('photos', [None])[0]
             savings = full_data.get('savings', 0)
             hotel_name_only = trip.hotel_name.split(',')[0].strip()
             
             num_people = full_data.get('form_data', {}).get('num_people', 2)
+            
+            duration_days = 0
+            if trip_dict.get('date_start') and trip_dict.get('date_end'):
+                try:
+                    date_start = datetime.strptime(trip_dict['date_start'], '%Y-%m-%d')
+                    date_end = datetime.strptime(trip_dict['date_end'], '%Y-%m-%d')
+                    duration_days = (date_end - date_start).days
+                except (ValueError, TypeError):
+                    duration_days = 0
 
             trips_data.append({
                 'hotel_name': hotel_name_only,
@@ -101,7 +111,8 @@ def create_app(config_class=Config):
                 'offer_url': f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}",
                 'savings': savings,
                 'num_people': num_people,
-                'is_ultra_budget': trip.is_ultra_budget
+                'is_ultra_budget': trip.is_ultra_budget,
+                'duration': duration_days
             })
         return jsonify(trips_data)
 

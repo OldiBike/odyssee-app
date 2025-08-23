@@ -126,6 +126,14 @@
                                   Économisez ${trip.savings}€
                                  </div>`;
                         }
+                        
+                        let durationHTML = '';
+                        if (trip.duration > 0) {
+                            const nights = trip.duration;
+                            const days = nights + 1;
+                            durationHTML = `<p class="text-xs text-slate-500">${days} jours / ${nights} nuits</p>`;
+                        }
+
 
                         const card = `
                             <div class="gallery-card">
@@ -139,6 +147,7 @@
                                         <div class="mt-4">
                                             <p class="text-xl font-bold text-blue-600">À partir de ${trip.price}€</p>
                                             <p class="text-xs text-slate-500">pour ${trip.num_people} personnes</p>
+                                            ${durationHTML}
                                             ${bottomBannerHTML}
                                         </div>
                                     </div>

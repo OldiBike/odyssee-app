@@ -19,7 +19,7 @@ class Trip(db.Model):
     is_published = db.Column(db.Boolean, default=False)
     published_filename = db.Column(db.String(255), nullable=True)
     
-    is_ultra_budget = db.Column(db.Boolean, default=False, nullable=False)
+    is_ultra_budget = db.Column(db.Boolean, nullable=False, default=False, server_default='f')
     
     client_published_filename = db.Column(db.String(255), nullable=True)
     

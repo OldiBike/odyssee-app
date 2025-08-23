@@ -19,6 +19,8 @@ class Trip(db.Model):
     is_published = db.Column(db.Boolean, default=False)
     published_filename = db.Column(db.String(255), nullable=True)
     
+    is_ultra_budget = db.Column(db.Boolean, default=False, nullable=False)
+    
     client_published_filename = db.Column(db.String(255), nullable=True)
     
     client_first_name = db.Column(db.String(100), nullable=True)
@@ -45,6 +47,7 @@ class Trip(db.Model):
             'status': self.status,
             'is_published': self.is_published,
             'published_filename': self.published_filename,
+            'is_ultra_budget': self.is_ultra_budget,
             'client_published_filename': self.client_published_filename,
             'client_full_name': f"{self.client_first_name or ''} {self.client_last_name or ''}".strip(),
             'client_email': self.client_email,

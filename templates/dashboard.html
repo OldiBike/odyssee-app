@@ -526,12 +526,14 @@
             const fullData = JSON.parse(tripData.full_data_json);
             const formData = fullData.form_data;
             const form = document.getElementById('edit-trip-form');
-            
+
             const surchargeOptions = ['Logement seul', 'Petit déjeuner', 'Demi pension', 'Pension complète', 'All-In'];
             const surchargeSelect = surchargeOptions.map(opt => `<option value="${opt}" ${formData.surcharge_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
             
             const baggageOptions = ['Pas de bagages', 'bagages 10 kilos', 'bagages 10 kilos + 1x 20 kilos'];
             const baggageSelect = baggageOptions.map(opt => `<option value="${opt}" ${formData.baggage_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
+
+            const isUltraBudgetChecked = tripData.is_ultra_budget ? 'checked' : '';
 
             form.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
@@ -552,6 +554,7 @@
                     <div class="md:col-span-2"><label>Tarif Hôtel B2C (€)</label><input type="number" name="hotel_b2c_price" value="${formData.hotel_b2c_price}" class="w-full p-2 border rounded"></div>
                     <div class="md:col-span-3"><label>Prix Pack Final (€)</label><input type="number" name="pack_price" value="${formData.pack_price}" class="w-full p-2 border rounded font-bold text-lg"></div>
                     <div class="md:col-span-3"><label>Services Exclusifs</label><textarea name="exclusive_services" class="w-full p-2 border rounded">${formData.exclusive_services || ''}</textarea></div>
+                    <div class="md:col-span-3"><label class="flex items-center gap-2 font-bold text-red-700"><input type="checkbox" name="is_ultra_budget" value="true" ${isUltraBudgetChecked}> ⚠️ Marquer comme "Ultra Budget"</label></div>
                 </div>
                 
                 <div id="financial-summary-edit" class="financial-summary"></div>
@@ -584,6 +587,8 @@
             const tripId = document.getElementById('trip-id-to-edit').value;
             const formData = new FormData(this);
             const data = Object.fromEntries(formData.entries());
+            
+            data.is_ultra_budget = this.querySelector('input[name="is_ultra_budget"]').checked;
 
             const originalFormData = JSON.parse(currentEditingTripData.full_data_json).form_data;
             const updatedFormData = { ...originalFormData, ...data };

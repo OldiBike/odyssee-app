@@ -336,6 +336,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     your_price = int(data.get('pack_price', 0))
     price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>' if num_people > 0 else ""
     
+    is_ultra_budget = data.get('is_ultra_budget', False)
+
     cancellation_html = ""
     flight_price = int(data.get('flight_price', 0))
     if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
@@ -387,6 +389,15 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
     if data.get('surcharge_type') != 'Logement seul':
         pension_html = f'<div class="flex items-center"><div class="feature-icon bg-yellow-500"><i class="fas fa-utensils"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{data.get("surcharge_type", "Pension complète")}</h4><p class="text-gray-600 text-xs">Inclus dans le forfait</p></div></div>'
 
+    ultra_budget_warning_html = ''
+    if is_ultra_budget:
+        ultra_budget_warning_html = '''
+        <div class="mt-4 p-3 rounded-lg border-2 border-red-200 bg-red-50 text-sm">
+            <h4 class="font-bold text-red-800 mb-2">⚠️ Offre Ultra Budget</h4>
+            <p class="text-xs text-red-700">Tarif minimum avec conditions (pas de bagage cabine, caution voiture élevée, hôtel non remboursable, horaires de vols non optimisés).</p>
+            <p class="text-xs text-blue-700 mt-2">💡 Possibilité d’ajouter des services à la carte sur demande.</p>
+        </div>
+        '''
 
     car_rental_cost = int(data.get('car_rental_cost', 0))
     car_rental_text_html = f'<div class="flex justify-between"><span>+ Voiture de location (sans franchise)</span><span class="font-semibold">~{car_rental_cost}€</span></div>' if car_rental_cost > 0 else ""
@@ -465,6 +476,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             <p class="text-xs text-gray-500">SRL RIDEA (OldiBike)<br>Numéro de société : 1024.916.054 - RC Exploitation : 99730451</p>
         </div>
     """
+    
+    story_card_style = "background: linear-gradient(135deg, #FECACA 0%, #F87171 100%);" if is_ultra_budget else "background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);"
 
     html_template = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -478,7 +491,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         body {{ font-family: 'Poppins', sans-serif; }} .section-title {{ font-family: 'Playfair Display', serif; }}
         .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; }}
         .story-card, .instagram-card + .instagram-card {{ margin-top: 20px; }}
-        .story-card {{ background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%); border-radius: 25px; padding: 25px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); margin-top: 0; }}
+        .story-card {{ {story_card_style} border-radius: 25px; padding: 25px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); margin-top: 0; }}
         .image-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }}
         .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px;}}
         .economy-highlight {{ background: linear-gradient(45deg, #ffd700, #ffb347); color: #333; padding: 15px; border-radius: 15px; text-align: center; margin-top: 20px; font-weight: bold;}}
@@ -513,6 +526,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
                 <div class="flex items-center"><div class="feature-icon bg-purple-500"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel {stars} {display_hotel_name}</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>
                 {pension_html}
                 {baggage_inclusion_html}
+                {ultra_budget_warning_html}
             </div>
         </div>
         <div class="instagram-card p-6">

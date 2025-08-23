@@ -91,7 +91,6 @@ def create_app(config_class=Config):
             savings = full_data.get('savings', 0)
             hotel_name_only = trip.hotel_name.split(',')[0].strip()
             
-            # LIGNE AJOUTÉE
             num_people = full_data.get('form_data', {}).get('num_people', 2)
 
             trips_data.append({
@@ -101,7 +100,8 @@ def create_app(config_class=Config):
                 'image_url': image_url,
                 'offer_url': f"{app.config['SITE_PUBLIC_URL']}/offres/{trip.published_filename}",
                 'savings': savings,
-                'num_people': num_people # On ajoute le nombre de personnes ici
+                'num_people': num_people,
+                'is_ultra_budget': trip.is_ultra_budget
             })
         return jsonify(trips_data)
 
@@ -203,7 +203,8 @@ def create_app(config_class=Config):
             hotel_name=form_data.get('hotel_name'),
             destination=form_data.get('destination'),
             price=int(form_data.get('pack_price', 0)),
-            status=data.get('status', 'proposed')
+            status=data.get('status', 'proposed'),
+            is_ultra_budget=form_data.get('is_ultra_budget', False)
         )
         
         if new_trip.status == 'assigned':
@@ -229,6 +230,7 @@ def create_app(config_class=Config):
                 destination=source_trip.destination,
                 price=source_trip.price,
                 status='assigned',
+                is_ultra_budget=source_trip.is_ultra_budget,
                 client_first_name=client_data.get('client_first_name'),
                 client_last_name=client_data.get('client_last_name'),
                 client_email=client_data.get('client_email'),
@@ -328,6 +330,7 @@ def create_app(config_class=Config):
             
             trip.price = pack_price
             trip.full_data_json = json.dumps(full_data)
+            trip.is_ultra_budget = new_form_data.get('is_ultra_budget', False)
             
             if trip.status == 'assigned':
                 print(f"ℹ️ Mise à jour et republication du fichier client pour le voyage {trip.id}...")

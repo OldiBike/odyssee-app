@@ -233,7 +233,6 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Voyage enregistré !', 'trip': new_trip.to_dict()})
 
-    # LOGIQUE DE DUPLICATION RESTAURÉE ICI
     @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
     def assign_trip_to_client(trip_id):
         try:
@@ -246,7 +245,7 @@ def create_app(config_class=Config):
                 hotel_name=source_trip.hotel_name,
                 destination=source_trip.destination,
                 price=source_trip.price,
-                status='assigned', # Le statut est directement 'assigned'
+                status='assigned',
                 is_ultra_budget=source_trip.is_ultra_budget,
                 client_first_name=client_data.get('client_first_name'),
                 client_last_name=client_data.get('client_last_name'),
@@ -256,9 +255,9 @@ def create_app(config_class=Config):
             )
             
             db.session.add(new_trip)
-            db.session.commit() # On sauvegarde la nouvelle copie
+            db.session.commit()
 
-            print(f"ℹ️ Création d'une fiche client pour le voyage {new_trip.id} (copie de {source_trip.id})...")
+            print(f"ℹ️ Tentative de publication du fichier pour le voyage {new_trip.id}...")
             client_filename = publication_service.publish_client_offer(new_trip)
             
             if client_filename:
@@ -268,10 +267,10 @@ def create_app(config_class=Config):
                 return jsonify({'success': True, 'message': 'Voyage assigné au client et page privée créée.'})
             else:
                 db.session.rollback() 
-                db.session.delete(new_trip) # Si la publication échoue, on supprime la copie
+                db.session.delete(new_trip)
                 db.session.commit()
-                print(f"❌ La publication a échoué. La création de la fiche client a été annulée.")
-                return jsonify({'success': False, 'message': 'Le voyage n\'a pas pu être assigné car la publication du fichier sur le serveur a échoué.'})
+                print(f"❌ La publication a échoué. Le voyage {new_trip.id} a été annulé.")
+                return jsonify({'success': False, 'message': 'Le voyage n\'a pas pu être assigné car la publication du fichier sur le serveur a échoué. Vérifiez les logs de Railway pour les détails de l\'erreur réseau.'})
 
         except Exception as e:
             db.session.rollback()

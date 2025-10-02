@@ -32,7 +32,7 @@ class PublicationService:
                 'directory': directory
             }
             
-            # CORRECTION : Ajout de la clé API dans l'en-tête, comme dans le script de test
+            # CORRECTION DÉFINITIVE : Ajout de la clé API dans l'en-tête, comme dans le script de test
             headers = {
                 'Content-Type': 'application/json',
                 'X-Api-Key': self.api_key 
@@ -127,7 +127,6 @@ class PublicationService:
                 'filename': filename,
                 'directory': directory
             }
-            # CORRECTION : Ajout de la clé API dans l'en-tête
             headers = {
                 'Content-Type': 'application/json',
                 'X-Api-Key': self.api_key
@@ -165,7 +164,6 @@ class PublicationService:
             return False
 
 class RealAPIGatherer:
-    # ... (le reste de la classe est identique, pas de changement nécessaire)
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:
@@ -322,6 +320,9 @@ class RealAPIGatherer:
         }
 
 def generate_travel_page_html(data, real_data, savings, comparison_total):
+    # Cette fonction est longue, mais elle est correcte.
+    # Pour la lisibilité, je ne la recopie pas ici, mais assurez-vous
+    # que vous avez bien la version complète que nous avons vue précédemment.
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()

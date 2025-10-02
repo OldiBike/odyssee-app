@@ -242,7 +242,7 @@
         <div class="edit-view">
             <h2 class="text-xl font-bold mb-4">Édition détaillée de l'offre</h2>
             <form id="edit-trip-form" class="space-y-4 text-sm">
-                </form>
+            </form>
         </div>
     </div>
 </div>
@@ -260,7 +260,7 @@
         const sendOfferModal = document.getElementById('send-offer-modal');
         const finalizeSaleModal = document.getElementById('finalize-sale-modal');
         const invoiceModal = document.getElementById('invoice-modal');
-        const resendInvoiceModal = document.getElementById('resend-invoice-modal'); // NOUVELLE MODALE
+        const resendInvoiceModal = document.getElementById('resend-invoice-modal');
         let currentTripInfo = { id: null, rowElement: null };
         let currentEditingTripData = null;
         let editDatePicker = null;
@@ -344,11 +344,11 @@
         }
         
         async function sendToWhatsApp(tripId, button) {
-            // ... (code existant, inchangé)
+            // ... (code existant)
         }
 
         async function sendOfferEmail(tripId, payload, button) {
-            // ... (code existant, inchangé)
+            // ... (code existant)
         }
 
         tableBody.addEventListener('click', async function(e) {
@@ -388,13 +388,11 @@
                 const tripData = await getTripDetails(tripId);
                 if (tripData) {
                     if (tripData.invoices && tripData.invoices.length > 0) {
-                        // Si une facture existe, ouvrir la modale de renvoi
-                        const latestInvoice = tripData.invoices[0]; // On suppose la plus récente est la première
+                        const latestInvoice = tripData.invoices.sort((a, b) => b.id - a.id)[0];
                         document.getElementById('resend-invoice-id').value = latestInvoice.id;
                         document.getElementById('existing-invoice-number').textContent = latestInvoice.invoice_number;
                         resendInvoiceModal.classList.add('is-open');
                     } else {
-                        // Sinon, ouvrir la modale de génération
                         document.getElementById('invoice-trip-id').value = tripId;
                         document.getElementById('invoice-client-name').value = tripData.client_full_name;
                         invoiceModal.classList.add('is-open');
@@ -402,14 +400,7 @@
                 }
             }
         });
-
-        // ... (code existant pour les autres listeners, inchangé)
-
-        document.getElementById('invoice-form').addEventListener('submit', async function(e) {
-            // ... (code existant, inchangé)
-        });
-
-        // NOUVEAU LISTENER POUR LE BOUTON DE RENVOI
+        
         document.getElementById('resend-invoice-btn').addEventListener('click', async function(e) {
             const invoiceId = document.getElementById('resend-invoice-id').value;
             const button = e.target;
@@ -433,7 +424,44 @@
             }
         });
 
-        // ... (reste du code javascript, inchangé)
+        document.getElementById('invoice-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tripId = document.getElementById('invoice-trip-id').value;
+            const button = this.querySelector('button[type="submit"]');
+            const originalButtonText = button.textContent;
+
+            const payload = {
+                client_name: document.getElementById('invoice-client-name').value,
+                client_address: document.getElementById('invoice-client-address').value,
+                client_tva: document.getElementById('invoice-client-tva').value,
+            };
+
+            button.disabled = true;
+            button.textContent = 'Génération...';
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/generate-invoice`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.success) {
+                    invoiceModal.classList.remove('is-open');
+                    this.reset();
+                }
+            } catch (error) {
+                alert('Une erreur réseau est survenue.');
+            } finally {
+                button.disabled = false;
+                button.textContent = originalButtonText;
+            }
+        });
+
+        // ... (code existant pour les autres listeners)
+
+        // ... (le reste du code javascript est inchangé)
         function populateEditTripModal(tripData) {
             // ...
         }
@@ -450,7 +478,14 @@
             // ...
         }
         async function getTripDetails(tripId) {
-            // ...
+            try {
+                const response = await fetch(`/api/trip/${tripId}`);
+                if (!response.ok) throw new Error('Erreur lors de la récupération des détails');
+                return await response.json();
+            } catch (error) {
+                alert('Erreur lors de la récupération des détails du voyage');
+                return null;
+            }
         }
         
         document.querySelectorAll('.close-modal-btn').forEach(btn => {

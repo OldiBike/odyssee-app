@@ -13,11 +13,13 @@ class PublicationService:
     def __init__(self, config):
         # Configuration API
         self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
+        self.download_api_url = 'https://www.voyages-privileges.be/api/download.php' 
         self.api_key = 'SecretUploadKey2025'
         
         print(f"📡 Configuration Publication:")
         print(f"   Mode: API HTTP (Railway compatible)")
-        print(f"   API URL: {self.api_url}")
+        print(f"   API URL (Upload): {self.api_url}")
+        print(f"   API URL (Download): {self.download_api_url}")
         
     def _upload_via_api(self, filename, html_content, directory):
         """Upload via l'API PHP sur Hostinger"""
@@ -57,7 +59,6 @@ class PublicationService:
     def upload_document(self, filename, file_content, trip_id):
         """Upload un document (PDF, etc.) via l'API PHP."""
         try:
-            # Création d'un sous-dossier sécurisé par voyage
             directory = f"documents/{trip_id}"
             print(f"📤 Upload de document via API: {filename} vers {directory}/")
             
@@ -76,7 +77,7 @@ class PublicationService:
                 self.api_url,
                 json=payload,
                 headers=headers,
-                timeout=45 # Timeout légèrement augmenté pour les fichiers plus lourds
+                timeout=45
             )
             
             if response.status_code == 200:
@@ -89,6 +90,39 @@ class PublicationService:
         except Exception as e:
             print(f"❌ Erreur critique d'upload de document: {e}")
             return False
+
+    def download_document(self, filename, trip_id):
+        """Récupère un document via l'API PHP."""
+        try:
+            directory = f"documents/{trip_id}"
+            print(f"📥 Téléchargement de document via API: {filename} depuis {directory}/")
+            
+            params = {
+                'filename': filename,
+                'directory': directory
+            }
+            
+            headers = {
+                'X-Api-Key': self.api_key
+            }
+            
+            response = requests.get(
+                self.download_api_url,
+                params=params,
+                headers=headers,
+                timeout=45
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Téléchargement de document réussi: {filename}")
+                return response.content
+            else:
+                print(f"❌ Erreur API de téléchargement: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Erreur critique de téléchargement de document: {e}")
+            return None
     
     def _generate_base_filename(self, trip_data):
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
@@ -101,7 +135,6 @@ class PublicationService:
         return f"{base_name}_{date_start}_{date_end}"
 
     def publish_public_offer(self, trip):
-        """Publie une offre dans le dossier public /offres/"""
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
         filename = f"{base_filename}.html"
@@ -118,7 +151,6 @@ class PublicationService:
         return None
 
     def publish_client_offer(self, trip):
-        """Publie une offre privée dans le dossier /clients/"""
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
         
@@ -141,7 +173,6 @@ class PublicationService:
         return None
 
     def unpublish(self, filename, is_client_offer=False):
-        """Supprime un fichier publié via l'API"""
         try:
             directory = 'clients' if is_client_offer else 'offres'
             print(f"🗑️ Suppression via API: {filename} dans {directory}/")
@@ -178,7 +209,6 @@ class PublicationService:
             return False
     
     def test_connection(self):
-        """Test de connexion à l'API"""
         try:
             print("\n🔍 TEST DE CONNEXION API")
             print("="*50)

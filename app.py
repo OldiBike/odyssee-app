@@ -19,10 +19,11 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from flask_migrate import Migrate
 from flask_mail import Mail, Message
 from flask_cors import CORS
-from weasyprint import HTML # Ajout pour la génération de PDF
+from weasyprint import HTML
+from sqlalchemy import func
 
 from config import Config
-from models import db, Trip
+from models import db, Trip, Invoice # Ajout de Invoice
 from services import RealAPIGatherer, generate_travel_page_html, PublicationService
 import stripe
 
@@ -596,7 +597,6 @@ def create_app(config_class=Config):
                 filename = secure_filename(file.filename)
                 file_content = file.read()
                 
-                # Appel au nouveau service d'upload
                 if publication_service.upload_document(filename, file_content, trip.id):
                     uploaded_filenames.append(filename)
                 else:
@@ -633,9 +633,8 @@ def create_app(config_class=Config):
                 header_photo=header_photo
             )
             
-            # Attacher les pièces jointes
             for file in uploaded_files:
-                file.seek(0) # Revenir au début du fichier en mémoire
+                file.seek(0)
                 msg.attach(
                     filename=secure_filename(file.filename),
                     content_type=file.content_type,
@@ -653,14 +652,22 @@ def create_app(config_class=Config):
 
         return jsonify({'success': True, 'message': 'Vente finalisée ! Le client a reçu ses documents par email.'})
 
-    # NOUVELLE ROUTE API AJOUTÉE
     @app.route('/api/trip/<int:trip_id>/generate-invoice', methods=['POST'])
     def generate_invoice(trip_id):
         trip = Trip.query.get_or_404(trip_id)
         data = request.get_json()
 
-        # 1. Préparation des données pour la facture
         try:
+            # 1. Générer le numéro de facture
+            today = datetime.utcnow().date()
+            today_str = today.strftime('%Y%m%d')
+            
+            # Compte le nombre de factures déjà créées aujourd'hui
+            invoices_today_count = db.session.query(Invoice).filter(func.date(Invoice.created_at) == today).count()
+            sequence_number = invoices_today_count + 1
+            invoice_number = f"{today_str}-{sequence_number:02d}"
+
+            # 2. Préparation des données pour le template
             full_data = json.loads(trip.full_data_json)
             form_data = full_data.get('form_data', {})
             
@@ -669,8 +676,8 @@ def create_app(config_class=Config):
             number_of_nights = (end_date - start_date).days
 
             invoice_data = {
-                "invoice_number": f"{trip.id}/{datetime.utcnow().year}",
-                "invoice_date": datetime.utcnow().strftime('%d/%m/%Y'),
+                "invoice_number": invoice_number,
+                "invoice_date": today.strftime('%d/%m/%Y'),
                 "client_name": data.get('client_name'),
                 "client_address": data.get('client_address'),
                 "client_tva": data.get('client_tva'),
@@ -681,51 +688,48 @@ def create_app(config_class=Config):
                 "number_of_nights": number_of_nights,
                 "total_price": trip.price,
             }
-        except Exception as e:
-            return jsonify({'success': False, 'message': f"Erreur lors de la préparation des données: {e}"}), 500
 
-        # 2. Génération du PDF
-        try:
+            # 3. Génération du PDF
             html_string = render_template('invoice_template.html', **invoice_data)
             pdf_file = HTML(string=html_string).write_pdf()
-            invoice_filename = f"facture_{trip.id}_{datetime.utcnow().strftime('%Y%m%d')}.pdf"
-        except Exception as e:
-            return jsonify({'success': False, 'message': f"Erreur lors de la génération du PDF: {e}"}), 500
+            invoice_filename = f"facture_{invoice_number}.pdf"
 
-        # 3. Upload du PDF
-        if not publication_service.upload_document(invoice_filename, pdf_file, trip.id):
-            return jsonify({'success': False, 'message': "L'upload de la facture a échoué."}), 500
+            # 4. Upload du PDF
+            if not publication_service.upload_document(invoice_filename, pdf_file, trip.id):
+                raise Exception("L'upload de la facture a échoué.")
 
-        # 4. Mise à jour de la base de données
-        try:
+            # 5. Sauvegarde de la nouvelle facture et mise à jour des documents du voyage
+            new_invoice = Invoice(invoice_number=invoice_number, trip_id=trip.id)
+            db.session.add(new_invoice)
+            
             doc_list = trip.document_filenames.split(',') if trip.document_filenames else []
             if invoice_filename not in doc_list:
                 doc_list.append(invoice_filename)
             trip.document_filenames = ','.join(doc_list)
+            
             db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'message': f"Erreur de base de données: {e}"}), 500
 
-        # 5. Envoi de l'email
-        try:
+            # 6. Envoi de l'email
             msg = Message(
-                subject=f"Votre facture pour le voyage à {trip.destination}",
+                subject=f"Votre facture N°{invoice_number}",
                 sender=("Voyages Privilèges", app.config['MAIL_DEFAULT_SENDER']),
                 recipients=[trip.client_email]
             )
-            msg.body = f"Bonjour {data.get('client_name')},\n\nVeuillez trouver ci-joint la facture pour votre voyage.\n\nCordialement,\nL'équipe de Voyages Privilèges"
+            msg.body = f"Bonjour {data.get('client_name')},\n\nVeuillez trouver ci-joint la facture N°{invoice_number} pour votre voyage.\n\nCordialement,\nL'équipe de Voyages Privilèges"
             msg.attach(
                 filename=invoice_filename,
                 content_type='application/pdf',
                 data=pdf_file
             )
             mail.send(msg)
+            
+            return jsonify({'success': True, 'message': 'Facture générée et envoyée au client avec succès !'})
+
         except Exception as e:
-            print(f"❌ Erreur lors de l'envoi de l'email de facture: {e}")
-            return jsonify({'success': True, 'message': 'Facture générée et sauvegardée, mais l\'envoi par email a échoué.'})
-        
-        return jsonify({'success': True, 'message': 'Facture générée et envoyée au client avec succès !'})
+            db.session.rollback()
+            print(f"❌ Erreur lors de la génération de la facture: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
 
 
     @app.route('/stripe-webhook', methods=['POST'])

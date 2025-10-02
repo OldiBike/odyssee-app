@@ -29,20 +29,9 @@
         .company-details {
             text-align: right;
         }
-        .company-details h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 600;
-            color: #003366;
-        }
-        .company-details .privileges {
-            font-size: 18px;
-            letter-spacing: 2px;
-        }
-        .company-details .agency {
-            font-size: 10px;
-            color: #777;
-            margin-top: -5px;
+        .company-details img {
+            max-width: 200px;
+            margin-bottom: 20px;
         }
         .invoice-details {
             text-align: left;
@@ -55,7 +44,6 @@
             display: block;
             margin-bottom: 5px;
         }
-        /* Règle CSS ajoutée pour gérer les sauts de ligne de l'adresse */
         .client-address {
             white-space: pre-wrap;
         }
@@ -77,11 +65,12 @@
             text-align: right;
         }
         .total-section table {
-            width: 40%;
+            width: 50%;
             float: right;
         }
         .total-section td {
             border: none;
+            padding: 8px 10px;
         }
         .total-value {
             font-size: 18px;
@@ -103,13 +92,12 @@
     <div class="invoice-box">
         <div class="header">
             <div class="invoice-details">
-                <strong>N° commande:</strong> {{ invoice_number }}<br>
+                <strong>N° facture:</strong> {{ invoice_number }}<br>
                 <strong>Date:</strong> {{ invoice_date }}
             </div>
             <div class="company-details">
-                <h1>Voyages <span class="privileges">PRIVILEGES</span></h1>
-                <div class="agency">AGENCE DE VOYAGE</div>
-                <p style="margin: 20px 0 5px 0;">Rue Philippe Monnoyer 21<br>6180 Courcelles</p>
+                <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges">
+                <p style="margin: 5px 0;">Rue Philippe Monnoyer 21<br>6180 Courcelles</p>
                 <p style="margin: 0; font-size: 10px;">SRL RIDEA - 1024.916.054</p>
             </div>
         </div>
@@ -147,6 +135,9 @@
                     <td><strong>TOTAL</strong></td>
                     <td class="total-value" style="text-align: right;">{{ total_price }} €</td>
                 </tr>
+                <tr>
+                    <td colspan="2" style="padding-top: 15px; font-size: 11px; color: #555;">Régime de la marge bénéficiaire - Agences de voyages</td>
+                </tr>
             </table>
         </div>
 
@@ -155,7 +146,6 @@
         <div class="footer">
             <p style="font-size: 18px; font-weight: bold; color: #003366;">Merci !</p>
             <p>Envie de voyager? www.voyages-privileges.be</p>
-            <p><strong>Régine TOMS</strong></p>
         </div>
     </div>
 </body>

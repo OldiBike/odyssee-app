@@ -25,14 +25,14 @@ class PublicationService:
             
             content_base64 = base64.b64encode(content_bytes).decode('utf-8')
             
+            # CORRECTION : La clé API est retirée du payload...
             payload = {
-                'api_key': self.api_key,
                 'filename': filename,
                 'content': content_base64,
                 'directory': directory
             }
             
-            # CORRECTION DÉFINITIVE : Ajout de la clé API dans l'en-tête, comme dans le script de test
+            # ...et remise dans les headers, comme dans la version qui fonctionnait.
             headers = {
                 'Content-Type': 'application/json',
                 'X-Api-Key': self.api_key 
@@ -122,11 +122,13 @@ class PublicationService:
         try:
             directory = 'clients' if is_client_offer else 'offres'
             print(f"🗑️ Suppression via API: {filename} dans {directory}/")
+            
+            # CORRECTION : La clé API est retirée du payload...
             payload = {
-                'api_key': self.api_key,
                 'filename': filename,
                 'directory': directory
             }
+            # ...et remise dans les headers.
             headers = {
                 'Content-Type': 'application/json',
                 'X-Api-Key': self.api_key
@@ -164,6 +166,7 @@ class PublicationService:
             return False
 
 class RealAPIGatherer:
+    # --- Le reste du fichier est identique et n'a pas besoin d'être modifié ---
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:
@@ -320,9 +323,6 @@ class RealAPIGatherer:
         }
 
 def generate_travel_page_html(data, real_data, savings, comparison_total):
-    # Cette fonction est longue, mais elle est correcte.
-    # Pour la lisibilité, je ne la recopie pas ici, mais assurez-vous
-    # que vous avez bien la version complète que nous avons vue précédemment.
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()

@@ -40,7 +40,7 @@ class Trip(db.Model):
     sold_at = db.Column(db.DateTime, nullable=True)
     
     # Relation avec les factures
-    invoices = db.relationship('Invoice', backref='trip', lazy=True)
+    invoices = db.relationship('Invoice', backref='trip', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         """Retourne une représentation dictionnaire du voyage."""
@@ -67,15 +67,24 @@ class Trip(db.Model):
             'balance_due_date': self.balance_due_date.strftime('%d/%m/%Y') if self.balance_due_date else None,
             'date_start': form_data.get('date_start'),
             'date_end': form_data.get('date_end'),
-            'document_filenames': self.document_filenames.split(',') if self.document_filenames else []
+            'document_filenames': self.document_filenames.split(',') if self.document_filenames else [],
+            # Ajout de la liste des factures
+            'invoices': [invoice.to_dict() for invoice in self.invoices]
         }
 
     def __repr__(self):
         return f'<Trip {self.id}: {self.hotel_name} - {self.status}>'
 
-# NOUVEAU MODÈLE POUR LES FACTURES
 class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(50), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     trip_id = db.Column(db.Integer, db.ForeignKey('trip.id'), nullable=False)
+
+    # Ajout de la méthode to_dict
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'invoice_number': self.invoice_number,
+            'created_at': self.created_at.strftime('%d/%m/%Y')
+        }

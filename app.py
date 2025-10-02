@@ -662,7 +662,6 @@ def create_app(config_class=Config):
             today = datetime.utcnow().date()
             today_str = today.strftime('%Y%m%d')
             
-            # Compte le nombre de factures déjà créées aujourd'hui
             invoices_today_count = db.session.query(Invoice).filter(func.date(Invoice.created_at) == today).count()
             sequence_number = invoices_today_count + 1
             invoice_number = f"{today_str}-{sequence_number:02d}"
@@ -728,6 +727,39 @@ def create_app(config_class=Config):
         except Exception as e:
             db.session.rollback()
             print(f"❌ Erreur lors de la génération de la facture: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # NOUVELLE ROUTE POUR RENVOYER UNE FACTURE EXISTANTE
+    @app.route('/api/invoice/<int:invoice_id>/resend', methods=['POST'])
+    def resend_invoice(invoice_id):
+        invoice = Invoice.query.get_or_404(invoice_id)
+        trip = invoice.trip
+
+        try:
+            invoice_filename = f"facture_{invoice.invoice_number}.pdf"
+            pdf_content = publication_service.download_document(invoice_filename, trip.id)
+
+            if not pdf_content:
+                return jsonify({'success': False, 'message': 'Le fichier de la facture n\'a pas pu être retrouvé sur le serveur.'}), 404
+
+            msg = Message(
+                subject=f"Rappel : Votre facture N°{invoice.invoice_number}",
+                sender=("Voyages Privilèges", app.config['MAIL_DEFAULT_SENDER']),
+                recipients=[trip.client_email]
+            )
+            msg.body = f"Bonjour {trip.client_first_name},\n\nVeuillez trouver à nouveau ci-joint la facture N°{invoice.invoice_number} pour votre voyage.\n\nCordialement,\nL'équipe de Voyages Privilèges"
+            msg.attach(
+                filename=invoice_filename,
+                content_type='application/pdf',
+                data=pdf_content
+            )
+            mail.send(msg)
+            
+            return jsonify({'success': True, 'message': 'La facture a été renvoyée au client avec succès !'})
+        
+        except Exception as e:
+            print(f"❌ Erreur lors du renvoi de la facture: {e}")
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 

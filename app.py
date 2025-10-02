@@ -23,7 +23,7 @@ from weasyprint import HTML
 from sqlalchemy import func
 
 from config import Config
-from models import db, Trip, Invoice # Ajout de Invoice
+from models import db, Trip, Invoice
 from services import RealAPIGatherer, generate_travel_page_html, PublicationService
 import stripe
 
@@ -233,18 +233,20 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Voyage enregistré !', 'trip': new_trip.to_dict()})
 
+    # LOGIQUE DE DUPLICATION RESTAURÉE ICI
     @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
     def assign_trip_to_client(trip_id):
         try:
             source_trip = Trip.query.get_or_404(trip_id)
             client_data = request.get_json()
 
+            # Création d'une nouvelle instance (copie)
             new_trip = Trip(
                 full_data_json=source_trip.full_data_json,
                 hotel_name=source_trip.hotel_name,
                 destination=source_trip.destination,
                 price=source_trip.price,
-                status='assigned',
+                status='assigned', # Le statut est directement 'assigned'
                 is_ultra_budget=source_trip.is_ultra_budget,
                 client_first_name=client_data.get('client_first_name'),
                 client_last_name=client_data.get('client_last_name'),
@@ -254,9 +256,9 @@ def create_app(config_class=Config):
             )
             
             db.session.add(new_trip)
-            db.session.commit()
+            db.session.commit() # On sauvegarde la nouvelle copie
 
-            print(f"ℹ️ Tentative de publication du fichier pour le voyage {new_trip.id}...")
+            print(f"ℹ️ Création d'une fiche client pour le voyage {new_trip.id} (copie de {source_trip.id})...")
             client_filename = publication_service.publish_client_offer(new_trip)
             
             if client_filename:
@@ -266,10 +268,10 @@ def create_app(config_class=Config):
                 return jsonify({'success': True, 'message': 'Voyage assigné au client et page privée créée.'})
             else:
                 db.session.rollback() 
-                db.session.delete(new_trip)
+                db.session.delete(new_trip) # Si la publication échoue, on supprime la copie
                 db.session.commit()
-                print(f"❌ La publication a échoué. Le voyage {new_trip.id} a été annulé.")
-                return jsonify({'success': False, 'message': 'Le voyage n\'a pas pu être assigné car la publication du fichier sur le serveur a échoué. Vérifiez les logs de Railway pour les détails de l\'erreur réseau.'})
+                print(f"❌ La publication a échoué. La création de la fiche client a été annulée.")
+                return jsonify({'success': False, 'message': 'Le voyage n\'a pas pu être assigné car la publication du fichier sur le serveur a échoué.'})
 
         except Exception as e:
             db.session.rollback()
@@ -591,7 +593,6 @@ def create_app(config_class=Config):
 
         uploaded_filenames = []
         
-        # 1. Uploader les fichiers
         for file in uploaded_files:
             if file and file.filename:
                 filename = secure_filename(file.filename)
@@ -602,7 +603,6 @@ def create_app(config_class=Config):
                 else:
                     return jsonify({'success': False, 'message': f"L'upload du fichier {filename} a échoué."}), 500
 
-        # 2. Mettre à jour la base de données
         try:
             trip.status = 'sold'
             trip.sold_at = datetime.utcnow()
@@ -612,7 +612,6 @@ def create_app(config_class=Config):
             db.session.rollback()
             return jsonify({'success': False, 'message': f"Erreur de base de données : {e}"}), 500
 
-        # 3. Envoyer l'email de confirmation avec les pièces jointes
         try:
             client_name = f"{trip.client_first_name or ''} {trip.client_last_name or ''}".strip()
             hotel_name_only = trip.hotel_name.split(',')[0].strip()
@@ -658,7 +657,6 @@ def create_app(config_class=Config):
         data = request.get_json()
 
         try:
-            # 1. Générer le numéro de facture
             today = datetime.utcnow().date()
             today_str = today.strftime('%Y%m%d')
             
@@ -666,7 +664,6 @@ def create_app(config_class=Config):
             sequence_number = invoices_today_count + 1
             invoice_number = f"{today_str}-{sequence_number:02d}"
 
-            # 2. Préparation des données pour le template
             full_data = json.loads(trip.full_data_json)
             form_data = full_data.get('form_data', {})
             
@@ -688,16 +685,13 @@ def create_app(config_class=Config):
                 "total_price": trip.price,
             }
 
-            # 3. Génération du PDF
             html_string = render_template('invoice_template.html', **invoice_data)
             pdf_file = HTML(string=html_string).write_pdf()
             invoice_filename = f"facture_{invoice_number}.pdf"
 
-            # 4. Upload du PDF
             if not publication_service.upload_document(invoice_filename, pdf_file, trip.id):
                 raise Exception("L'upload de la facture a échoué.")
 
-            # 5. Sauvegarde de la nouvelle facture et mise à jour des documents du voyage
             new_invoice = Invoice(invoice_number=invoice_number, trip_id=trip.id)
             db.session.add(new_invoice)
             
@@ -708,7 +702,6 @@ def create_app(config_class=Config):
             
             db.session.commit()
 
-            # 6. Envoi de l'email
             msg = Message(
                 subject=f"Votre facture N°{invoice_number}",
                 sender=("Voyages Privilèges", app.config['MAIL_DEFAULT_SENDER']),
@@ -730,7 +723,6 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 
-    # NOUVELLE ROUTE POUR RENVOYER UNE FACTURE EXISTANTE
     @app.route('/api/invoice/<int:invoice_id>/resend', methods=['POST'])
     def resend_invoice(invoice_id):
         invoice = Invoice.query.get_or_404(invoice_id)

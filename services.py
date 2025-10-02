@@ -1,4 +1,4 @@
-# services.py
+# services.py - Version corrigée
 import os
 import requests
 import json
@@ -8,6 +8,7 @@ from datetime import datetime
 import google.generativeai as genai
 from bs4 import BeautifulSoup
 import unidecode
+import traceback
 
 class PublicationService:
     def __init__(self, config):
@@ -20,15 +21,23 @@ class PublicationService:
         print(f"   Mode: API HTTP (Railway compatible)")
         print(f"   API URL (Upload): {self.api_url}")
         print(f"   API URL (Download): {self.download_api_url}")
-        
-    def _upload_via_api(self, filename, html_content, directory):
-        """Upload via l'API PHP sur Hostinger"""
+
+    def _upload_via_api(self, filename, content, directory, is_binary=False):
+        """Upload via l'API PHP sur Hostinger avec meilleur débogage"""
         try:
             print(f"📤 Upload via API: {filename} vers {directory}/")
+            print(f"   Type de contenu: {'binaire' if is_binary else 'HTML'}")
+            print(f"   Taille: {len(content) if is_binary else len(content.encode('utf-8'))} octets")
+            
+            # Encoder le contenu en base64
+            if is_binary:
+                content_base64 = base64.b64encode(content).decode('utf-8')
+            else:
+                content_base64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
             
             payload = {
                 'filename': filename,
-                'content': base64.b64encode(html_content.encode('utf-8')).decode('utf-8'),
+                'content': content_base64,
                 'directory': directory
             }
             
@@ -37,59 +46,51 @@ class PublicationService:
                 'X-Api-Key': self.api_key
             }
             
+            print(f"   Envoi de la requête POST...")
             response = requests.post(
                 self.api_url,
                 json=payload,
                 headers=headers,
-                timeout=30
+                timeout=45  # Augmenter le timeout pour les gros fichiers
             )
+            
+            print(f"   Réponse HTTP: {response.status_code}")
+            
+            try:
+                response_json = response.json()
+                print(f"   Réponse JSON: {json.dumps(response_json, indent=2)}")
+            except:
+                print(f"   Réponse brute: {response.text[:500]}") # Limiter pour éviter trop de logs
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"✅ Upload réussi: {result.get('url', '')}")
-                return True
+                if result.get('success'):
+                    print(f"✅ Upload réussi: {result.get('url', '')}")
+                    return True
+                else:
+                    print(f"❌ Échec côté serveur: {result.get('message', 'Erreur inconnue')}")
+                    if 'php_error' in result:
+                        print(f"   Erreur PHP détaillée: {result['php_error']}")
+                    return False
             else:
-                print(f"❌ Erreur API: {response.status_code} - {response.text}")
+                print(f"❌ Erreur HTTP {response.status_code}: {response.text}")
                 return False
                 
+        except requests.exceptions.Timeout:
+            print(f"❌ Timeout lors de l'upload (fichier trop volumineux ou connexion lente)")
+            return False
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Erreur réseau lors de l'upload: {e}")
+            return False
         except Exception as e:
-            print(f"❌ Erreur upload API: {e}")
+            print(f"❌ Erreur inattendue lors de l'upload: {e}")
+            traceback.print_exc()
             return False
 
     def upload_document(self, filename, file_content, trip_id):
         """Upload un document (PDF, etc.) via l'API PHP."""
-        try:
-            directory = f"documents/{trip_id}"
-            print(f"📤 Upload de document via API: {filename} vers {directory}/")
-            
-            payload = {
-                'filename': filename,
-                'content': base64.b64encode(file_content).decode('utf-8'),
-                'directory': directory
-            }
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key
-            }
-            
-            response = requests.post(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=45
-            )
-            
-            if response.status_code == 200:
-                print(f"✅ Upload de document réussi: {filename}")
-                return True
-            else:
-                print(f"❌ Erreur API d'upload de document: {response.status_code} - {response.text}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Erreur critique d'upload de document: {e}")
-            return False
+        directory = f"documents/{trip_id}"
+        return self._upload_via_api(filename, file_content, directory, is_binary=True)
 
     def download_document(self, filename, trip_id):
         """Récupère un document via l'API PHP."""
@@ -123,7 +124,7 @@ class PublicationService:
         except Exception as e:
             print(f"❌ Erreur critique de téléchargement de document: {e}")
             return None
-    
+
     def _generate_base_filename(self, trip_data):
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
@@ -135,44 +136,66 @@ class PublicationService:
         return f"{base_name}_{date_start}_{date_end}"
 
     def publish_public_offer(self, trip):
-        full_trip_data = json.loads(trip.full_data_json)
-        base_filename = self._generate_base_filename(full_trip_data)
-        filename = f"{base_filename}.html"
-        
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
-        )
-        
-        if self._upload_via_api(filename, html_content, 'offres'):
-            return filename
-        return None
+        """Publie une offre dans le dossier public /offres/"""
+        try:
+            full_trip_data = json.loads(trip.full_data_json)
+            base_filename = self._generate_base_filename(full_trip_data)
+            filename = f"{base_filename}.html"
+            
+            html_content = generate_travel_page_html(
+                full_trip_data['form_data'],
+                full_trip_data['api_data'],
+                full_trip_data.get('savings', 0),
+                full_trip_data.get('comparison_total', 0)
+            )
+            
+            print(f"\n🌐 Publication d'une offre publique")
+            print(f"   Trip ID: {trip.id}")
+            print(f"   Fichier: {filename}")
+            
+            if self._upload_via_api(filename, html_content, 'offres'):
+                return filename
+            return None
+        except Exception as e:
+            print(f"❌ Erreur dans publish_public_offer: {e}")
+            traceback.print_exc()
+            return None
 
     def publish_client_offer(self, trip):
-        full_trip_data = json.loads(trip.full_data_json)
-        base_filename = self._generate_base_filename(full_trip_data)
-        
-        raw_name = f"{trip.client_first_name} {trip.client_last_name}"
-        slug = unidecode.unidecode(raw_name).lower()
-        slug = re.sub(r"[\s']+", '_', slug)
-        client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
-        
-        filename = f"{base_filename}_{client_name_slug}.html"
-        
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
-        )
-        
-        if self._upload_via_api(filename, html_content, 'clients'):
-            return filename
-        return None
+        """Publie une offre privée dans le dossier /clients/"""
+        try:
+            full_trip_data = json.loads(trip.full_data_json)
+            base_filename = self._generate_base_filename(full_trip_data)
+            
+            raw_name = f"{trip.client_first_name} {trip.client_last_name}"
+            slug = unidecode.unidecode(raw_name).lower()
+            slug = re.sub(r"[\s']+", '_', slug)
+            client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
+            
+            filename = f"{base_filename}_{client_name_slug}.html"
+            
+            html_content = generate_travel_page_html(
+                full_trip_data['form_data'],
+                full_trip_data['api_data'],
+                full_trip_data.get('savings', 0),
+                full_trip_data.get('comparison_total', 0)
+            )
+            
+            print(f"\n🔒 Publication d'une offre client")
+            print(f"   Trip ID: {trip.id}")
+            print(f"   Client: {trip.client_first_name} {trip.client_last_name}")
+            print(f"   Fichier: {filename}")
+            
+            if self._upload_via_api(filename, html_content, 'clients'):
+                return filename
+            return None
+        except Exception as e:
+            print(f"❌ Erreur dans publish_client_offer: {e}")
+            traceback.print_exc()
+            return None
 
     def unpublish(self, filename, is_client_offer=False):
+        """Supprime un fichier publié"""
         try:
             directory = 'clients' if is_client_offer else 'offres'
             print(f"🗑️ Suppression via API: {filename} dans {directory}/")
@@ -193,6 +216,7 @@ class PublicationService:
                 headers=headers,
                 timeout=30
             )
+            
             print(f"🔍 Réponse API DELETE: Status={response.status_code}, Body={response.text}")
             
             if response.status_code == 200:
@@ -203,16 +227,18 @@ class PublicationService:
             
             print(f"❌ Erreur suppression: {response.status_code}")
             return False
-                
+            
         except Exception as e:
             print(f"❌ Erreur suppression API: {e}")
             return False
     
     def test_connection(self):
+        """Test de connexion avec création de dossiers"""
         try:
             print("\n🔍 TEST DE CONNEXION API")
             print("="*50)
             
+            # Test 1: Vérifier la connexion basique
             headers = {'X-Api-Key': self.api_key}
             response = requests.get(self.api_url, headers=headers, timeout=10)
             
@@ -222,14 +248,50 @@ class PublicationService:
                     print(f"✅ API connectée: {result.get('message')}")
                     print(f"   PHP Version: {result.get('php_version')}")
                     print(f"   Timestamp: {result.get('timestamp')}")
-                    return True
+                else:
+                    print(f"❌ Réponse négative de l'API")
+                    return False
+            else:
+                print(f"❌ Erreur connexion API: {response.status_code}")
+                return False
             
-            print(f"❌ Erreur connexion API: {response.status_code}")
-            return False
+            # Test 2: Tester l'upload dans chaque dossier
+            test_content = "<html><body>Test de connexion</body></html>"
+            test_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            test_cases = [
+                ('offres', f'test_{test_timestamp}.html'),
+                ('clients', f'test_{test_timestamp}.html'),
+                (f'documents/test_{test_timestamp}', 'test.txt')
+            ]
+            
+            all_success = True
+            for directory, filename in test_cases:
+                print(f"\n📝 Test d'écriture dans {directory}/")
+                if self._upload_via_api(filename, test_content, directory):
+                    print(f"   ✅ Écriture réussie")
+                    # Essayer de supprimer le fichier de test
+                    self.unpublish(filename, is_client_offer=(directory == 'clients'))
+                else:
+                    print(f"   ❌ Échec d'écriture dans {directory}/")
+                    all_success = False
+            
+            if all_success:
+                print("\n✅ TOUS LES TESTS RÉUSSIS !")
+                return True
+            else:
+                print("\n⚠️ Certains tests ont échoué. Vérifiez les permissions des dossiers.")
+                return False
                 
         except Exception as e:
             print(f"❌ Erreur test: {e}")
+            traceback.print_exc()
             return False
+
+# Le reste de votre code original
+# ... (RealAPIGatherer, generate_travel_page_html, etc.) ...
+# Il est important de copier-coller le reste de votre fichier ici.
+# Je vais le reprendre de votre fichier services.py original.
 
 class RealAPIGatherer:
     def __init__(self):

@@ -1,4 +1,4 @@
-# services.py
+# services.py - Version corrigée et complète
 import os
 import requests
 import json
@@ -8,6 +8,7 @@ from datetime import datetime
 import google.generativeai as genai
 from bs4 import BeautifulSoup
 import unidecode
+import traceback
 
 class PublicationService:
     def __init__(self, config):
@@ -16,194 +17,121 @@ class PublicationService:
         self.download_api_url = 'https://www.voyages-privileges.be/api/download.php' 
         self.api_key = 'SecretUploadKey2025'
         
-        print(f"📡 Configuration Publication:")
-        print(f"   Mode: API HTTP (Railway compatible)")
-        print(f"   API URL (Upload): {self.api_url}")
-        print(f"   API URL (Download): {self.download_api_url}")
+        print(f"📡 Configuration Publication: Mode API HTTP")
+
+    def _prepare_payload(self, filename, content, directory, is_binary=False):
+        """Prépare le payload JSON incluant la clé API."""
+        if is_binary:
+            content_base64 = base64.b64encode(content).decode('utf-8')
+        else:
+            content_base64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
         
-    def _upload_via_api(self, filename, html_content, directory):
-        """Upload via l'API PHP sur Hostinger"""
+        return {
+            'api_key': self.api_key, # NOUVELLE FAÇON D'ENVOYER LA CLÉ
+            'filename': filename,
+            'content': content_base64,
+            'directory': directory
+        }
+
+    def _upload_via_api(self, filename, content, directory, is_binary=False):
         try:
             print(f"📤 Upload via API: {filename} vers {directory}/")
+            payload = self._prepare_payload(filename, content, directory, is_binary)
             
-            payload = {
-                'filename': filename,
-                'content': base64.b64encode(html_content.encode('utf-8')).decode('utf-8'),
-                'directory': directory
-            }
+            headers = {'Content-Type': 'application/json'} # Plus besoin de X-Api-Key ici
             
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key
-            }
+            response = requests.post(self.api_url, json=payload, headers=headers, timeout=45)
             
-            response = requests.post(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                print(f"✅ Upload réussi: {result.get('url', '')}")
+            print(f"   Réponse HTTP: {response.status_code}")
+            if response.status_code == 200 and response.json().get('success'):
+                print(f"✅ Upload réussi: {response.json().get('url', '')}")
                 return True
             else:
-                print(f"❌ Erreur API: {response.status_code} - {response.text}")
+                print(f"❌ Échec de l'upload: {response.text}")
                 return False
-                
         except Exception as e:
-            print(f"❌ Erreur upload API: {e}")
+            print(f"❌ Erreur critique lors de l'upload: {e}")
+            traceback.print_exc()
             return False
 
     def upload_document(self, filename, file_content, trip_id):
-        """Upload un document (PDF, etc.) via l'API PHP."""
-        try:
-            directory = f"documents/{trip_id}"
-            print(f"📤 Upload de document via API: {filename} vers {directory}/")
-            
-            payload = {
-                'filename': filename,
-                'content': base64.b64encode(file_content).decode('utf-8'),
-                'directory': directory
-            }
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key
-            }
-            
-            response = requests.post(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=45
-            )
-            
-            if response.status_code == 200:
-                print(f"✅ Upload de document réussi: {filename}")
-                return True
-            else:
-                print(f"❌ Erreur API d'upload de document: {response.status_code} - {response.text}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Erreur critique d'upload de document: {e}")
-            return False
+        directory = f"documents/{trip_id}"
+        return self._upload_via_api(filename, file_content, directory, is_binary=True)
 
     def download_document(self, filename, trip_id):
-        """Récupère un document via l'API PHP."""
         try:
             directory = f"documents/{trip_id}"
-            print(f"📥 Téléchargement de document via API: {filename} depuis {directory}/")
+            params = {'filename': filename, 'directory': directory}
+            headers = {'X-Api-Key': self.api_key} 
             
-            params = {
-                'filename': filename,
-                'directory': directory
-            }
-            
-            headers = {
-                'X-Api-Key': self.api_key
-            }
-            
-            response = requests.get(
-                self.download_api_url,
-                params=params,
-                headers=headers,
-                timeout=45
-            )
+            response = requests.get(self.download_api_url, params=params, headers=headers, timeout=45)
             
             if response.status_code == 200:
-                print(f"✅ Téléchargement de document réussi: {filename}")
                 return response.content
-            else:
-                print(f"❌ Erreur API de téléchargement: {response.status_code} - {response.text}")
-                return None
-                
-        except Exception as e:
-            print(f"❌ Erreur critique de téléchargement de document: {e}")
             return None
-    
+        except Exception as e:
+            print(f"❌ Erreur critique de téléchargement: {e}")
+            return None
+
     def _generate_base_filename(self, trip_data):
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
         date_end = trip_data['form_data']['date_end']
-        
         base_name = unidecode.unidecode(hotel_name).lower()
         base_name = re.sub(r'[^a-z0-9]+', '_', base_name).strip('_')
-        
         return f"{base_name}_{date_start}_{date_end}"
 
     def publish_public_offer(self, trip):
-        full_trip_data = json.loads(trip.full_data_json)
-        base_filename = self._generate_base_filename(full_trip_data)
-        filename = f"{base_filename}.html"
-        
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
-        )
-        
-        if self._upload_via_api(filename, html_content, 'offres'):
-            return filename
-        return None
+        try:
+            full_trip_data = json.loads(trip.full_data_json)
+            base_filename = self._generate_base_filename(full_trip_data)
+            filename = f"{base_filename}.html"
+            html_content = generate_travel_page_html(
+                full_trip_data['form_data'],
+                full_trip_data['api_data'],
+                full_trip_data.get('savings', 0),
+                full_trip_data.get('comparison_total', 0)
+            )
+            if self._upload_via_api(filename, html_content, 'offres'):
+                return filename
+            return None
+        except Exception as e:
+            print(f"❌ Erreur dans publish_public_offer: {e}")
+            return None
 
     def publish_client_offer(self, trip):
-        full_trip_data = json.loads(trip.full_data_json)
-        base_filename = self._generate_base_filename(full_trip_data)
-        
-        raw_name = f"{trip.client_first_name} {trip.client_last_name}"
-        slug = unidecode.unidecode(raw_name).lower()
-        slug = re.sub(r"[\s']+", '_', slug)
-        client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
-        
-        filename = f"{base_filename}_{client_name_slug}.html"
-        
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
-        )
-        
-        if self._upload_via_api(filename, html_content, 'clients'):
-            return filename
-        return None
+        try:
+            full_trip_data = json.loads(trip.full_data_json)
+            base_filename = self._generate_base_filename(full_trip_data)
+            raw_name = f"{trip.client_first_name} {trip.client_last_name}"
+            slug = unidecode.unidecode(raw_name).lower()
+            slug = re.sub(r"[\s']+", '_', slug)
+            client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
+            filename = f"{base_filename}_{client_name_slug}.html"
+            html_content = generate_travel_page_html(
+                full_trip_data['form_data'],
+                full_trip_data['api_data'],
+                full_trip_data.get('savings', 0),
+                full_trip_data.get('comparison_total', 0)
+            )
+            if self._upload_via_api(filename, html_content, 'clients'):
+                return filename
+            return None
+        except Exception as e:
+            print(f"❌ Erreur dans publish_client_offer: {e}")
+            return None
 
     def unpublish(self, filename, is_client_offer=False):
         try:
             directory = 'clients' if is_client_offer else 'offres'
-            print(f"🗑️ Suppression via API: {filename} dans {directory}/")
-            
             payload = {
+                'api_key': self.api_key,
                 'filename': filename,
                 'directory': directory
             }
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key
-            }
-            
-            response = requests.delete(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=30
-            )
-            print(f"🔍 Réponse API DELETE: Status={response.status_code}, Body={response.text}")
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('success'):
-                    print(f"✅ Suppression réussie: {filename}")
-                    return True
-            
-            print(f"❌ Erreur suppression: {response.status_code}")
-            return False
-                
+            headers = {'Content-Type': 'application/json'}
+            response = requests.delete(self.api_url, json=payload, headers=headers, timeout=30)
+            return response.status_code == 200 and response.json().get('success')
         except Exception as e:
             print(f"❌ Erreur suppression API: {e}")
             return False
@@ -211,22 +139,20 @@ class PublicationService:
     def test_connection(self):
         try:
             print("\n🔍 TEST DE CONNEXION API")
-            print("="*50)
+            test_content = "test"
+            test_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            directory = 'offres'
+            filename = f'test_{test_timestamp}.html'
             
-            headers = {'X-Api-Key': self.api_key}
-            response = requests.get(self.api_url, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('success'):
-                    print(f"✅ API connectée: {result.get('message')}")
-                    print(f"   PHP Version: {result.get('php_version')}")
-                    print(f"   Timestamp: {result.get('timestamp')}")
-                    return True
-            
-            print(f"❌ Erreur connexion API: {response.status_code}")
-            return False
-                
+            print(f"\n📝 Test d'écriture dans {directory}/")
+            if self._upload_via_api(filename, test_content, directory):
+                print(f"   ✅ Écriture réussie")
+                self.unpublish(filename, is_client_offer=False)
+                print("\n✅ TEST RÉUSSI !")
+                return True
+            else:
+                print(f"   ❌ Échec d'écriture.")
+                return False
         except Exception as e:
             print(f"❌ Erreur test: {e}")
             return False

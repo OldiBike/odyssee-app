@@ -4,6 +4,7 @@ import json
 import requests
 from datetime import datetime, date
 import traceback
+from werkzeug.utils import secure_filename
 
 from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -129,7 +130,7 @@ def create_app(config_class=Config):
                                username=session.get('username'), 
                                view_mode=view_mode,
                                site_public_url=app.config.get('SITE_PUBLIC_URL', ''),
-                               google_api_key=app.config['GOOGLE_API_KEY'])
+                               google_api_key=app.config.get('GOOGLE_API_KEY'))
                                
     @app.route('/test-ftp')
     def test_ftp():
@@ -575,6 +576,80 @@ def create_app(config_class=Config):
             print(f"❌ Erreur inattendue dans send_whatsapp_offer: {e}")
             traceback.print_exc()
             return jsonify({'success': False, 'message': 'Une erreur interne est survenue.'}), 500
+    
+    # NOUVELLE ROUTE API AJOUTÉE
+    @app.route('/api/trip/<int:trip_id>/finalize-sale', methods=['POST'])
+    def finalize_sale(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        if 'documents' not in request.files:
+            return jsonify({'success': False, 'message': 'Aucun document fourni.'}), 400
+
+        uploaded_files = request.files.getlist('documents')
+        if not uploaded_files or not uploaded_files[0].filename:
+            return jsonify({'success': False, 'message': 'Aucun document fourni.'}), 400
+
+        uploaded_filenames = []
+        
+        # 1. Uploader les fichiers
+        for file in uploaded_files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file_content = file.read()
+                
+                # Appel au nouveau service d'upload
+                if publication_service.upload_document(filename, file_content, trip.id):
+                    uploaded_filenames.append(filename)
+                else:
+                    return jsonify({'success': False, 'message': f"L'upload du fichier {filename} a échoué."}), 500
+
+        # 2. Mettre à jour la base de données
+        try:
+            trip.status = 'sold'
+            trip.sold_at = datetime.utcnow()
+            trip.document_filenames = ','.join(uploaded_filenames)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': f"Erreur de base de données : {e}"}), 500
+
+        # 3. Envoyer l'email de confirmation avec les pièces jointes
+        try:
+            client_name = f"{trip.client_first_name or ''} {trip.client_last_name or ''}".strip()
+            hotel_name_only = trip.hotel_name.split(',')[0].strip()
+
+            msg = Message(
+                subject=f"Confirmation de votre voyage pour {trip.destination}",
+                sender=("Voyages Privilèges", app.config['MAIL_DEFAULT_SENDER']),
+                recipients=[trip.client_email]
+            )
+            msg.html = render_template(
+                'payment_confirmation.html',
+                client_name=client_name,
+                hotel_name=hotel_name_only,
+                destination=trip.destination
+            )
+            
+            # Attacher les pièces jointes
+            for file in uploaded_files:
+                file.seek(0) # Revenir au début du fichier en mémoire
+                msg.attach(
+                    filename=secure_filename(file.filename),
+                    content_type=file.content_type,
+                    data=file.read()
+                )
+            
+            mail.send(msg)
+        except Exception as e:
+            print("❌ Erreur lors de l'envoi de l'email de confirmation:")
+            traceback.print_exc()
+            # On ne bloque pas le processus si seul l'email échoue, mais on prévient
+            return jsonify({
+                'success': True, 
+                'message': 'Vente finalisée et documents uploadés, mais l\'envoi de l\'email de confirmation a échoué. Vous pouvez le renvoyer manuellement.'
+            })
+
+        return jsonify({'success': True, 'message': 'Vente finalisée ! Le client a reçu ses documents par email.'})
+
 
     @app.route('/stripe-webhook', methods=['POST'])
     def stripe_webhook():

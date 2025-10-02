@@ -32,6 +32,9 @@ class Trip(db.Model):
 
     down_payment_amount = db.Column(db.Integer, nullable=True)
     balance_due_date = db.Column(db.Date, nullable=True)
+    
+    # NOUVEAU CHAMP AJOUTÉ
+    document_filenames = db.Column(db.Text, nullable=True) # Pour stocker les noms des fichiers ex: "voucher.pdf,facture.pdf"
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     assigned_at = db.Column(db.DateTime, nullable=True)
@@ -61,7 +64,9 @@ class Trip(db.Model):
             'down_payment_amount': self.down_payment_amount,
             'balance_due_date': self.balance_due_date.strftime('%d/%m/%Y') if self.balance_due_date else None,
             'date_start': form_data.get('date_start'),
-            'date_end': form_data.get('date_end')
+            'date_end': form_data.get('date_end'),
+            # NOUVEAU CHAMP AJOUTÉ
+            'document_filenames': self.document_filenames.split(',') if self.document_filenames else []
         }
 
     def __repr__(self):

@@ -53,6 +53,42 @@ class PublicationService:
         except Exception as e:
             print(f"❌ Erreur upload API: {e}")
             return False
+
+    def upload_document(self, filename, file_content, trip_id):
+        """Upload un document (PDF, etc.) via l'API PHP."""
+        try:
+            # Création d'un sous-dossier sécurisé par voyage
+            directory = f"documents/{trip_id}"
+            print(f"📤 Upload de document via API: {filename} vers {directory}/")
+            
+            payload = {
+                'filename': filename,
+                'content': base64.b64encode(file_content).decode('utf-8'),
+                'directory': directory
+            }
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Api-Key': self.api_key
+            }
+            
+            response = requests.post(
+                self.api_url,
+                json=payload,
+                headers=headers,
+                timeout=45 # Timeout légèrement augmenté pour les fichiers plus lourds
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Upload de document réussi: {filename}")
+                return True
+            else:
+                print(f"❌ Erreur API d'upload de document: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Erreur critique d'upload de document: {e}")
+            return False
     
     def _generate_base_filename(self, trip_data):
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()

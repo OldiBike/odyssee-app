@@ -1,4 +1,4 @@
-# services.py - Version finale et fonctionnelle
+# services.py - Version corrigée, complète et fonctionnelle
 import os
 import requests
 import json
@@ -11,31 +11,33 @@ import unidecode
 
 class PublicationService:
     def __init__(self, config):
-        # Configuration API
+        # Configuration de l'API de publication sur Hostinger
         self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
         self.api_key = 'SecretUploadKey2025'
         
-        print(f"📡 Configuration Publication:")
+        print("📡 Configuration Publication:")
         print(f"   Mode: API HTTP (Railway compatible)")
         print(f"   API URL: {self.api_url}")
         
-    def _upload_via_api(self, filename, html_content, directory):
-        """Upload via l'API PHP en envoyant la clé API dans le corps JSON."""
+    def _upload_via_api(self, filename, content_bytes, directory, is_html=True):
+        """
+        Méthode unifiée pour uploader des fichiers (HTML ou documents) via l'API PHP.
+        """
         try:
             print(f"📤 Upload via API: {filename} vers {directory}/")
             
-            # CORRECTION : La clé API est maintenant DANS le payload
+            # Le contenu est encodé en base64
+            content_base64 = base64.b64encode(content_bytes).decode('utf-8')
+            
+            # La clé API est envoyée dans le corps de la requête
             payload = {
                 'api_key': self.api_key,
                 'filename': filename,
-                'content': base64.b64encode(html_content.encode('utf-8')).decode('utf-8'),
+                'content': content_base64,
                 'directory': directory
             }
             
-            # L'en-tête n'a plus besoin de la clé personnalisée
-            headers = {
-                'Content-Type': 'application/json'
-            }
+            headers = {'Content-Type': 'application/json'}
             
             response = requests.post(
                 self.api_url,
@@ -55,7 +57,31 @@ class PublicationService:
         except Exception as e:
             print(f"❌ Erreur critique lors de l'upload: {e}")
             return False
-    
+
+    def upload_document(self, filename, file_content_bytes, trip_id):
+        """
+        Téléverse un document (PDF, etc.) dans un sous-dossier spécifique au voyage.
+        """
+        # Le répertoire est dynamique pour organiser les documents par voyage
+        directory = f"documents/{trip_id}"
+        return self._upload_via_api(filename, file_content_bytes, directory, is_html=False)
+
+    def download_document(self, filename, trip_id):
+        """
+        Télécharge un document depuis le serveur.
+        (Note: Cette fonction nécessite une logique côté serveur pour le téléchargement sécurisé,
+        pour l'instant nous simulons un chemin direct)
+        """
+        try:
+            url = f"https://www.voyages-privileges.be/documents/{trip_id}/{filename}"
+            response = requests.get(url, timeout=30)
+            if response.status_code == 200:
+                return response.content
+            return None
+        except Exception as e:
+            print(f"❌ Erreur de téléchargement du document: {e}")
+            return None
+
     def _generate_base_filename(self, trip_data):
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
@@ -79,7 +105,7 @@ class PublicationService:
             full_trip_data.get('comparison_total', 0)
         )
         
-        if self._upload_via_api(filename, html_content, 'offres'):
+        if self._upload_via_api(filename, html_content.encode('utf-8'), 'offres'):
             return filename
         return None
 
@@ -102,7 +128,7 @@ class PublicationService:
             full_trip_data.get('comparison_total', 0)
         )
         
-        if self._upload_via_api(filename, html_content, 'clients'):
+        if self._upload_via_api(filename, html_content.encode('utf-8'), 'clients'):
             return filename
         return None
 
@@ -113,7 +139,7 @@ class PublicationService:
             print(f"🗑️ Suppression via API: {filename} dans {directory}/")
             
             payload = {
-                'api_key': self.api_key, # Clé API dans le corps
+                'api_key': self.api_key,
                 'filename': filename,
                 'directory': directory
             }
@@ -142,7 +168,7 @@ class PublicationService:
         """Test de connexion à l'API"""
         try:
             print("\n🔍 TEST DE CONNEXION API")
-            headers = {'X-Api-Key': self.api_key} # Le GET a besoin de la clé dans l'en-tête
+            headers = {'X-Api-Key': self.api_key}
             response = requests.get(self.api_url, headers=headers, timeout=10)
             
             if response.status_code == 200 and response.json().get('success'):
@@ -157,8 +183,11 @@ class PublicationService:
             print(f"❌ Erreur critique pendant le test: {e}")
             return False
 
+# Le reste de la classe RealAPIGatherer et la fonction generate_travel_page_html
+# restent inchangées, vous pouvez les laisser telles quelles.
+# (Le code ci-dessous est identique à votre fichier `services.py` et est inclus pour être complet)
+
 class RealAPIGatherer:
-    # ... (le reste de la classe est identique à votre version originale)
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:
@@ -313,8 +342,10 @@ class RealAPIGatherer:
             'restaurants': restaurants_list,
             'cultural_attraction_image': cultural_attraction_image
         }
-
+# ... la fonction generate_travel_page_html reste identique ...
 def generate_travel_page_html(data, real_data, savings, comparison_total):
+    # ... (votre code existant, pas besoin de le changer)
+    # --- Collez simplement le reste de votre fonction ici ---
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()

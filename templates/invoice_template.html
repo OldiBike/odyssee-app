@@ -55,6 +55,10 @@
             display: block;
             margin-bottom: 5px;
         }
+        /* Règle CSS ajoutée pour gérer les sauts de ligne de l'adresse */
+        .client-address {
+            white-space: pre-wrap;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -113,7 +117,7 @@
         <div class="client-info">
             <strong>Client</strong>
             {{ client_name }}<br>
-            {{ client_address | nl2br }}<br>
+            <div class="client-address">{{ client_address }}</div>
             {{ client_tva }}
         </div>
 

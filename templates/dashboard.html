@@ -178,6 +178,33 @@
     </div>
 </div>
 
+<div id="invoice-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+        <h2 class="text-xl font-bold mb-4">Générer une Facture</h2>
+        <form id="invoice-form">
+            <input type="hidden" id="invoice-trip-id">
+            <div class="space-y-4">
+                <div>
+                    <label for="invoice-client-name" class="block text-sm font-medium text-slate-700">Nom du client (ou société)</label>
+                    <input type="text" id="invoice-client-name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="invoice-client-address" class="block text-sm font-medium text-slate-700">Adresse</label>
+                    <textarea id="invoice-client-address" required rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></textarea>
+                </div>
+                <div>
+                    <label for="invoice-client-tva" class="block text-sm font-medium text-slate-700">N° de TVA (Optionnel)</label>
+                    <input type="text" id="invoice-client-tva" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Générer et Envoyer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 <div id="edit-trip-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-50 items-center justify-center overflow-y-auto p-4">
     <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-5xl">
@@ -218,7 +245,8 @@
         const clientModal = document.getElementById('client-modal-dashboard');
         const editTripModal = document.getElementById('edit-trip-modal');
         const sendOfferModal = document.getElementById('send-offer-modal');
-        const finalizeSaleModal = document.getElementById('finalize-sale-modal'); // NOUVELLE MODALE
+        const finalizeSaleModal = document.getElementById('finalize-sale-modal');
+        const invoiceModal = document.getElementById('invoice-modal'); // NOUVELLE MODALE
         let currentTripInfo = { id: null, rowElement: null };
         let currentEditingTripData = null;
         let editDatePicker = null;
@@ -292,6 +320,7 @@
                         <td class="p-3 text-sm text-slate-600">${trip.price}€</td>
                         <td class="p-3 text-right space-x-2">
                              <a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" title="Voir l'offre client" class="text-blue-500 text-xl">👁️</a>
+                             <button data-action="invoice" title="Générer une facture" class="text-blue-500 text-xl">🧾</button>
                              <button data-action="delete" title="Supprimer l'archive" class="text-red-500 text-xl">🗑️</button>
                         </td>`;
                 }
@@ -389,6 +418,13 @@
                 if (confirm('Envoyer cette offre sur le canal WhatsApp ?')) {
                     sendToWhatsApp(tripId, button);
                 }
+            } else if (action === 'invoice') {
+                const tripData = await getTripDetails(tripId);
+                if (tripData) {
+                    document.getElementById('invoice-trip-id').value = tripId;
+                    document.getElementById('invoice-client-name').value = tripData.client_full_name;
+                    invoiceModal.classList.add('is-open');
+                }
             }
         });
 
@@ -459,7 +495,6 @@
             }
         });
 
-        // NOUVEAU BLOC D'ÉVÉNEMENT
         document.getElementById('finalize-sale-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const tripId = document.getElementById('finalize-sale-trip-id').value;
@@ -473,14 +508,14 @@
             try {
                 const response = await fetch(`/api/trip/${tripId}/finalize-sale`, {
                     method: 'POST',
-                    body: formData // Pas besoin de Content-Type, le navigateur le gère pour FormData
+                    body: formData
                 });
 
                 const result = await response.json();
                 if (result.success) {
                     alert(result.message);
                     finalizeSaleModal.classList.remove('is-open');
-                    fetchTrips(); // Rafraîchit la liste
+                    fetchTrips();
                 } else {
                     alert('Erreur: ' + result.message);
                 }
@@ -494,6 +529,40 @@
             }
         });
 
+        document.getElementById('invoice-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const tripId = document.getElementById('invoice-trip-id').value;
+            const button = this.querySelector('button[type="submit"]');
+            const originalButtonText = button.textContent;
+
+            const payload = {
+                client_name: document.getElementById('invoice-client-name').value,
+                client_address: document.getElementById('invoice-client-address').value,
+                client_tva: document.getElementById('invoice-client-tva').value,
+            };
+
+            button.disabled = true;
+            button.textContent = 'Génération...';
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/generate-invoice`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                alert(result.message);
+                if (result.success) {
+                    invoiceModal.classList.remove('is-open');
+                    this.reset();
+                }
+            } catch (error) {
+                alert('Une erreur réseau est survenue.');
+            } finally {
+                button.disabled = false;
+                button.textContent = originalButtonText;
+            }
+        });
 
         function populateEditTripModal(tripData) {
             currentEditingTripData = tripData;

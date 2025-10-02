@@ -13,3 +13,4 @@ unidecode
 gunicorn
 psycopg2-binary
 Flask-Cors
+WeasyPrint

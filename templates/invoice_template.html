@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Facture {{ invoice_number }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            font-size: 12px;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+        }
+        .invoice-box {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 40px;
+            border: 1px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+        }
+        .company-details {
+            text-align: right;
+        }
+        .company-details h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            color: #003366;
+        }
+        .company-details .privileges {
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+        .company-details .agency {
+            font-size: 10px;
+            color: #777;
+            margin-top: -5px;
+        }
+        .invoice-details {
+            text-align: left;
+        }
+        .client-info {
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+        .client-info strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        table th, table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        table th {
+            background-color: #f9f9f9;
+            font-weight: 600;
+        }
+        .total-section {
+            margin-top: 30px;
+            text-align: right;
+        }
+        .total-section table {
+            width: 40%;
+            float: right;
+        }
+        .total-section td {
+            border: none;
+        }
+        .total-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #003366;
+        }
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-box">
+        <div class="header">
+            <div class="invoice-details">
+                <strong>N° commande:</strong> {{ invoice_number }}<br>
+                <strong>Date:</strong> {{ invoice_date }}
+            </div>
+            <div class="company-details">
+                <h1>Voyages <span class="privileges">PRIVILEGES</span></h1>
+                <div class="agency">AGENCE DE VOYAGE</div>
+                <p style="margin: 20px 0 5px 0;">Rue Philippe Monnoyer 21<br>6180 Courcelles</p>
+                <p style="margin: 0; font-size: 10px;">SRL RIDEA - 1024.916.054</p>
+            </div>
+        </div>
+
+        <div class="client-info">
+            <strong>Client</strong>
+            {{ client_name }}<br>
+            {{ client_address | nl2br }}<br>
+            {{ client_tva }}
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th style="text-align: center;">NUIT(S)</th>
+                    <th style="text-align: right;">PRIX TVAC</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <strong>{{ hotel_name }}</strong><br>
+                        <span style="font-size: 11px; color: #555;">du {{ date_start }} au {{ date_end }}</span>
+                    </td>
+                    <td style="text-align: center;">{{ number_of_nights }}</td>
+                    <td style="text-align: right;">{{ total_price }} €</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="total-section">
+            <table>
+                <tr>
+                    <td><strong>TOTAL</strong></td>
+                    <td class="total-value" style="text-align: right;">{{ total_price }} €</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="clear: both;"></div>
+
+        <div class="footer">
+            <p style="font-size: 18px; font-weight: bold; color: #003366;">Merci !</p>
+            <p>Envie de voyager? www.voyages-privileges.be</p>
+            <p><strong>Régine TOMS</strong></p>
+        </div>
+    </div>
+</body>
+</html>

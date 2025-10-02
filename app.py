@@ -19,6 +19,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from flask_migrate import Migrate
 from flask_mail import Mail, Message
 from flask_cors import CORS
+from weasyprint import HTML # Ajout pour la génération de PDF
 
 from config import Config
 from models import db, Trip
@@ -577,7 +578,6 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': 'Une erreur interne est survenue.'}), 500
     
-    # NOUVELLE ROUTE API AJOUTÉE
     @app.route('/api/trip/<int:trip_id>/finalize-sale', methods=['POST'])
     def finalize_sale(trip_id):
         trip = Trip.query.get_or_404(trip_id)
@@ -616,6 +616,9 @@ def create_app(config_class=Config):
         try:
             client_name = f"{trip.client_first_name or ''} {trip.client_last_name or ''}".strip()
             hotel_name_only = trip.hotel_name.split(',')[0].strip()
+            full_data = json.loads(trip.full_data_json)
+            header_photo = full_data.get('api_data', {}).get('photos', [None])[0]
+
 
             msg = Message(
                 subject=f"Confirmation de votre voyage pour {trip.destination}",
@@ -626,7 +629,8 @@ def create_app(config_class=Config):
                 'payment_confirmation.html',
                 client_name=client_name,
                 hotel_name=hotel_name_only,
-                destination=trip.destination
+                destination=trip.destination,
+                header_photo=header_photo
             )
             
             # Attacher les pièces jointes
@@ -642,13 +646,86 @@ def create_app(config_class=Config):
         except Exception as e:
             print("❌ Erreur lors de l'envoi de l'email de confirmation:")
             traceback.print_exc()
-            # On ne bloque pas le processus si seul l'email échoue, mais on prévient
             return jsonify({
                 'success': True, 
                 'message': 'Vente finalisée et documents uploadés, mais l\'envoi de l\'email de confirmation a échoué. Vous pouvez le renvoyer manuellement.'
             })
 
         return jsonify({'success': True, 'message': 'Vente finalisée ! Le client a reçu ses documents par email.'})
+
+    # NOUVELLE ROUTE API AJOUTÉE
+    @app.route('/api/trip/<int:trip_id>/generate-invoice', methods=['POST'])
+    def generate_invoice(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        data = request.get_json()
+
+        # 1. Préparation des données pour la facture
+        try:
+            full_data = json.loads(trip.full_data_json)
+            form_data = full_data.get('form_data', {})
+            
+            start_date = datetime.strptime(form_data.get('date_start'), '%Y-%m-%d')
+            end_date = datetime.strptime(form_data.get('date_end'), '%Y-%m-%d')
+            number_of_nights = (end_date - start_date).days
+
+            invoice_data = {
+                "invoice_number": f"{trip.id}/{datetime.utcnow().year}",
+                "invoice_date": datetime.utcnow().strftime('%d/%m/%Y'),
+                "client_name": data.get('client_name'),
+                "client_address": data.get('client_address'),
+                "client_tva": data.get('client_tva'),
+                "hotel_name": trip.hotel_name.split(',')[0].strip(),
+                "destination": trip.destination,
+                "date_start": start_date.strftime('%d/%m/%y'),
+                "date_end": end_date.strftime('%d/%m/%y'),
+                "number_of_nights": number_of_nights,
+                "total_price": trip.price,
+            }
+        except Exception as e:
+            return jsonify({'success': False, 'message': f"Erreur lors de la préparation des données: {e}"}), 500
+
+        # 2. Génération du PDF
+        try:
+            html_string = render_template('invoice_template.html', **invoice_data)
+            pdf_file = HTML(string=html_string).write_pdf()
+            invoice_filename = f"facture_{trip.id}_{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+        except Exception as e:
+            return jsonify({'success': False, 'message': f"Erreur lors de la génération du PDF: {e}"}), 500
+
+        # 3. Upload du PDF
+        if not publication_service.upload_document(invoice_filename, pdf_file, trip.id):
+            return jsonify({'success': False, 'message': "L'upload de la facture a échoué."}), 500
+
+        # 4. Mise à jour de la base de données
+        try:
+            doc_list = trip.document_filenames.split(',') if trip.document_filenames else []
+            if invoice_filename not in doc_list:
+                doc_list.append(invoice_filename)
+            trip.document_filenames = ','.join(doc_list)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': f"Erreur de base de données: {e}"}), 500
+
+        # 5. Envoi de l'email
+        try:
+            msg = Message(
+                subject=f"Votre facture pour le voyage à {trip.destination}",
+                sender=("Voyages Privilèges", app.config['MAIL_DEFAULT_SENDER']),
+                recipients=[trip.client_email]
+            )
+            msg.body = f"Bonjour {data.get('client_name')},\n\nVeuillez trouver ci-joint la facture pour votre voyage.\n\nCordialement,\nL'équipe de Voyages Privilèges"
+            msg.attach(
+                filename=invoice_filename,
+                content_type='application/pdf',
+                data=pdf_file
+            )
+            mail.send(msg)
+        except Exception as e:
+            print(f"❌ Erreur lors de l'envoi de l'email de facture: {e}")
+            return jsonify({'success': True, 'message': 'Facture générée et sauvegardée, mais l\'envoi par email a échoué.'})
+        
+        return jsonify({'success': True, 'message': 'Facture générée et envoyée au client avec succès !'})
 
 
     @app.route('/stripe-webhook', methods=['POST'])

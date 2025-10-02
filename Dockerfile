@@ -1,8 +1,13 @@
 # 1. Partir d'une image Python officielle et légère
 FROM python:3.12-slim
 
-# 2. Installer notre dépendance système manuellement et proprement
-RUN apt-get update && apt-get install -y libstdc++6 && rm -rf /var/lib/apt/lists/*
+# 2. Installer les dépendances système, y compris celles pour WeasyPrint
+RUN apt-get update && apt-get install -y \
+    libstdc++6 \
+    libpango-1.0-0 \
+    libharfbuzz0b \
+    libpangoft2-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 # 3. Définir le dossier de travail dans le conteneur
 WORKDIR /app

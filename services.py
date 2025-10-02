@@ -25,14 +25,14 @@ class PublicationService:
             
             content_base64 = base64.b64encode(content_bytes).decode('utf-8')
             
-            # CORRECTION : La clé API est retirée du payload...
+            # Le payload ne contient PAS la clé API, conformément à la version qui fonctionnait.
             payload = {
                 'filename': filename,
                 'content': content_base64,
                 'directory': directory
             }
             
-            # ...et remise dans les headers, comme dans la version qui fonctionnait.
+            # La clé API est envoyée dans les en-têtes (headers), pour passer le pare-feu.
             headers = {
                 'Content-Type': 'application/json',
                 'X-Api-Key': self.api_key 
@@ -66,6 +66,7 @@ class PublicationService:
         """Télécharge un document depuis le serveur."""
         try:
             url = f"https://www.voyages-privileges.be/documents/{trip_id}/{filename}"
+            # Pour le téléchargement, l'authentification n'est pas nécessaire si les fichiers sont publics
             response = requests.get(url, timeout=30)
             if response.status_code == 200:
                 return response.content
@@ -123,12 +124,11 @@ class PublicationService:
             directory = 'clients' if is_client_offer else 'offres'
             print(f"🗑️ Suppression via API: {filename} dans {directory}/")
             
-            # CORRECTION : La clé API est retirée du payload...
             payload = {
                 'filename': filename,
                 'directory': directory
             }
-            # ...et remise dans les headers.
+            
             headers = {
                 'Content-Type': 'application/json',
                 'X-Api-Key': self.api_key

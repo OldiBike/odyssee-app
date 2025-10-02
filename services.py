@@ -1,4 +1,4 @@
-# services.py - Version corrigée, complète et fonctionnelle
+# services.py - Version finale, corrigée et complète
 import os
 import requests
 import json
@@ -11,25 +11,20 @@ import unidecode
 
 class PublicationService:
     def __init__(self, config):
-        # Configuration de l'API de publication sur Hostinger
         self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
         self.api_key = 'SecretUploadKey2025'
         
-        print("📡 Configuration Publication:")
+        print(f"📡 Configuration Publication:")
         print(f"   Mode: API HTTP (Railway compatible)")
         print(f"   API URL: {self.api_url}")
-        
-    def _upload_via_api(self, filename, content_bytes, directory, is_html=True):
-        """
-        Méthode unifiée pour uploader des fichiers (HTML ou documents) via l'API PHP.
-        """
+
+    def _upload_via_api(self, filename, content_bytes, directory):
+        """Méthode unifiée pour uploader des fichiers (HTML ou documents)."""
         try:
             print(f"📤 Upload via API: {filename} vers {directory}/")
             
-            # Le contenu est encodé en base64
             content_base64 = base64.b64encode(content_bytes).decode('utf-8')
             
-            # La clé API est envoyée dans le corps de la requête
             payload = {
                 'api_key': self.api_key,
                 'filename': filename,
@@ -37,7 +32,11 @@ class PublicationService:
                 'directory': directory
             }
             
-            headers = {'Content-Type': 'application/json'}
+            # CORRECTION : Ajout de la clé API dans l'en-tête, comme dans le script de test
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Api-Key': self.api_key 
+            }
             
             response = requests.post(
                 self.api_url,
@@ -59,24 +58,18 @@ class PublicationService:
             return False
 
     def upload_document(self, filename, file_content_bytes, trip_id):
-        """
-        Téléverse un document (PDF, etc.) dans un sous-dossier spécifique au voyage.
-        """
-        # Le répertoire est dynamique pour organiser les documents par voyage
+        """Téléverse un document (PDF, etc.) dans un sous-dossier spécifique au voyage."""
         directory = f"documents/{trip_id}"
-        return self._upload_via_api(filename, file_content_bytes, directory, is_html=False)
+        return self._upload_via_api(filename, file_content_bytes, directory)
 
     def download_document(self, filename, trip_id):
-        """
-        Télécharge un document depuis le serveur.
-        (Note: Cette fonction nécessite une logique côté serveur pour le téléchargement sécurisé,
-        pour l'instant nous simulons un chemin direct)
-        """
+        """Télécharge un document depuis le serveur."""
         try:
             url = f"https://www.voyages-privileges.be/documents/{trip_id}/{filename}"
             response = requests.get(url, timeout=30)
             if response.status_code == 200:
                 return response.content
+            print(f"❌ Document non trouvé (HTTP {response.status_code}): {url}")
             return None
         except Exception as e:
             print(f"❌ Erreur de téléchargement du document: {e}")
@@ -86,10 +79,8 @@ class PublicationService:
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
         date_end = trip_data['form_data']['date_end']
-        
         base_name = unidecode.unidecode(hotel_name).lower()
         base_name = re.sub(r'[^a-z0-9]+', '_', base_name).strip('_')
-        
         return f"{base_name}_{date_start}_{date_end}"
 
     def publish_public_offer(self, trip):
@@ -97,14 +88,12 @@ class PublicationService:
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
         filename = f"{base_filename}.html"
-        
         html_content = generate_travel_page_html(
             full_trip_data['form_data'],
             full_trip_data['api_data'],
             full_trip_data.get('savings', 0),
             full_trip_data.get('comparison_total', 0)
         )
-        
         if self._upload_via_api(filename, html_content.encode('utf-8'), 'offres'):
             return filename
         return None
@@ -113,21 +102,17 @@ class PublicationService:
         """Publie une offre privée dans le dossier /clients/"""
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
-        
         raw_name = f"{trip.client_first_name} {trip.client_last_name}"
         slug = unidecode.unidecode(raw_name).lower()
         slug = re.sub(r"[\s']+", '_', slug)
         client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
-        
         filename = f"{base_filename}_{client_name_slug}.html"
-        
         html_content = generate_travel_page_html(
             full_trip_data['form_data'],
             full_trip_data['api_data'],
             full_trip_data.get('savings', 0),
             full_trip_data.get('comparison_total', 0)
         )
-        
         if self._upload_via_api(filename, html_content.encode('utf-8'), 'clients'):
             return filename
         return None
@@ -137,29 +122,27 @@ class PublicationService:
         try:
             directory = 'clients' if is_client_offer else 'offres'
             print(f"🗑️ Suppression via API: {filename} dans {directory}/")
-            
             payload = {
                 'api_key': self.api_key,
                 'filename': filename,
                 'directory': directory
             }
-            
-            headers = {'Content-Type': 'application/json'}
-            
+            # CORRECTION : Ajout de la clé API dans l'en-tête
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Api-Key': self.api_key
+            }
             response = requests.delete(
                 self.api_url,
                 json=payload,
                 headers=headers,
                 timeout=30
             )
-            
             if response.status_code == 200 and response.json().get('success'):
                 print(f"✅ Suppression réussie: {filename}")
                 return True
-            
             print(f"❌ Erreur suppression (HTTP {response.status_code}): {response.text}")
             return False
-                
         except Exception as e:
             print(f"❌ Erreur critique lors de la suppression: {e}")
             return False
@@ -170,7 +153,6 @@ class PublicationService:
             print("\n🔍 TEST DE CONNEXION API")
             headers = {'X-Api-Key': self.api_key}
             response = requests.get(self.api_url, headers=headers, timeout=10)
-            
             if response.status_code == 200 and response.json().get('success'):
                 result = response.json()
                 print(f"✅ API connectée: {result.get('message')}")
@@ -178,16 +160,12 @@ class PublicationService:
             else:
                 print(f"❌ Erreur connexion API (HTTP {response.status_code}): {response.text}")
                 return False
-                
         except Exception as e:
             print(f"❌ Erreur critique pendant le test: {e}")
             return False
 
-# Le reste de la classe RealAPIGatherer et la fonction generate_travel_page_html
-# restent inchangées, vous pouvez les laisser telles quelles.
-# (Le code ci-dessous est identique à votre fichier `services.py` et est inclus pour être complet)
-
 class RealAPIGatherer:
+    # ... (le reste de la classe est identique, pas de changement nécessaire)
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:
@@ -342,10 +320,8 @@ class RealAPIGatherer:
             'restaurants': restaurants_list,
             'cultural_attraction_image': cultural_attraction_image
         }
-# ... la fonction generate_travel_page_html reste identique ...
+
 def generate_travel_page_html(data, real_data, savings, comparison_total):
-    # ... (votre code existant, pas besoin de le changer)
-    # --- Collez simplement le reste de votre fonction ici ---
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()

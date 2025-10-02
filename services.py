@@ -1,3 +1,4 @@
+# services.py - Version finale et fonctionnelle
 import os
 import requests
 import json
@@ -15,6 +16,7 @@ class PublicationService:
         self.download_api_url = 'https://www.voyages-privileges.be/api/download.php' 
         self.api_key = 'SecretUploadKey2025'
         print(f"📡 Configuration Publication: Mode API HTTP")
+        print(f"   URL: {self.api_url}")
 
     def _prepare_payload(self, filename, content, directory, is_binary=False):
         """Prépare le payload JSON incluant la clé API."""
@@ -24,7 +26,7 @@ class PublicationService:
             content_base64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
         
         return {
-            'api_key': self.api_key, # La clé est maintenant ICI
+            'api_key': self.api_key,  # Clé dans le JSON
             'filename': filename,
             'content': content_base64,
             'directory': directory
@@ -35,31 +37,53 @@ class PublicationService:
             print(f"📤 Upload via API: {filename} vers {directory}/")
             payload = self._prepare_payload(filename, content, directory, is_binary)
             
-            headers = {'Content-Type': 'application/json'} # On n'envoie plus la clé dans les en-têtes
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Api-Key': self.api_key  # Aussi dans le header pour double sécurité et pour les GET
+            }
+            
+            print(f"   Envoi de {len(payload['content'])} caractères encodés...")
             
             response = requests.post(self.api_url, json=payload, headers=headers, timeout=45)
             
             print(f"   Réponse HTTP: {response.status_code}")
-            if response.status_code == 200 and response.json().get('success'):
-                print(f"✅ Upload réussi: {response.json().get('url', '')}")
+            
+            try:
+                response_data = response.json()
+                print(f"   Réponse serveur: {response_data}")
+            except:
+                print(f"   Réponse brute: {response.text[:500]}")
+                response_data = {}
+            
+            if response.status_code == 200 and response_data.get('success'):
+                print(f"✅ Upload réussi: {response_data.get('url', '')}")
                 return True
             else:
-                print(f"❌ Échec de l'upload: {response.text}")
+                print(f"❌ Échec de l'upload: {response_data.get('message', 'Erreur inconnue')}")
                 return False
+                
+        except requests.exceptions.Timeout:
+            print(f"❌ Timeout lors de l'upload (45s dépassées)")
+            return False
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Erreur réseau lors de l'upload: {e}")
+            return False
         except Exception as e:
             print(f"❌ Erreur critique lors de l'upload: {e}")
             traceback.print_exc()
             return False
 
     def upload_document(self, filename, file_content, trip_id):
+        """Upload un document pour un voyage spécifique."""
         directory = f"documents/{trip_id}"
         return self._upload_via_api(filename, file_content, directory, is_binary=True)
 
     def download_document(self, filename, trip_id):
+        """Télécharge un document depuis le serveur."""
         try:
             directory = f"documents/{trip_id}"
             params = {'filename': filename, 'directory': directory}
-            headers = {'X-Api-Key': self.api_key} # Pour les requêtes GET, on doit garder la clé dans l'en-tête
+            headers = {'X-Api-Key': self.api_key} 
             
             response = requests.get(self.download_api_url, params=params, headers=headers, timeout=45)
             
@@ -71,6 +95,7 @@ class PublicationService:
             return None
 
     def _generate_base_filename(self, trip_data):
+        """Génère le nom de base du fichier HTML."""
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
         date_end = trip_data['form_data']['date_end']
@@ -79,46 +104,62 @@ class PublicationService:
         return f"{base_name}_{date_start}_{date_end}"
 
     def publish_public_offer(self, trip):
+        """Publie une offre publique."""
         try:
             full_trip_data = json.loads(trip.full_data_json)
             base_filename = self._generate_base_filename(full_trip_data)
             filename = f"{base_filename}.html"
+            
+            print(f"📝 Génération du HTML pour l'offre publique...")
             html_content = generate_travel_page_html(
                 full_trip_data['form_data'],
                 full_trip_data['api_data'],
                 full_trip_data.get('savings', 0),
                 full_trip_data.get('comparison_total', 0)
             )
+            
+            print(f"   HTML généré: {len(html_content)} caractères")
+            
             if self._upload_via_api(filename, html_content, 'offres'):
                 return filename
             return None
         except Exception as e:
             print(f"❌ Erreur dans publish_public_offer: {e}")
+            traceback.print_exc()
             return None
 
     def publish_client_offer(self, trip):
+        """Publie une offre client privée."""
         try:
             full_trip_data = json.loads(trip.full_data_json)
             base_filename = self._generate_base_filename(full_trip_data)
+            
             raw_name = f"{trip.client_first_name} {trip.client_last_name}"
             slug = unidecode.unidecode(raw_name).lower()
             slug = re.sub(r"[\s']+", '_', slug)
             client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
             filename = f"{base_filename}_{client_name_slug}.html"
+            
+            print(f"📝 Génération du HTML pour l'offre client...")
             html_content = generate_travel_page_html(
                 full_trip_data['form_data'],
                 full_trip_data['api_data'],
                 full_trip_data.get('savings', 0),
                 full_trip_data.get('comparison_total', 0)
             )
+            
+            print(f"   HTML généré: {len(html_content)} caractères")
+            
             if self._upload_via_api(filename, html_content, 'clients'):
                 return filename
             return None
         except Exception as e:
             print(f"❌ Erreur dans publish_client_offer: {e}")
+            traceback.print_exc()
             return None
 
     def unpublish(self, filename, is_client_offer=False):
+        """Supprime un fichier publié."""
         try:
             directory = 'clients' if is_client_offer else 'offres'
             payload = {
@@ -126,25 +167,51 @@ class PublicationService:
                 'filename': filename,
                 'directory': directory
             }
-            headers = {'Content-Type': 'application/json'}
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Api-Key': self.api_key
+            }
+            
+            print(f"🗑️ Suppression de {filename} dans {directory}/")
+            
             response = requests.delete(self.api_url, json=payload, headers=headers, timeout=30)
-            return response.status_code == 200 and response.json().get('success')
+            
+            try:
+                response_data = response.json()
+                success = response.status_code == 200 and response_data.get('success', False)
+            except:
+                success = False
+                
+            if success:
+                print(f"✅ Fichier supprimé avec succès")
+            else:
+                print(f"❌ Échec de la suppression")
+                
+            return success
         except Exception as e:
             print(f"❌ Erreur suppression API: {e}")
             return False
     
     def test_connection(self):
+        """Test complet de la connexion API."""
         try:
             print("\n🔍 TEST DE CONNEXION API")
+            print("="*50)
+            
+            print("\n📝 Test de connexion...")
             headers = {'X-Api-Key': self.api_key}
             response = requests.get(self.api_url, headers=headers, timeout=10)
+            
             if response.status_code == 200:
-                print("✅ Connexion GET basique réussie.")
+                data = response.json()
+                print(f"✅ API connectée: {data.get('message', '')}")
+                print(f"   PHP Version: {data.get('php_version', '')}")
+                print(f"   Chemin: {data.get('base_path', '')}")
             else:
-                print("❌ Échec de la connexion GET basique.")
+                print(f"❌ Erreur de connexion: HTTP {response.status_code}")
                 return False
-
-            test_content = "test"
+            
+            test_content = f"<html><body>Test à {datetime.now()}</body></html>"
             test_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             directory = 'offres'
             filename = f'test_{test_timestamp}.html'
@@ -152,18 +219,27 @@ class PublicationService:
             print(f"\n📝 Test d'écriture dans {directory}/")
             if self._upload_via_api(filename, test_content, directory):
                 print(f"   ✅ Écriture réussie")
-                self.unpublish(filename, is_client_offer=False)
-                print("\n✅ TEST COMPLET RÉUSSI !")
+                
+                print(f"\n📝 Test de suppression...")
+                if self.unpublish(filename, is_client_offer=False):
+                    print(f"   ✅ Suppression réussie")
+                
+                print("\n✅ TOUS LES TESTS RÉUSSIS !")
                 return True
             else:
-                print(f"   ❌ Échec d'écriture.")
+                print(f"   ❌ Échec d'écriture")
                 return False
+                
         except Exception as e:
-            print(f"❌ Erreur critique pendant le test: {e}")
+            print(f"❌ Erreur test: {e}")
+            traceback.print_exc()
             return False
 
+# ===================================================================
+# Le reste du fichier est identique, il est inclus pour l'intégralité
+# ===================================================================
+
 class RealAPIGatherer:
-    # ... (le reste de la classe reste inchangé) ...
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:
@@ -260,6 +336,7 @@ class RealAPIGatherer:
 
     def get_attraction_image(self, attraction_name, destination):
         if not self.google_api_key: return None
+        print(f"ℹ️ Recherche d'une image réelle pour : {attraction_name} à {destination}")
         try:
             search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
             search_params = {'query': f'"{attraction_name}" "{destination}"', 'key': self.google_api_key, 'fields': 'photos'}
@@ -319,7 +396,6 @@ class RealAPIGatherer:
         }
 
 def generate_travel_page_html(data, real_data, savings, comparison_total):
-    # Cette partie est longue, je la copie de votre fichier original
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()

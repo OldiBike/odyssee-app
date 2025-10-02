@@ -1,4 +1,3 @@
-# services.py - Version corrigée et complète
 import os
 import requests
 import json
@@ -12,11 +11,9 @@ import traceback
 
 class PublicationService:
     def __init__(self, config):
-        # Configuration API
         self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
         self.download_api_url = 'https://www.voyages-privileges.be/api/download.php' 
         self.api_key = 'SecretUploadKey2025'
-        
         print(f"📡 Configuration Publication: Mode API HTTP")
 
     def _prepare_payload(self, filename, content, directory, is_binary=False):
@@ -27,7 +24,7 @@ class PublicationService:
             content_base64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
         
         return {
-            'api_key': self.api_key, # NOUVELLE FAÇON D'ENVOYER LA CLÉ
+            'api_key': self.api_key, # La clé est maintenant ICI
             'filename': filename,
             'content': content_base64,
             'directory': directory
@@ -38,7 +35,7 @@ class PublicationService:
             print(f"📤 Upload via API: {filename} vers {directory}/")
             payload = self._prepare_payload(filename, content, directory, is_binary)
             
-            headers = {'Content-Type': 'application/json'} # Plus besoin de X-Api-Key ici
+            headers = {'Content-Type': 'application/json'} # On n'envoie plus la clé dans les en-têtes
             
             response = requests.post(self.api_url, json=payload, headers=headers, timeout=45)
             
@@ -62,7 +59,7 @@ class PublicationService:
         try:
             directory = f"documents/{trip_id}"
             params = {'filename': filename, 'directory': directory}
-            headers = {'X-Api-Key': self.api_key} 
+            headers = {'X-Api-Key': self.api_key} # Pour les requêtes GET, on doit garder la clé dans l'en-tête
             
             response = requests.get(self.download_api_url, params=params, headers=headers, timeout=45)
             
@@ -139,6 +136,14 @@ class PublicationService:
     def test_connection(self):
         try:
             print("\n🔍 TEST DE CONNEXION API")
+            headers = {'X-Api-Key': self.api_key}
+            response = requests.get(self.api_url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                print("✅ Connexion GET basique réussie.")
+            else:
+                print("❌ Échec de la connexion GET basique.")
+                return False
+
             test_content = "test"
             test_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             directory = 'offres'
@@ -148,16 +153,17 @@ class PublicationService:
             if self._upload_via_api(filename, test_content, directory):
                 print(f"   ✅ Écriture réussie")
                 self.unpublish(filename, is_client_offer=False)
-                print("\n✅ TEST RÉUSSI !")
+                print("\n✅ TEST COMPLET RÉUSSI !")
                 return True
             else:
                 print(f"   ❌ Échec d'écriture.")
                 return False
         except Exception as e:
-            print(f"❌ Erreur test: {e}")
+            print(f"❌ Erreur critique pendant le test: {e}")
             return False
 
 class RealAPIGatherer:
+    # ... (le reste de la classe reste inchangé) ...
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:
@@ -254,7 +260,6 @@ class RealAPIGatherer:
 
     def get_attraction_image(self, attraction_name, destination):
         if not self.google_api_key: return None
-        print(f"ℹ️ Recherche d'une image réelle pour : {attraction_name} à {destination}")
         try:
             search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
             search_params = {'query': f'"{attraction_name}" "{destination}"', 'key': self.google_api_key, 'fields': 'photos'}
@@ -314,6 +319,7 @@ class RealAPIGatherer:
         }
 
 def generate_travel_page_html(data, real_data, savings, comparison_total):
+    # Cette partie est longue, je la copie de votre fichier original
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()

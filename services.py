@@ -11,17 +11,20 @@ import unidecode
 
 class PublicationService:
     def __init__(self, config):
+        # Configuration API
         self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
         self.api_key = 'SecretUploadKey2025'
-        print(f"📡 Configuration Publication: Mode API HTTP")
+        
+        print(f"📡 Configuration Publication:")
+        print(f"   Mode: API HTTP (Railway compatible)")
         print(f"   API URL: {self.api_url}")
-
+        
     def _upload_via_api(self, filename, html_content, directory):
-        """Upload via l'API PHP sur Hostinger en envoyant la clé API dans le corps de la requête."""
+        """Upload via l'API PHP en envoyant la clé API dans le corps JSON."""
         try:
             print(f"📤 Upload via API: {filename} vers {directory}/")
             
-            # La clé API est maintenant DANS le payload pour contourner les filtres de l'hébergeur
+            # CORRECTION : La clé API est maintenant DANS le payload
             payload = {
                 'api_key': self.api_key,
                 'filename': filename,
@@ -29,7 +32,7 @@ class PublicationService:
                 'directory': directory
             }
             
-            # L'en-tête n'a plus besoin de la clé API personnalisée
+            # L'en-tête n'a plus besoin de la clé personnalisée
             headers = {
                 'Content-Type': 'application/json'
             }
@@ -57,8 +60,10 @@ class PublicationService:
         hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
         date_start = trip_data['form_data']['date_start']
         date_end = trip_data['form_data']['date_end']
+        
         base_name = unidecode.unidecode(hotel_name).lower()
         base_name = re.sub(r'[^a-z0-9]+', '_', base_name).strip('_')
+        
         return f"{base_name}_{date_start}_{date_end}"
 
     def publish_public_offer(self, trip):
@@ -115,7 +120,12 @@ class PublicationService:
             
             headers = {'Content-Type': 'application/json'}
             
-            response = requests.delete(self.api_url, json=payload, headers=headers, timeout=30)
+            response = requests.delete(
+                self.api_url,
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
             
             if response.status_code == 200 and response.json().get('success'):
                 print(f"✅ Suppression réussie: {filename}")
@@ -132,23 +142,23 @@ class PublicationService:
         """Test de connexion à l'API"""
         try:
             print("\n🔍 TEST DE CONNEXION API")
-            headers = {'X-Api-Key': self.api_key} # Le GET a besoin de la clé dans le header
+            headers = {'X-Api-Key': self.api_key} # Le GET a besoin de la clé dans l'en-tête
             response = requests.get(self.api_url, headers=headers, timeout=10)
             
             if response.status_code == 200 and response.json().get('success'):
                 result = response.json()
                 print(f"✅ API connectée: {result.get('message')}")
                 return True
-            
-            print(f"❌ Erreur connexion API (HTTP {response.status_code}): {response.text}")
-            return False
+            else:
+                print(f"❌ Erreur connexion API (HTTP {response.status_code}): {response.text}")
+                return False
                 
         except Exception as e:
             print(f"❌ Erreur critique pendant le test: {e}")
             return False
 
 class RealAPIGatherer:
-    # ... (le reste du fichier est identique à votre version fonctionnelle)
+    # ... (le reste de la classe est identique à votre version originale)
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:

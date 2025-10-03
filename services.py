@@ -176,7 +176,7 @@ class RealAPIGatherer:
             return {"attractions": [], "restaurants": []}
         try:
             # --- DÉBUT DE LA CORRECTION ---
-            model = genai.GenerativeModel('gemini-1.5-pro-latest') # Correction ici
+            model = genai.GenerativeModel('gemini-pro') # Correction ici
             # --- FIN DE LA CORRECTION ---
             prompt = f'Donne-moi 8 points d\'intérêt pour {destination} et une sélection de 3 des meilleurs restaurants. Réponds UNIQUEMENT en JSON: {{"attractions": [{{"name": "Nom", "type": "plage|culture|gastronomie|activite"}}], "restaurants": [{{"name": "Nom du restaurant"}}]}}'
             response = model.generate_content(prompt)
@@ -192,7 +192,7 @@ class RealAPIGatherer:
             return "Une offre à ne pas manquer !"
         try:
             # --- DÉBUT DE LA CORRECTION ---
-            model = genai.GenerativeModel('gemini-1.5-pro-latest') # Correction ici
+            model = genai.GenerativeModel('gemini-pro') # Correction ici
             # --- FIN DE LA CORRECTION ---
             prompt = (
                 f"Crée une très courte phrase marketing (maximum 15 mots) pour une publication WhatsApp concernant un voyage. "

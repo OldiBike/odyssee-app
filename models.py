@@ -5,7 +5,6 @@ import json
 
 db = SQLAlchemy()
 
-# NOUVEAU MODÈLE : User
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -21,7 +20,6 @@ class User(db.Model):
     last_generation_date = db.Column(db.Date, default=date.today)
     daily_generation_limit = db.Column(db.Integer, default=5)
 
-    # Relation avec les voyages
     trips = db.relationship('Trip', backref='user', lazy=True)
 
     def to_dict(self):
@@ -39,7 +37,6 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.username} ({self.role})>'
 
-# NOUVEAU MODÈLE : Client
 class Client(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(100), nullable=False)
@@ -48,7 +45,6 @@ class Client(db.Model):
     phone = db.Column(db.String(50), nullable=True)
     address = db.Column(db.Text, nullable=True)
 
-    # Relation avec les voyages
     trips = db.relationship('Trip', backref='client', lazy=True)
 
     def to_dict(self):
@@ -65,11 +61,9 @@ class Client(db.Model):
     def __repr__(self):
         return f'<Client {self.first_name} {self.last_name}>'
 
-# MODÈLE MIS À JOUR : Trip
 class Trip(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
-    # Nouvelles clés étrangères pour les relations
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)
 
@@ -88,9 +82,6 @@ class Trip(db.Model):
     
     client_published_filename = db.Column(db.String(255), nullable=True)
     
-    # Les champs client_* sont maintenant dans la table Client
-    # client_first_name, client_last_name, etc. sont supprimés ici.
-
     stripe_payment_link = db.Column(db.Text, nullable=True)
     down_payment_amount = db.Column(db.Integer, nullable=True)
     balance_due_date = db.Column(db.Date, nullable=True)
@@ -141,7 +132,6 @@ class Trip(db.Model):
     def __repr__(self):
         return f'<Trip {self.id}: {self.hotel_name} - {self.status}>'
 
-# MODÈLE INCHANGÉ : Invoice
 class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(50), unique=True, nullable=False)

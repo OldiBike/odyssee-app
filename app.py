@@ -1,4 +1,4 @@
-# app.py - Version complète, corrigée et fonctionnelle
+# app.py - Version finale, fusionnée et corrigée
 import os
 import json
 import csv
@@ -150,7 +150,6 @@ def create_app(config_class=Config):
     @app.route('/api/generate-preview', methods=['POST'])
     @login_required
     def generate_preview():
-        # Gestion du quota pour les vendeurs
         if g.user.role == 'vendeur':
             today = date.today()
             if g.user.last_generation_date != today:
@@ -172,7 +171,6 @@ def create_app(config_class=Config):
 
             real_data = gatherer.gather_all_real_data(data['hotel_name'], data['destination'])
             
-            # Calcul des coûts et marges
             hotel_b2b_price = int(data.get('hotel_b2b_price') or 0)
             hotel_b2c_price = int(data.get('hotel_b2c_price') or 0)
             pack_price = int(data.get('pack_price') or 0)
@@ -188,7 +186,6 @@ def create_app(config_class=Config):
 
             return jsonify({'success': True, 'form_data': data, 'api_data': real_data, 'margin': margin, 'savings': savings, 'comparison_total': comparison_total})
         except Exception as e:
-            # Si une erreur survient, on redonne son crédit de génération au vendeur
             if g.user.role == 'vendeur':
                 g.user.generation_count -= 1
                 db.session.commit()
@@ -221,14 +218,12 @@ def create_app(config_class=Config):
         db.session.add(new_trip)
         db.session.commit()
         
-        # Si le voyage est assigné directement, on publie la page client
         if new_trip.status == 'assigned':
             client_filename = publication_service.publish_client_offer(new_trip)
             if client_filename:
                 new_trip.client_published_filename = client_filename
-                db.session.commit() # On sauvegarde le nom du fichier
+                db.session.commit()
             else:
-                # Si la publication échoue, on annule la création pour éviter les incohérences
                 db.session.delete(new_trip)
                 db.session.commit()
                 return jsonify({'success': False, 'message': 'La publication de la page client a échoué. Le voyage n\'a pas été enregistré.'}), 500
@@ -240,7 +235,6 @@ def create_app(config_class=Config):
     def get_trips():
         status = request.args.get('status', 'proposed')
         query = Trip.query.filter_by(status=status)
-        # Un vendeur ne voit que ses propres voyages
         if g.user.role == 'vendeur':
             query = query.filter_by(user_id=g.user.id)
         trips = query.order_by(desc(Trip.created_at)).all()
@@ -251,14 +245,14 @@ def create_app(config_class=Config):
     def handle_trip(trip_id):
         trip = Trip.query.get_or_404(trip_id)
         
-        # Un vendeur peut voir les détails de son propre voyage
         if g.user.role == 'vendeur' and trip.user_id != g.user.id:
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
 
         if request.method == 'GET':
-            return jsonify(trip.to_dict())
+            trip_details = trip.to_dict()
+            trip_details['full_data_json'] = trip.full_data_json # Ajouter les données complètes pour l'édition
+            return jsonify(trip_details)
 
-        # Seul le propriétaire ou un admin peut supprimer
         if g.user.role != 'admin' and trip.user_id != g.user.id:
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
 
@@ -281,10 +275,8 @@ def create_app(config_class=Config):
         new_form_data = request.get_json()
         try:
             full_data = json.loads(trip.full_data_json)
-            # Met à jour les données du formulaire avec les nouvelles valeurs
             full_data['form_data'].update(new_form_data)
             
-            # Recalcul des marges et économies
             pack_price = int(new_form_data.get('pack_price') or 0)
             hotel_b2b_price = int(new_form_data.get('hotel_b2b_price') or 0)
             hotel_b2c_price = int(new_form_data.get('hotel_b2c_price') or 0)
@@ -306,7 +298,6 @@ def create_app(config_class=Config):
             trip.full_data_json = json.dumps(full_data)
             trip.is_ultra_budget = new_form_data.get('is_ultra_budget', False)
             
-            # Si le voyage est déjà publié, on le republie avec les nouvelles données
             republished = False
             if trip.status == 'assigned' and trip.client_published_filename:
                 if publication_service.publish_client_offer(trip):
@@ -319,7 +310,6 @@ def create_app(config_class=Config):
             return jsonify({'success': True, 'message': f'Voyage mis à jour. Republié: {republished}'})
         except Exception as e:
             db.session.rollback()
-            traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/trip/<int:trip_id>/publish', methods=['POST'])
@@ -339,7 +329,7 @@ def create_app(config_class=Config):
                     trip.published_filename = filename
                     db.session.commit()
                     public_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/offres/{filename}"
-                    return jsonify({'success': True, 'message': 'Voyage publié !', 'url': public_url})
+                    return jsonify({'success': True, 'message': 'Voyage publié !', 'url': public_url, 'trip': trip.to_dict()})
                 else:
                     return jsonify({'success': False, 'message': 'Échec de la publication.'}), 500
             elif not should_publish and trip.is_published:
@@ -347,7 +337,7 @@ def create_app(config_class=Config):
                     trip.is_published = False
                     trip.published_filename = None
                     db.session.commit()
-                    return jsonify({'success': True, 'message': 'Publication retirée.'})
+                    return jsonify({'success': True, 'message': 'Publication retirée.', 'trip': trip.to_dict()})
                 else:
                     return jsonify({'success': False, 'message': 'Échec de la dépublication.'}), 500
             else:
@@ -355,12 +345,11 @@ def create_app(config_class=Config):
         except Exception as e:
             db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
-
-    # --- NOUVELLE ROUTE CORRIGÉE ---
+            
+    # --- ROUTE CORRIGÉE POUR L'ASSIGNATION ---
     @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
     @login_required
     def assign_trip(trip_id):
-        """Assigne un client à un voyage existant (status 'proposed' -> 'assigned')."""
         trip = Trip.query.get_or_404(trip_id)
         if g.user.role != 'admin' and trip.user_id != g.user.id:
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
@@ -379,13 +368,12 @@ def create_app(config_class=Config):
             db.session.commit()
             return jsonify({'success': True, 'message': 'Voyage assigné au client avec succès !'})
         else:
-            db.session.rollback() # Annule les changements si la publication échoue
+            db.session.rollback()
             return jsonify({'success': False, 'message': 'Erreur lors de la publication de la page client.'}), 500
 
     @app.route('/api/trip/<int:trip_id>/repropose', methods=['POST'])
     @login_required
     def repropose_trip(trip_id):
-        """Crée une copie d'un voyage pour l'assigner à un autre client."""
         original_trip = Trip.query.get_or_404(trip_id)
         client_id = request.get_json().get('client_id')
         if not client_id:
@@ -405,7 +393,7 @@ def create_app(config_class=Config):
             db.session.commit()
             return jsonify({'success': True, 'message': 'Voyage reproposé et assigné au client.'})
         else:
-            db.session.delete(new_trip) # Si la publication échoue, on supprime la copie
+            db.session.delete(new_trip)
             db.session.commit()
             return jsonify({'success': False, 'message': 'La publication de la nouvelle offre a échoué.'}), 500
 
@@ -429,7 +417,7 @@ def create_app(config_class=Config):
             clients = Client.query.order_by(Client.last_name).all()
             return jsonify([client.to_dict() for client in clients])
         
-        if request.method == 'POST': # Normalement géré par une page dédiée, mais API disponible
+        if request.method == 'POST':
             data = request.get_json()
             try:
                 new_client = Client(
@@ -453,7 +441,6 @@ def create_app(config_class=Config):
             client_data['trips'] = [trip.to_dict() for trip in client.trips]
             return jsonify(client_data)
         
-        # Seul un admin peut modifier ou supprimer un client pour le moment
         if g.user.role != 'admin':
              return jsonify({'success': False, 'message': 'Action réservée aux administrateurs.'}), 403
 
@@ -481,7 +468,6 @@ def create_app(config_class=Config):
     @admin_required
     def handle_sellers():
         if request.method == 'GET':
-            # Remet à zéro les quotas journaliers si nécessaire
             today = date.today()
             users_to_reset = User.query.filter(User.last_generation_date != today, User.role == 'vendeur').all()
             for user in users_to_reset:
@@ -525,7 +511,7 @@ def create_app(config_class=Config):
                 user.email = data.get('email', user.email)
                 user.phone = data.get('phone', user.phone)
                 user.margin_percentage = int(data.get('margin_percentage', user.margin_percentage))
-                if data.get('password'): # Ne met à jour le mot de passe que s'il est fourni
+                if data.get('password'):
                     user.password = bcrypt.generate_password_hash(data.get('password')).decode('utf-8')
                 db.session.commit()
                 return jsonify({'success': True, 'message': 'Vendeur mis à jour !', 'user': user.to_dict()})
@@ -543,7 +529,6 @@ def create_app(config_class=Config):
 
     # --- API POUR LES RAPPORTS ET STATISTIQUES ---
     def _get_sales_query():
-        """Helper pour construire la requête de base pour les ventes."""
         query = Trip.query.join(User).join(Client).filter(Trip.status == 'sold')
         if g.user.role == 'vendeur':
             query = query.filter(Trip.user_id == g.user.id)
@@ -630,3 +615,4 @@ if __name__ == '__main__':
     app.run(debug=True)
 else:
     app = create_app()
+

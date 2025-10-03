@@ -5,10 +5,8 @@
 {% block head_extra %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
     <style>
-        /* Styles de votre app.py original */
-        .container {max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;}
         .form-container {padding: 40px;}
-        .form-group {margin-bottom: 25px; width: 100%;}
+        .form-group {margin-bottom: 25px;}
         label {display: block; margin-bottom: 8px; font-weight: 600; color: #333;}
         input, select, textarea {width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; box-sizing: border-box;}
         input[type="checkbox"] { width: auto; }
@@ -26,25 +24,10 @@
         .success {color: #28a745; font-size: 18px; font-weight: 600; text-align: center;}
         .error {color: #dc3545; font-size: 18px; font-weight: 600;}
         .button-container {margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; align-items: center;}
-        .download-btn, .view-btn, .edit-btn, .html-code-btn, .reset-btn {color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer;}
-        .download-btn {background: #28a745;}
-        .view-btn {background: #3B82F6;}
-        .edit-btn {background: #ffc107; color: #333;}
-        .html-code-btn {background: #6c757d;}
-        .reset-btn { background: #9ca3af; padding: 8px 12px; font-size: 20px; line-height: 1; }
-        .video-edit-form { margin-top: 20px; display: flex; gap: 10px; align-items: center; padding: 15px; background-color: #e9ecef; border-radius: 10px;}
-        .stats {display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 20px;}
-        .stat-item {background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
-        .stat-number {font-size: 24px; font-weight: bold; color: #3B82F6;}
-        .stat-label {color: #666; font-size: 14px;}
+        .action-btn {color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer;}
         .pac-container {z-index: 10000 !important;}
         h3.section-divider {text-align: center; border-bottom: 2px solid #e1e5e9; line-height: 0.1em; margin: 35px 0 25px;}
         h3.section-divider span { background:#fff; padding:0 10px; color: #aaa; font-size: 0.9em; text-transform: uppercase;}
-        .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
-        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
-        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
-        .html-textarea { width: 100%; height: 400px; border: 1px solid #ccc; padding: 10px; font-family: monospace; white-space: pre; overflow: auto; resize: vertical; border-radius: 5px; }
         .cost-calculator { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; background-color: #f8fafc; padding: 15px; border-radius: 10px; margin-top: -10px; margin-bottom: 25px; }
         .cost-calculator div { text-align: center; }
         .cost-calculator p { margin: 0; color: #4b5563; font-weight: 500; font-size: 12px; }
@@ -54,7 +37,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden">
     <div class="form-container">
         <form id="voyageForm">
             <h3 class="section-divider"><span>Détails du Séjour</span></h3>
@@ -111,7 +94,6 @@
                         <input type="text" id="cancellation_date" name="cancellation_date" readonly placeholder="Jusqu'au...">
                     </div>
                 </div>
-                <div id="cancellation-warning" class="text-sm text-orange-600 mt-2" style="display: none;"></div>
             </div>
 
             <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0" class="cost-input"><select id="surcharge_type" name="surcharge_type"><option>Logement seul</option><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
@@ -126,7 +108,7 @@
                     </select>
             </div>
 
-            <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035-.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705.24 1.486.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg><span>Ajouter un profil Instagram (Optionnel)</span></button><div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle" name="instagram_handle" placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div></div>
+            <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035-.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.486-.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg><span>Ajouter un profil Instagram (Optionnel)</span></button><div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle" name="instagram_handle" placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div></div>
             
             <div class="form-group" style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 10px; border-radius: 8px;">
                 <label for="is_ultra_budget" style="display: flex; align-items: center; gap: 10px; margin: 0; color: #b91c1c; font-weight: bold;">
@@ -141,17 +123,6 @@
     <div class="loading" id="loading"><div class="loading-spinner"></div><h3>🔄 Appels API sécurisés...</h3></div>
     <div class="result" id="result"></div>
 </div>
-
-<div id="htmlCodeModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <h2>Code HTML de la Fiche Voyage</h2>
-        <textarea id="htmlCodeDisplay" class="html-textarea" readonly></textarea>
-        <button id="copyHtmlCodeBtn" class="html-code-btn" style="margin-top: 15px;">📋 Copier le code</button>
-        <div id="copyStatus" style="text-align:center; font-size: 14px; color: green; margin-top: 5px;"></div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
@@ -185,10 +156,8 @@
             singleMode: true, lang: 'fr-FR', format: 'DD MMMM YYYY'
         });
 
-        const cancellationCheckbox = document.getElementById('has_cancellation');
-        const cancellationDateWrapper = document.getElementById('cancellation_date_wrapper');
-        cancellationCheckbox.addEventListener('change', function() {
-            cancellationDateWrapper.style.display = this.checked ? 'block' : 'none';
+        document.getElementById('has_cancellation').addEventListener('change', function() {
+            document.getElementById('cancellation_date_wrapper').style.display = this.checked ? 'block' : 'none';
         });
 
         document.getElementById('toggleInstagramBtn').addEventListener('click', function() {
@@ -230,7 +199,6 @@
         });
         updateCostTotals();
         
-        // Charger les clients pour la liste déroulante
         async function loadClients() {
             try {
                 const response = await fetch('/api/clients');
@@ -288,8 +256,11 @@
 
         fetch('/api/generate-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(response => {
-            if (response.status === 429) { // Quota dépassé
+            if (response.status === 429) {
                 return response.json().then(err => { throw new Error(err.error) });
+            }
+            if (!response.ok) {
+                 return response.text().then(text => { throw new Error('Erreur serveur: ' + text) });
             }
             return response.json();
         })
@@ -300,7 +271,13 @@
 
             if (data.success) {
                 generatedData = data;
-                // ... (la suite reste identique)
+                 resultDiv.innerHTML = `
+                    <div class="success">✅ Page générée !</div>
+                    <div class="button-container">
+                        <a href="#" id="previewBtn" class="action-btn" style="background: #3B82F6;">👁️ Prévisualiser</a>
+                        <button type="button" id="saveTripBtn" class="action-btn" style="background: #28a745;">💾 Enregistrer</button>
+                    </div>`;
+                attachResultListeners();
             } else {
                 resultDiv.innerHTML = `<div class="error">❌ Erreur: ${data.error}</div>`;
             }
@@ -312,7 +289,63 @@
         });
     });
 
-    // ... (Le reste du JavaScript pour la gestion des résultats reste identique)
-    // On enlève juste la gestion de la modale client qui n'est plus ici
+    function attachResultListeners() {
+        document.getElementById('previewBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const html = await getPreviewHtml();
+            if (html) {
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            }
+        });
+        
+        document.getElementById('saveTripBtn').addEventListener('click', () => {
+            if (!generatedData) return;
+            saveTripData(generatedData);
+        });
+    }
+
+    async function getPreviewHtml() {
+        if (!generatedData) return null;
+        try {
+            const response = await fetch('/api/render-html-preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(generatedData)
+            });
+            if (!response.ok) throw new Error('La génération du HTML a échoué.');
+            return await response.text();
+        } catch (error) {
+            alert(error.message);
+            return null;
+        }
+    }
+
+    async function saveTripData(payload) {
+        const btn = document.getElementById('saveTripBtn');
+        btn.disabled = true;
+        btn.textContent = 'Sauvegarde...';
+        try {
+            const response = await fetch('/api/trips', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert('Voyage enregistré avec succès ! Redirection vers le tableau de bord.');
+                window.location.href = `/dashboard?view=${result.trip.status}`;
+            } else {
+                alert('Erreur lors de la sauvegarde: ' + result.message);
+            }
+        } catch (error) {
+            alert('Une erreur réseau est survenue lors de la sauvegarde.');
+            console.error(error);
+        } finally {
+             btn.disabled = false;
+             btn.textContent = '💾 Enregistrer';
+        }
+    }
 </script>
 {% endblock %}

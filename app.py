@@ -1,4 +1,4 @@
-# app.py
+# app.py - Version finale et complète
 import os
 import json
 import requests
@@ -239,7 +239,6 @@ def create_app(config_class=Config):
             source_trip = Trip.query.get_or_404(trip_id)
             client_data = request.get_json()
 
-            # Création d'une nouvelle instance (copie)
             new_trip = Trip(
                 full_data_json=source_trip.full_data_json,
                 hotel_name=source_trip.hotel_name,

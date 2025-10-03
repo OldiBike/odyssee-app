@@ -94,9 +94,21 @@ def create_app(config_class=Config):
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
-            user = User.query.filter_by(username=request.form.get('username')).first()
-            if user and bcrypt.check_password_hash(user.password, request.form.get('password')):
-                session.clear() # Sécurité : on nettoie la session avant d'en créer une nouvelle
+            username = request.form.get('username')
+            password = request.form.get('password')
+            
+            print(f"DEBUG: Username reçu: '{username}'")
+            print(f"DEBUG: Password reçu: '{password}'")
+            
+            user = User.query.filter_by(username=username).first()
+            print(f"DEBUG: User trouvé: {user}")
+            
+            if user:
+                is_valid = bcrypt.check_password_hash(user.password, password)
+                print(f"DEBUG: Mot de passe valide: {is_valid}")
+                
+            if user and bcrypt.check_password_hash(user.password, password):
+                session.clear()
                 session['user_id'] = user.id
                 session['pseudo'] = user.pseudo
                 session['role'] = user.role

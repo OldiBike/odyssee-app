@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques de Vente{% endblock %}
+
+{% block content %}
+<div>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-slate-800">Statistiques</h1>
+        </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
+            <h2 class="text-lg font-semibold text-slate-700 mb-4">Performance Mensuelle (12 derniers mois)</h2>
+            <div class="h-80">
+                <canvas id="monthly-performance-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-lg font-semibold text-slate-700 mb-4">Top 5 Vendeurs (Marge)</h2>
+                <div class="h-64">
+                    <canvas id="top-sellers-chart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-lg font-semibold text-slate-700 mb-4">Top 5 Destinations (CA)</h2>
+                <div class="h-64">
+                    <canvas id="top-destinations-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isAdmin = "{{ session.get('role') }}" === 'admin';
+
+    // Cacher les graphiques spécifiques à l'admin si l'utilisateur n'est pas admin
+    if (!isAdmin) {
+        document.getElementById('top-sellers-chart').closest('.bg-white').style.display = 'none';
+    }
+
+    async function fetchStatsData() {
+        try {
+            const response = await fetch('/api/stats');
+            if (!response.ok) throw new Error('Erreur réseau');
+            const data = await response.json();
+            
+            renderMonthlyPerformanceChart(data.monthly_performance);
+            
+            if (isAdmin) {
+                renderTopSellersChart(data.top_sellers);
+                renderTopDestinationsChart(data.top_destinations);
+            }
+
+        } catch (error) {
+            console.error("Erreur de chargement des statistiques:", error);
+            // Afficher un message d'erreur à l'utilisateur si nécessaire
+        }
+    }
+
+    function renderMonthlyPerformanceChart(data = {}) {
+        const ctx = document.getElementById('monthly-performance-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels || [],
+                datasets: [{
+                    label: 'Chiffre d\'Affaires (€)',
+                    data: data.revenues || [],
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Marge Totale (€)',
+                    data: data.margins || [],
+                    backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1,
+                    type: 'line',
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        title: { display: true, text: 'Chiffre d\'Affaires' }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        title: { display: true, text: 'Marge' },
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderTopSellersChart(data = {}) {
+        const ctx = document.getElementById('top-sellers-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.labels || [],
+                datasets: [{
+                    label: 'Marge par vendeur',
+                    data: data.values || [],
+                    backgroundColor: ['#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#E0F2FE']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+            }
+        });
+    }
+
+    function renderTopDestinationsChart(data = {}) {
+        const ctx = document.getElementById('top-destinations-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: data.labels || [],
+                datasets: [{
+                    label: 'CA par destination',
+                    data: data.values || [],
+                    backgroundColor: ['#10B981', '#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+            }
+        });
+    }
+
+    fetchStatsData();
+});
+</script>
+{% endblock %}

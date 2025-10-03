@@ -14,3 +14,4 @@ gunicorn
 psycopg2-binary
 Flask-Cors
 WeasyPrint
+Flask-Bcrypt

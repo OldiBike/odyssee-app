@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Clients{% endblock %}
+
+{% block content %}
+<div>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-slate-800">Gestion des Clients</h1>
+        </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="border-b-2 border-slate-200">
+                    <tr>
+                        <th class="p-3 text-sm font-semibold text-slate-500">Nom Complet</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500">Email</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500">Téléphone</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="clients-table-body">
+                    <tr id="loading-row"><td colspan="4" class="text-center p-8 text-slate-500">Chargement...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('clients-table-body');
+
+    async function fetchClients() {
+        try {
+            const response = await fetch('/api/clients');
+            if (!response.ok) throw new Error('Erreur réseau');
+            const clients = await response.json();
+            renderTable(clients);
+        } catch (error) {
+            console.error("Erreur de chargement:", error);
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-red-500">Erreur de chargement des clients.</td></tr>`;
+        }
+    }
+
+    function renderTable(clients) {
+        tableBody.innerHTML = '';
+        if (clients.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-slate-500">Aucun client à afficher.</td></tr>`;
+            return;
+        }
+        clients.forEach(client => {
+            const row = document.createElement('tr');
+            row.className = 'border-b border-slate-100 hover:bg-slate-50';
+            row.dataset.clientId = client.id;
+            
+            row.innerHTML = `
+                <td class="p-3 font-medium text-slate-800">${client.full_name}</td>
+                <td class="p-3 text-sm text-slate-600">${client.email || 'N/A'}</td>
+                <td class="p-3 text-sm text-slate-600">${client.phone || 'N/A'}</td>
+                <td class="p-3 text-right space-x-2">
+                    <button data-action="view" title="Voir l'historique" class="text-blue-500 text-xl">👁️</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+    
+    tableBody.addEventListener('click', async function(e) {
+        const actionTarget = e.target.closest('[data-action]');
+        if (!actionTarget) return;
+
+        const action = actionTarget.dataset.action;
+        const clientRow = actionTarget.closest('tr');
+        const clientId = clientRow.dataset.clientId;
+
+        if (action === 'view') {
+            // Pour l'instant, on peut simplement alerter.
+            // Plus tard, on ouvrira une modale avec l'historique.
+            const response = await fetch(`/api/client/${clientId}`);
+            const clientDetails = await response.json();
+            
+            let tripList = 'Aucun voyage trouvé.';
+            if(clientDetails.trips && clientDetails.trips.length > 0) {
+                tripList = clientDetails.trips.map(trip => `<li>${trip.hotel_name} (${trip.status})</li>`).join('');
+            }
+            
+            alert(`Historique pour ${clientDetails.full_name}:\n\n<ul>${tripList}</ul>`);
+        }
+    });
+
+
+    fetchClients();
+});
+</script>
+{% endblock %}

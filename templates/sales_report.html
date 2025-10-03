@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Rapport des Ventes{% endblock %}
+
+{% block content %}
+<div>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-slate-800">Rapport des Ventes</h1>
+        <button id="export-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Exporter pour le comptable (CSV)</button>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="border-b-2 border-slate-200">
+                    <tr>
+                        <th class="p-3 text-sm font-semibold text-slate-500">Date Vente</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500">Voyage</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500">Client</th>
+                        {% if session.get('role') == 'admin' %}
+                        <th class="p-3 text-sm font-semibold text-slate-500">Vendeur</th>
+                        {% endif %}
+                        <th class="p-3 text-sm font-semibold text-slate-500 text-right">Prix Total</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500 text-right">Marge Totale</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500 text-right">Marge Vendeur</th>
+                        <th class="p-3 text-sm font-semibold text-slate-500 text-right">Marge VP</th>
+                    </tr>
+                </thead>
+                <tbody id="sales-table-body">
+                    <tr id="loading-row"><td colspan="8" class="text-center p-8 text-slate-500">Chargement...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('sales-table-body');
+    const isAdmin = "{{ session.get('role') }}" === 'admin';
+
+    async function fetchSalesReport() {
+        try {
+            const response = await fetch('/api/sales_report');
+            if (!response.ok) throw new Error('Erreur réseau');
+            const sales = await response.json();
+            renderTable(sales);
+        } catch (error) {
+            console.error("Erreur de chargement:", error);
+            const colspan = isAdmin ? 8 : 7;
+            tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center p-8 text-red-500">Erreur de chargement du rapport.</td></tr>`;
+        }
+    }
+
+    function renderTable(sales) {
+        tableBody.innerHTML = '';
+        if (sales.length === 0) {
+            const colspan = isAdmin ? 8 : 7;
+            tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center p-8 text-slate-500">Aucune vente à afficher.</td></tr>`;
+            return;
+        }
+        sales.forEach(sale => {
+            const row = document.createElement('tr');
+            row.className = 'border-b border-slate-100';
+            
+            let adminColumn = '';
+            if (isAdmin) {
+                adminColumn = `<td class="p-3 text-sm text-slate-600">${sale.creator_pseudo}</td>`;
+            }
+
+            row.innerHTML = `
+                <td class="p-3 text-sm text-slate-600">${sale.sold_at}</td>
+                <td class="p-3 font-medium text-slate-800">${sale.hotel_name}</td>
+                <td class="p-3 text-sm text-slate-600">${sale.client_full_name}</td>
+                ${adminColumn}
+                <td class="p-3 text-sm text-slate-800 font-semibold text-right">${sale.price} €</td>
+                <td class="p-3 text-sm text-slate-800 text-right">${sale.total_margin} €</td>
+                <td class="p-3 text-sm text-green-600 font-semibold text-right">${sale.seller_margin} €</td>
+                <td class="p-3 text-sm text-blue-600 font-semibold text-right">${sale.vp_margin} €</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    document.getElementById('export-btn').addEventListener('click', () => {
+        window.location.href = '/api/export_sales';
+    });
+
+    fetchSalesReport();
+});
+</script>
+{% endblock %}

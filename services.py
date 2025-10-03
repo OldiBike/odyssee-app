@@ -84,14 +84,15 @@ class PublicationService:
     def publish_public_offer(self, trip):
         """Publie une offre dans le dossier public /offres/"""
         full_trip_data = json.loads(trip.full_data_json)
-        base_filename = self._generate_base_filename(full_trip_data)
-        filename = f"{base_filename}.html"
         html_content = generate_travel_page_html(
             full_trip_data['form_data'],
             full_trip_data['api_data'],
             full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
+            full_trip_data.get('comparison_total', 0),
+            trip.user.pseudo
         )
+        base_filename = self._generate_base_filename(full_trip_data)
+        filename = f"{base_filename}.html"
         if self._upload_via_api(filename, html_content.encode('utf-8'), 'offres'):
             return filename
         return None
@@ -100,7 +101,7 @@ class PublicationService:
         """Publie une offre privée dans le dossier /clients/"""
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
-        raw_name = f"{trip.client_first_name} {trip.client_last_name}"
+        raw_name = f"{trip.client.first_name} {trip.client.last_name}"
         slug = unidecode.unidecode(raw_name).lower()
         slug = re.sub(r"[\s']+", '_', slug)
         client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
@@ -109,7 +110,8 @@ class PublicationService:
             full_trip_data['form_data'],
             full_trip_data['api_data'],
             full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
+            full_trip_data.get('comparison_total', 0),
+            trip.user.pseudo
         )
         if self._upload_via_api(filename, html_content.encode('utf-8'), 'clients'):
             return filename
@@ -321,7 +323,7 @@ class RealAPIGatherer:
             'cultural_attraction_image': cultural_attraction_image
         }
 
-def generate_travel_page_html(data, real_data, savings, comparison_total):
+def generate_travel_page_html(data, real_data, savings, comparison_total, creator_pseudo=None):
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()
@@ -489,10 +491,13 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         other_attractions_items = "".join([f'<div class="flex items-start space-x-3"><div class="feature-icon {colors.get(attr["category"], "bg-gray-500")}" style="width: 35px; height: 35px; font-size: 16px; flex-shrink: 0;"><i class="fas {icons.get(attr["category"], "fa-question")}"></i></div><div><h5 class="font-semibold text-sm text-gray-800">{attr["name"]}</h5><p class="text-gray-500 text-xs">{categories.get(attr["category"])}</p></div></div>' for attr in flat_attractions[:4]])
         destination_section += f'<div><h4 class="font-semibold text-lg mb-3 text-gray-800">À explorer également</h4><div class="space-y-4">{other_attractions_items}</div></div>'
 
+    creator_html = f'<p class="text-sm mt-3">Voyage proposé par <strong>{creator_pseudo}</strong></p>' if creator_pseudo else ""
+
     footer_html = f"""
         <div class="instagram-card p-6 bg-blue-500 text-white text-center">
             <h3 class="text-2xl font-bold mb-2">🌟 Réservez votre évasion !</h3>
             <p>Les places sont très limitées pour cette offre exclusive. Pour garantir votre place :</p>
+            {creator_html}
             <div class="mt-4 flex flex-col sm:flex-row justify-center gap-4">
                 <a href="tel:+32488433344" class="block w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full">📞 Appeler maintenant</a>
                 <a href="mailto:infos@voyages-privileges.be" class="block w-full sm:w-auto bg-white hover:bg-gray-100 text-blue-500 font-bold py-3 px-6 rounded-full">✉️ Envoyer un email</a>

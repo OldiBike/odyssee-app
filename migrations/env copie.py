@@ -93,21 +93,6 @@ def run_migrations_online():
     conf_args = current_app.extensions['migrate'].configure_args
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
-        
-    # --- DÉBUT DE LA MODIFICATION ---
-    # Ajout d'une convention de nommage pour résoudre le bug avec SQLite
-    naming_convention = {
-        "ix": 'ix_%(column_0_label)s',
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s"
-    }
-    if not conf_args.get('render_as_batch'):
-        conf_args['render_as_batch'] = True
-    if not conf_args.get('naming_convention'):
-        conf_args['naming_convention'] = naming_convention
-    # --- FIN DE LA MODIFICATION ---
 
     connectable = get_engine()
 
@@ -126,4 +111,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

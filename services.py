@@ -169,31 +169,14 @@ class RealAPIGatherer:
             print("❌ ERREUR CRITIQUE: Variable GOOGLE_API_KEY manquante")
         else:
             genai.configure(api_key=self.google_api_key)
-            print("✅ Clé API Google chargée")
-
-    def get_real_gemini_attractions_and_restaurants(self, destination):
-        if not self.google_api_key:
-            return {"attractions": [], "restaurants": []}
-        try:
-            # --- DÉBUT DE LA CORRECTION ---
-            model = genai.GenerativeModel('gemini-pro') # Correction ici
-            # --- FIN DE LA CORRECTION ---
-            prompt = f'Donne-moi 8 points d\'intérêt pour {destination} et une sélection de 3 des meilleurs restaurants. Réponds UNIQUEMENT en JSON: {{"attractions": [{{"name": "Nom", "type": "plage|culture|gastronomie|activite"}}], "restaurants": [{{"name": "Nom du restaurant"}}]}}'
-            response = model.generate_content(prompt)
-            response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
-            parsed_data = json.loads(response_text)
-            return parsed_data
-        except Exception as e:
-            print(f"❌ Erreur API Gemini: {e}")
-            return {"attractions": [], "restaurants": []}
+            print("✅ Clé API Google chargée et configurée")
 
     def generate_whatsapp_catchphrase(self, trip_details):
         if not self.google_api_key:
             return "Une offre à ne pas manquer !"
         try:
-            # --- DÉBUT DE LA CORRECTION ---
-            model = genai.GenerativeModel('gemini-pro') # Correction ici
-            # --- FIN DE LA CORRECTION ---
+            # MODIFIÉ : Utilisation du modèle le plus récent et efficace
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
             prompt = (
                 f"Crée une très courte phrase marketing (maximum 15 mots) pour une publication WhatsApp concernant un voyage. "
                 f"Voici les détails : Hôtel '{trip_details['hotel_name']}' à {trip_details['destination']}. "
@@ -293,6 +276,21 @@ class RealAPIGatherer:
             print(f"❌ Erreur API Image Attraction: {e}")
             return None
 
+    def get_real_gemini_attractions_and_restaurants(self, destination):
+        if not self.google_api_key:
+            return {"attractions": [], "restaurants": []}
+        try:
+            # MODIFIÉ : Utilisation du modèle le plus récent et efficace
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
+            prompt = f'Donne-moi 8 points d\'intérêt pour {destination} et une sélection de 3 des meilleurs restaurants. Réponds UNIQUEMENT en JSON: {{"attractions": [{{"name": "Nom", "type": "plage|culture|gastronomie|activite"}}], "restaurants": [{{"name": "Nom du restaurant"}}]}}'
+            response = model.generate_content(prompt)
+            response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
+            parsed_data = json.loads(response_text)
+            return parsed_data
+        except Exception as e:
+            print(f"❌ Erreur API Gemini: {e}")
+            return {"attractions": [], "restaurants": []}
+
     def gather_all_real_data(self, hotel_name, destination):
         gemini_data = self.get_real_gemini_attractions_and_restaurants(destination)
         attractions_list = gemini_data.get("attractions", [])
@@ -306,8 +304,9 @@ class RealAPIGatherer:
 
         cultural_attraction_image = None
         if attractions_by_category.get('culture'):
-            first_cultural_attraction = attractions_by_category['culture'][0]
-            cultural_attraction_image = self.get_attraction_image(first_cultural_attraction, destination)
+             if attractions_by_category['culture']: # S'assurer que la liste n'est pas vide
+                first_cultural_attraction = attractions_by_category['culture'][0]
+                cultural_attraction_image = self.get_attraction_image(first_cultural_attraction, destination)
 
         reviews_data = self.get_real_hotel_reviews(hotel_name, destination)
 
@@ -323,19 +322,22 @@ class RealAPIGatherer:
         }
 
 def generate_travel_page_html(data, real_data, savings, comparison_total):
-    # --- Cette fonction reste inchangée ---
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()
     display_address = ', '.join(hotel_name_parts[1:]).strip() if len(hotel_name_parts) > 1 else data.get('destination', '')
+
     date_start = datetime.strptime(data['date_start'], '%Y-%m-%d').strftime('%d %B %Y')
     date_end = datetime.strptime(data['date_end'], '%Y-%m-%d').strftime('%d %B %Y')
     stars = "⭐" * int(data.get('stars') or 0)
     num_people = int(data.get('num_people') or 2)
     price_for_text = f"pour {num_people} personnes" if num_people > 1 else "pour 1 personne"
+    
     your_price = int(data.get('pack_price') or 0)
     price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>' if num_people > 0 else ""
+    
     is_ultra_budget = data.get('is_ultra_budget', False)
+
     cancellation_html = ""
     flight_price = int(data.get('flight_price') or 0)
     if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
@@ -346,6 +348,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             """
         else:
             cancellation_html = f'<p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite jusqu\'au {data.get("cancellation_date")}</p>'
+
     instagram_button_html = ""
     instagram_input = data.get('instagram_handle', '').strip()
     if instagram_input:
@@ -359,10 +362,13 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
                 Voir sur Instagram
             </a>
             '''
+
     city_name = data.get('destination', '').split(',')[0].strip()
     exclusive_services_html = f'<div class="p-4 mt-4 rounded-lg border-2 border-blue-200 bg-blue-50"><h4 class="font-bold text-blue-800 mb-2">Nos Services additionnels offerts</h4><p class="text-sm text-gray-700">{data.get("exclusive_services", "").strip().replace(chr(10), "<br>")}</p></div>' if data.get('exclusive_services', '').strip() else ""
+    
     flight_text_html = f'<div class="flex justify-between"><span>Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</span><span class="font-semibold">{flight_price}€</span></div>' if flight_price > 0 else ""
     flight_inclusion_html = f'<div class="flex items-center"><div class="feature-icon bg-blue-500"><i class="fas fa-plane"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</h4><p class="text-gray-600 text-xs">Aller-retour inclus</p></div></div>' if flight_price > 0 else ""
+    
     baggage_option = data.get('baggage_type', 'bagages 10 kilos')
     baggage_inclusion_html = ''
     if is_ultra_budget and baggage_option == 'Pas de bagages':
@@ -373,22 +379,28 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10 kilos + 1x 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage 10 kilos inclus par personne en cabine et un bagage 20 kilo en soute</p></div></div>'
     elif baggage_option == 'Pas de bagages':
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-400"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Pas de bagages</h4><p class="text-gray-600 text-xs">Peuvent être ajouté en option</p></div></div>'
+
     transfer_cost = int(data.get('transfer_cost') or 0)
     transfer_text_html = f'<div class="flex justify-between"><span>+ Transferts</span><span class="font-semibold">~{transfer_cost}€</span></div>' if transfer_cost > 0 else ""
     transfer_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-green-500"><i class="fas fa-bus"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Transfert aéroport ↔ hôtel</h4><p class="text-gray-600 text-xs">Prise en charge complète</p></div></div>' if transfer_cost > 0 else ""
+
     surcharge_cost = int(data.get('surcharge_cost') or 0)
     surcharge_text_html = f'<div class="flex justify-between"><span>+ Surcoût {data.get("surcharge_type", "")}</span><span class="font-semibold">~{surcharge_cost}€</span></div>' if surcharge_cost > 0 else ""
+    
     pension_html = ''
     if data.get('surcharge_type') != 'Logement seul':
         pension_html = f'<div class="flex items-center"><div class="feature-icon bg-yellow-500"><i class="fas fa-utensils"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{data.get("surcharge_type", "Pension complète")}</h4><p class="text-gray-600 text-xs">Inclus dans le forfait</p></div></div>'
+
     car_rental_cost = int(data.get('car_rental_cost') or 0)
     car_rental_text_html = f'<div class="flex justify-between"><span>+ Voiture de location (sans franchise)</span><span class="font-semibold">~{car_rental_cost}€</span></div>' if car_rental_cost > 0 else ""
+    
     car_rental_inclusion_html = ''
     if car_rental_cost > 0:
         if is_ultra_budget:
             car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location</h4><p class="text-gray-600 text-xs">Franchise à partir de 1100€</p></div></div>'
         else:
             car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>'
+
     pricing_block_html = ''
     if is_ultra_budget:
         conditions = []
@@ -396,16 +408,21 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             conditions.append("<li>- Pas de vols inclus</li>")
         else:
             conditions.append("<li>- Pas de bagage cabine</li>")
+        
         if car_rental_cost > 0:
             conditions.append("<li>- Caution pour la voiture de location</li>")
         elif transfer_cost == 0:
             conditions.append("<li>- Transfert aéroport non compris</li>")
+
         if not (data.get('has_cancellation') == 'on' and data.get('cancellation_date')):
             conditions.append("<li>- Hôtel non remboursable</li>")
         else:
             conditions.append(f"<li>- Hôtel remboursable jusqu\'au {data.get('cancellation_date')}</li>")
+
         conditions.append("<li>- Horaires des vols non optimisés</li>")
+        
         conditions_list_html = "".join(conditions)
+
         ultra_budget_warning_html = f'''
         <div class="mt-4 p-3 rounded-lg border-2 border-red-200 bg-red-50 text-sm">
             <h4 class="font-bold text-red-800 mb-2">⚠️ Tarif minimum avec les conditions suivantes :</h4>
@@ -434,34 +451,44 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             <div class="economy-highlight">💰 Vous économisez {savings} € !</div>
         </div>
         """
+    
     total_photos = len(real_data['photos'])
     image_gallery = "".join([f'<div class="image-item"><img src="{url}" alt="Photo de {data["hotel_name"]}"></div>' for url in real_data['photos'][:6]]) or '<p>Aucune photo disponible.</p>'
     more_photos_button = f'<div class="text-center mt-4"><button id="voirPlusPhotos" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-full transition-colors">📸 Voir plus de photos ({total_photos} au total)</button></div>' if total_photos > 6 else ""
     modal_all_photos = "".join([f'<img src="{url}" alt="Photo {i+1} de {data["hotel_name"]}" class="modal-photo">' for i, url in enumerate(real_data['photos'])])
+
     video_html_block = ""
     if real_data.get('videos'):
         embed_url = f"https://www.youtube.com/embed/{real_data['videos'][0]['id']}"
         video_title = real_data['videos'][0]['title']
         video_html_block = f"""<div id="video-section-wrapper" class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Vidéo</h3><div><h4 class="font-semibold mb-2">Visite de l'hôtel</h4><div class="video-container aspect-w-16 aspect-h-9"><iframe src="{embed_url}" title="{video_title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full rounded-lg"></iframe></div></div></div>"""
+
     reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="mt-2 text-gray-700">"{r["text"]}"</p></div>' for r in real_data.get('reviews', [])])
+
     destination_section = ""
     if real_data.get('cultural_attraction_image'):
-        cultural_attraction_name = real_data.get('attractions', {}).get('culture', [''])[0]
-        destination_section += f'<div class="mb-6 rounded-lg overflow-hidden shadow-lg"><img src="{real_data["cultural_attraction_image"]}" alt="Image de {cultural_attraction_name}" class="w-full h-48 object-cover"><div class="p-4 bg-gray-50"><h4 class="font-bold text-gray-800">Incontournable : {cultural_attraction_name}</h4></div></div>'
+        cultural_attraction_name = real_data.get('attractions', {}).get('culture', [''])[0] if real_data.get('attractions', {}).get('culture') else ''
+        if cultural_attraction_name:
+            destination_section += f'<div class="mb-6 rounded-lg overflow-hidden shadow-lg"><img src="{real_data["cultural_attraction_image"]}" alt="Image de {cultural_attraction_name}" class="w-full h-48 object-cover"><div class="p-4 bg-gray-50"><h4 class="font-bold text-gray-800">Incontournable : {cultural_attraction_name}</h4></div></div>'
+
     if real_data.get('restaurants'):
         restaurants_list_items = "".join([f'<li class="flex items-center"><i class="fas fa-utensils text-yellow-500 mr-3"></i><span>{resto.get("name")}</span></li>' for resto in real_data['restaurants']])
         destination_section += f'<div class="mb-6"><h4 class="font-semibold text-lg mb-3 text-gray-800">🍴 Top 3 Restaurants</h4><ul class="space-y-2 text-gray-700">{restaurants_list_items}</ul></div>'
+
     icons = {'plages': 'fa-water', 'culture': 'fa-monument', 'gastronomie': 'fa-utensils', 'activites': 'fa-map-signs'}
     colors = {'plages': 'bg-blue-500', 'culture': 'bg-purple-500', 'gastronomie': 'bg-green-500', 'activites': 'bg-orange-500'}
     categories = {'plages': 'Plages & Nature', 'culture': 'Culture & Histoire', 'gastronomie': 'Gastronomie Locale', 'activites': 'Activités & Loisirs'}
+    
     flat_attractions = []
     for category, attractions in real_data.get('attractions', {}).items():
         start_index = 1 if category == 'culture' and real_data.get('cultural_attraction_image') else 0
         for attraction_name in attractions[start_index:]:
             flat_attractions.append({'name': attraction_name, 'category': category})
+
     if flat_attractions:
         other_attractions_items = "".join([f'<div class="flex items-start space-x-3"><div class="feature-icon {colors.get(attr["category"], "bg-gray-500")}" style="width: 35px; height: 35px; font-size: 16px; flex-shrink: 0;"><i class="fas {icons.get(attr["category"], "fa-question")}"></i></div><div><h5 class="font-semibold text-sm text-gray-800">{attr["name"]}</h5><p class="text-gray-500 text-xs">{categories.get(attr["category"])}</p></div></div>' for attr in flat_attractions[:4]])
         destination_section += f'<div><h4 class="font-semibold text-lg mb-3 text-gray-800">À explorer également</h4><div class="space-y-4">{other_attractions_items}</div></div>'
+
     footer_html = f"""
         <div class="instagram-card p-6 bg-blue-500 text-white text-center">
             <h3 class="text-2xl font-bold mb-2">🌟 Réservez votre évasion !</h3>
@@ -476,11 +503,13 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
              <p class="text-gray-700">Les dates ou la durée de ce séjour ne vous conviennent pas ? Contactez-nous ! Nous pouvons vous créer une offre sur mesure.</p>
              <p class="text-sm text-gray-500 mt-2">Notez que le tarif concurrentiel de cette offre est spécifique à ces dates et conditions.</p>
         </div>
+        
         <div class="instagram-card p-6 text-center">
             <a href="https://www.voyages-privileges.be" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors" style="display: inline-block;">
                 Toutes nos offres
             </a>
         </div>
+
         <div class="instagram-card p-6 text-center">
             <h3 class="text-xl font-semibold mb-4">📞 Contact & Infos</h3>
             <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" class="h-12 mx-auto mb-4">
@@ -491,7 +520,9 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             <p class="text-xs text-gray-500">SRL RIDEA (OldiBike)<br>Numéro de société : 1024.916.054 - RC Exploitation : 99730451</p>
         </div>
     """
+    
     story_card_style = "background: linear-gradient(135deg, #FECACA 0%, #F87171 100%);" if is_ultra_budget else "background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);"
+
     html_template = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>

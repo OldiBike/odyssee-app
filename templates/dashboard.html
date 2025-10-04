@@ -3,8 +3,6 @@
 {% block title %}Tableau de Bord{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <style>
     .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
     .modal.is-open { display: flex; }
@@ -60,38 +58,37 @@
 
 <div id="assign-client-modal" class="modal">
     <div class="modal-content">
-        <h2 id="assign-modal-title" class="text-xl font-bold mb-4">Assigner le voyage</h2>
+        <h2 class="text-xl font-bold mb-4">Assigner le voyage</h2>
         <input type="hidden" id="assign-trip-id">
         
         <div class="border-b border-gray-200 mb-4">
-            <nav class="flex space-x-4" aria-label="Tabs">
-                <button id="tab-new-client" class="px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-blue-500 text-blue-600">Nouveau Client</button>
-                <button id="tab-existing-client" class="px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700">Client Existant</button>
+            <nav class="flex space-x-4">
+                <button id="tab-new-client" class="px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600">Nouveau Client</button>
+                <button id="tab-existing-client" class="px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500">Client Existant</button>
             </nav>
         </div>
 
         <form id="new-client-form-dashboard">
             <div class="space-y-4">
-                <div><label for="client_first_name_dashboard" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
-                <div><label for="client_last_name_dashboard" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
-                <div><label for="client_email_dashboard" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
-                <div><label for="client_phone_dashboard" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone_dashboard" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone_dashboard" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
             </div>
         </form>
 
         <form id="existing-client-form-dashboard" style="display: none;">
-             <div>
-                <label for="assign-client-id" class="block text-sm font-medium text-slate-700">Sélectionner un client existant</label>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Sélectionner un client existant</label>
                 <select id="assign-client-id" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border">
                     <option value="">-- Choisir un client --</option>
                 </select>
             </div>
-             <p class="text-center text-sm text-slate-500 mt-4">Ou <a href="{{ url_for('clients_page') }}" target="_blank" class="text-blue-600 underline">gérez vos clients ici</a>.</p>
         </form>
 
         <div class="mt-6 flex justify-end space-x-3">
             <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-            <button type="button" id="submit-assign-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Assigner et Publier</button>
+            <button type="button" id="submit-assign-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Assigner</button>
         </div>
     </div>
 </div>
@@ -99,274 +96,279 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
+    'use strict';
+    
+    console.log('🚀 Dashboard script loaded');
+    
     const viewMode = '{{ view_mode }}';
     const sitePublicUrl = '{{ site_public_url }}';
+    const currentUserId = {{ session.get('user_id') }};
+    const isAdmin = {{ 'true' if session.get('role') == 'admin' else 'false' }};
+    
     const tableBody = document.getElementById('trips-table-body');
-    const assignClientModal = document.getElementById('assign-client-modal');
+    const assignModal = document.getElementById('assign-client-modal');
+    
+    console.log('📊 View mode:', viewMode);
+    console.log('👤 Current user:', currentUserId, 'isAdmin:', isAdmin);
 
-    const currentUserId = {{ session.get('user_id') | tojson }};
-    const isAdmin = {{ session.get('role') == 'admin' | tojson }};
-
-    async function fetchTrips() {
-        try {
-            const response = await fetch(`/api/trips?status=${viewMode}`);
-            if (!response.ok) throw new Error('Network response was not ok');
-            const trips = await response.json();
-            renderTable(trips);
-        } catch (error) {
-            console.error("Fetch error:", error);
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-red-500">Erreur de chargement des données.</td></tr>`;
-        }
+    // Fonction principale de chargement
+    function loadTrips() {
+        console.log('🔄 Loading trips...');
+        
+        fetch('/api/trips?status=' + viewMode)
+            .then(function(response) {
+                console.log('📡 Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error('HTTP error ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(trips) {
+                console.log('✅ Trips loaded:', trips.length, 'items');
+                console.log('📦 Data:', trips);
+                displayTrips(trips);
+            })
+            .catch(function(error) {
+                console.error('❌ Error loading trips:', error);
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-red-500">Erreur: ' + error.message + '</td></tr>';
+            });
     }
 
-    function renderTable(trips) {
+    // Affichage des voyages
+    function displayTrips(trips) {
+        console.log('🎨 Displaying', trips.length, 'trips');
+        
         tableBody.innerHTML = '';
+        
         if (trips.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-slate-500">Aucun voyage à afficher.</td></tr>`;
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-slate-500">Aucun voyage à afficher.</td></tr>';
             return;
         }
-        trips.forEach(trip => {
+
+        trips.forEach(function(trip) {
+            console.log('➕ Adding trip:', trip.id, trip.hotel_name);
+            
             const row = document.createElement('tr');
             row.className = 'border-b border-slate-100 hover:bg-slate-50';
             row.dataset.tripId = trip.id;
             
             const canEdit = isAdmin || trip.user_id === currentUserId;
-            const disabledClass = canEdit ? '' : 'disabled-btn';
-            const disabledAttr = canEdit ? '' : 'disabled';
+            const disabled = canEdit ? '' : 'disabled';
+            const disabledClass = canEdit ? '' : 'opacity-50 cursor-not-allowed';
             
-            let rowHtml = '';
+            let html = '';
+            
             if (viewMode === 'proposed') {
-                const viewOnlineLink = trip.is_published 
-                    ? `<a href="${sitePublicUrl}/offres/${trip.published_filename}" target="_blank" title="Voir la fiche en ligne" class="text-blue-500 text-xl">👁️</a>`
-                    : `<span title="Publiez pour voir le lien" class="text-gray-400 text-xl cursor-not-allowed">👁️</span>`;
+                const viewLink = trip.is_published 
+                    ? '<a href="' + sitePublicUrl + '/offres/' + trip.published_filename + '" target="_blank" title="Voir en ligne" class="text-blue-500 text-xl">👁️</a>'
+                    : '<span title="Non publié" class="text-gray-400 text-xl">👁️</span>';
                 
-                rowHtml = `
-                    <td class="p-3 text-sm text-slate-600">${trip.created_at}</td>
-                    <td class="p-3 text-sm text-slate-600">${trip.creator_pseudo}</td>
-                    <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
-                    <td class="p-3 text-sm text-slate-600">${trip.destination}</td>
-                    <td class="p-3 text-center">
-                        <label class="relative inline-flex items-center cursor-pointer ${disabledClass}">
-                            <input type="checkbox" data-action="toggle-publish" class="sr-only peer" ${trip.is_published ? 'checked' : ''} ${disabledAttr}>
-                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </td>
-                    <td class="p-3 text-right space-x-2">
-                        ${viewOnlineLink}
-                        <button data-action="assign" title="Assigner à un client" class="text-blue-500 text-xl ${disabledClass}" ${disabledAttr}>💰</button>
-                        <button data-action="delete" title="Supprimer" class="text-red-500 text-xl ${disabledClass}" ${disabledAttr}>🗑️</button>
-                    </td>`;
+                html = '<td class="p-3 text-sm text-slate-600">' + trip.created_at + '</td>' +
+                       '<td class="p-3 text-sm text-slate-600">' + trip.creator_pseudo + '</td>' +
+                       '<td class="p-3 font-medium text-slate-800">' + trip.hotel_name + '</td>' +
+                       '<td class="p-3 text-sm text-slate-600">' + trip.destination + '</td>' +
+                       '<td class="p-3 text-center"><label class="relative inline-flex items-center cursor-pointer ' + disabledClass + '">' +
+                       '<input type="checkbox" data-action="toggle-publish" class="sr-only peer" ' + (trip.is_published ? 'checked' : '') + ' ' + disabled + '>' +
+                       '<div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[\'\'] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>' +
+                       '</label></td>' +
+                       '<td class="p-3 text-right space-x-2">' + viewLink +
+                       '<button data-action="assign" title="Assigner" class="text-blue-500 text-xl ' + disabledClass + '" ' + disabled + '>💰</button>' +
+                       '<button data-action="delete" title="Supprimer" class="text-red-500 text-xl ' + disabledClass + '" ' + disabled + '>🗑️</button>' +
+                       '</td>';
+                       
             } else if (viewMode === 'assigned') {
-                 rowHtml = `
-                    <td class="p-3 text-sm text-slate-600">${trip.assigned_at}</td>
-                    <td class="p-3 text-sm text-slate-600">${trip.creator_pseudo}</td>
-                    <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
-                    <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
-                    <td class="p-3 text-right space-x-2">
-                        <button data-action="mark-sold" title="Marquer comme Vendu" class="text-green-500 text-xl ${disabledClass}" ${disabledAttr}>✅</button>
-                        <button data-action="delete" title="Supprimer" class="text-red-500 text-xl ${disabledClass}" ${disabledAttr}>🗑️</button>
-                    </td>`;
+                const clientName = trip.client_full_name || '⚠️ Sans client';
+                html = '<td class="p-3 text-sm text-slate-600">' + (trip.assigned_at || 'N/A') + '</td>' +
+                       '<td class="p-3 text-sm text-slate-600">' + trip.creator_pseudo + '</td>' +
+                       '<td class="p-3 font-medium text-slate-800">' + trip.hotel_name + '</td>' +
+                       '<td class="p-3 text-sm text-slate-600">' + clientName + '</td>' +
+                       '<td class="p-3 text-right space-x-2">' +
+                       '<button data-action="mark-sold" title="Marquer vendu" class="text-green-500 text-xl ' + disabledClass + '" ' + disabled + '>✅</button>' +
+                       '<button data-action="delete" title="Supprimer" class="text-red-500 text-xl ' + disabledClass + '" ' + disabled + '>🗑️</button>' +
+                       '</td>';
+                       
             } else if (viewMode === 'sold') {
-                rowHtml = `
-                    <td class="p-3 text-sm text-slate-600">${trip.sold_at || 'N/A'}</td>
-                    <td class="p-3 text-sm text-slate-600">${trip.creator_pseudo}</td>
-                    <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
-                    <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
-                    <td class="p-3 text-sm text-slate-600 font-semibold">${trip.price}€</td>
-                    <td class="p-3 text-right space-x-2">
-                         <button data-action="delete" title="Supprimer l'archive" class="text-red-500 text-xl ${disabledClass}" ${disabledAttr}>🗑️</button>
-                    </td>`;
+                const clientName = trip.client_full_name || '⚠️ Sans client';
+                html = '<td class="p-3 text-sm text-slate-600">' + (trip.sold_at || 'N/A') + '</td>' +
+                       '<td class="p-3 text-sm text-slate-600">' + trip.creator_pseudo + '</td>' +
+                       '<td class="p-3 font-medium text-slate-800">' + trip.hotel_name + '</td>' +
+                       '<td class="p-3 text-sm text-slate-600">' + clientName + '</td>' +
+                       '<td class="p-3 text-sm text-slate-600 font-semibold">' + trip.price + '€</td>' +
+                       '<td class="p-3 text-right space-x-2">' +
+                       '<button data-action="delete" title="Supprimer" class="text-red-500 text-xl ' + disabledClass + '" ' + disabled + '>🗑️</button>' +
+                       '</td>';
             }
-            row.innerHTML = rowHtml;
+            
+            row.innerHTML = html;
             tableBody.appendChild(row);
         });
     }
 
-    tableBody.addEventListener('click', async function(e) {
-        const actionTarget = e.target.closest('[data-action]');
-        if (!actionTarget || actionTarget.disabled) return;
-
-        const action = actionTarget.dataset.action;
-        const tripRow = actionTarget.closest('tr');
-        const tripId = tripRow.dataset.tripId;
-
-        if (action === 'toggle-publish') {
-            const checkbox = actionTarget.querySelector('input');
-            togglePublish(tripId, checkbox, tripRow);
-        }
-        else if (action === 'delete') {
-            if (confirm('Êtes-vous sûr de vouloir supprimer ce voyage ? Cette action est irréversible.')) {
-                deleteTrip(tripId, tripRow);
-            }
-        }
-        else if (action === 'assign') {
+    // Gestion des clics
+    tableBody.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-action]');
+        if (!btn || btn.disabled) return;
+        
+        const action = btn.dataset.action;
+        const row = btn.closest('tr');
+        const tripId = row.dataset.tripId;
+        
+        console.log('🖱️ Action:', action, 'on trip', tripId);
+        
+        if (action === 'delete') {
+            if (!confirm('Supprimer ce voyage ?')) return;
+            fetch('/api/trip/' + tripId, { method: 'DELETE' })
+                .then(function(r) { return r.json(); })
+                .then(function(result) {
+                    if (result.success) {
+                        row.remove();
+                    } else {
+                        alert('Erreur: ' + result.message);
+                    }
+                });
+                
+        } else if (action === 'assign') {
             document.getElementById('assign-trip-id').value = tripId;
-            assignClientModal.querySelector('h2').textContent = 'Assigner le voyage à un client';
-            switchTab('new');
-            loadClientsIntoModal();
-            assignClientModal.classList.add('is-open');
-        }
-        else if (action === 'mark-sold') {
-            if(confirm('Confirmez-vous que ce voyage est vendu ?')) {
-                 updateTripStatus(tripId, 'sold', tripRow);
-            }
-        }
-    });
-    
-    tableBody.addEventListener('change', function(e) {
-        if (e.target.matches('input[type="checkbox"][data-action="toggle-publish"]') && !e.target.disabled) {
-            const tripId = e.target.closest('tr').dataset.tripId;
-            togglePublish(tripId, e.target, e.target.closest('tr'));
+            loadClients();
+            assignModal.classList.add('is-open');
+            
+        } else if (action === 'mark-sold') {
+            if (!confirm('Marquer comme vendu ?')) return;
+            fetch('/api/trip/' + tripId + '/mark_sold', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(result) {
+                    alert(result.message);
+                    if (result.success) row.remove();
+                });
         }
     });
 
-    async function togglePublish(tripId, checkbox, row) {
+    // Toggle publish
+    tableBody.addEventListener('change', function(e) {
+        if (!e.target.matches('[data-action="toggle-publish"]')) return;
+        
+        const checkbox = e.target;
+        const tripId = checkbox.closest('tr').dataset.tripId;
         const shouldPublish = checkbox.checked;
+        
+        console.log('🔄 Toggle publish:', tripId, shouldPublish);
+        
         checkbox.disabled = true;
-        try {
-            const response = await fetch(`/api/trip/${tripId}/publish`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({publish: shouldPublish})
-            });
-            const result = await response.json();
+        
+        fetch('/api/trip/' + tripId + '/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ publish: shouldPublish })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
             if (result.success) {
                 if (shouldPublish && result.url) {
-                    alert(`Voyage publié !\nURL: ${result.url}`);
+                    alert('Publié !\nURL: ' + result.url);
                 }
-                fetchTrips(); 
+                loadTrips();
             } else {
                 alert('Erreur: ' + result.message);
                 checkbox.checked = !shouldPublish;
             }
-        } catch (error) {
-            alert('Erreur réseau.');
-            checkbox.checked = !shouldPublish;
-        } finally {
+        })
+        .finally(function() {
             checkbox.disabled = false;
-        }
+        });
+    });
+
+    // Gestion des onglets
+    document.getElementById('tab-new-client').addEventListener('click', function() {
+        document.getElementById('new-client-form-dashboard').style.display = 'block';
+        document.getElementById('existing-client-form-dashboard').style.display = 'none';
+        this.className = 'px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600';
+        document.getElementById('tab-existing-client').className = 'px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500';
+    });
+
+    document.getElementById('tab-existing-client').addEventListener('click', function() {
+        document.getElementById('new-client-form-dashboard').style.display = 'none';
+        document.getElementById('existing-client-form-dashboard').style.display = 'block';
+        this.className = 'px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600';
+        document.getElementById('tab-new-client').className = 'px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500';
+    });
+
+    // Charger les clients
+    function loadClients() {
+        fetch('/api/clients')
+            .then(function(r) { return r.json(); })
+            .then(function(clients) {
+                const select = document.getElementById('assign-client-id');
+                select.innerHTML = '<option value="">-- Choisir --</option>';
+                clients.forEach(function(client) {
+                    const option = document.createElement('option');
+                    option.value = client.id;
+                    option.textContent = client.full_name;
+                    select.appendChild(option);
+                });
+            });
     }
 
-    async function deleteTrip(tripId, row) {
-        try {
-            const response = await fetch(`/api/trip/${tripId}`, {method: 'DELETE'});
-            const result = await response.json();
-            if (result.success) {
-                row.remove();
-            } else {
-                alert('Erreur: ' + result.message);
-            }
-        } catch (error) {
-            alert('Erreur réseau.');
-        }
-    }
-    
-    const tabNewClient = document.getElementById('tab-new-client');
-    const tabExistingClient = document.getElementById('tab-existing-client');
-    const formNewClient = document.getElementById('new-client-form-dashboard');
-    const formExistingClient = document.getElementById('existing-client-form-dashboard');
-
-    function switchTab(tab) {
-        if (tab === 'new') {
-            tabNewClient.classList.add('border-blue-500', 'text-blue-600');
-            tabNewClient.classList.remove('border-transparent', 'text-gray-500');
-            tabExistingClient.classList.remove('border-blue-500', 'text-blue-600');
-            tabExistingClient.classList.add('border-transparent', 'text-gray-500');
-            formNewClient.style.display = 'block';
-            formExistingClient.style.display = 'none';
-        } else {
-            tabExistingClient.classList.add('border-blue-500', 'text-blue-600');
-            tabExistingClient.classList.remove('border-transparent', 'text-gray-500');
-            tabNewClient.classList.remove('border-blue-500', 'text-blue-600');
-            tabNewClient.classList.add('border-transparent', 'text-gray-500');
-            formExistingClient.style.display = 'block';
-            formNewClient.style.display = 'none';
-        }
-    }
-
-    tabNewClient.addEventListener('click', () => switchTab('new'));
-    tabExistingClient.addEventListener('click', () => switchTab('existing'));
-
-    document.getElementById('submit-assign-btn').addEventListener('click', async function(e) {
+    // Assigner
+    document.getElementById('submit-assign-btn').addEventListener('click', function() {
         const tripId = document.getElementById('assign-trip-id').value;
-        const button = e.target;
-        button.disabled = true;
-        button.textContent = 'En cours...';
+        const isNewClient = document.getElementById('new-client-form-dashboard').style.display !== 'none';
         
-        let payload;
-        let isNewClient = formNewClient.style.display === 'block';
-        let url = `/api/trip/${tripId}/assign`;
-
+        let payload = {};
+        
         if (isNewClient) {
             payload = {
                 first_name: document.getElementById('client_first_name_dashboard').value,
                 last_name: document.getElementById('client_last_name_dashboard').value,
                 email: document.getElementById('client_email_dashboard').value,
-                phone: document.getElementById('client_phone_dashboard').value,
+                phone: document.getElementById('client_phone_dashboard').value
             };
             if (!payload.first_name || !payload.last_name || !payload.email) {
-                alert('Veuillez remplir les informations du nouveau client.');
-                button.disabled = false;
-                button.textContent = 'Assigner et Publier';
+                alert('Remplissez tous les champs obligatoires');
                 return;
             }
         } else {
             const clientId = document.getElementById('assign-client-id').value;
             if (!clientId) {
-                alert('Veuillez sélectionner un client existant.');
-                button.disabled = false;
-                button.textContent = 'Assigner et Publier';
+                alert('Sélectionnez un client');
                 return;
             }
             payload = { client_id: clientId };
         }
         
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
+        this.disabled = true;
+        this.textContent = 'En cours...';
+        
+        const btn = this;
+        
+        fetch('/api/trip/' + tripId + '/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
             alert(result.message);
             if (result.success) {
-                assignClientModal.classList.remove('is-open');
-                fetchTrips();
+                assignModal.classList.remove('is-open');
+                loadTrips();
             }
-        } catch (error) {
-            alert('Erreur réseau lors de l\'assignation.');
-        } finally {
-            button.disabled = false;
-            button.textContent = 'Assigner et Publier';
-        }
-    });
-
-    async function loadClientsIntoModal() {
-        const select = document.getElementById('assign-client-id');
-        select.innerHTML = '<option value="">-- Chargement... --</option>';
-        try {
-            const response = await fetch('/api/clients');
-            const clients = await response.json();
-            select.innerHTML = '<option value="">-- Choisir un client --</option>';
-            clients.forEach(client => {
-                const option = document.createElement('option');
-                option.value = client.id;
-                option.textContent = client.full_name;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            select.innerHTML = '<option value="">Erreur de chargement</option>';
-        }
-    }
-
-    document.querySelectorAll('.close-modal-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            btn.closest('.modal').classList.remove('is-open');
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Assigner';
         });
     });
 
-    fetchTrips();
-});
+    // Fermer modal
+    document.querySelectorAll('.close-modal-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            assignModal.classList.remove('is-open');
+        });
+    });
+
+    // Chargement initial
+    loadTrips();
+})();
 </script>
 {% endblock %}

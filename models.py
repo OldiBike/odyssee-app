@@ -1,4 +1,4 @@
-# models.py
+# models.py - Version CORRIGÉE
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date
 import json
@@ -12,10 +12,9 @@ class User(db.Model):
     pseudo = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(50), nullable=True)
-    role = db.Column(db.String(20), nullable=False, default='vendeur')  # 'vendeur' ou 'admin'
+    role = db.Column(db.String(20), nullable=False, default='vendeur')
     margin_percentage = db.Column(db.Integer, default=80)
 
-    # Pour la gestion des quotas
     generation_count = db.Column(db.Integer, default=0)
     last_generation_date = db.Column(db.Date, default=date.today)
     daily_generation_limit = db.Column(db.Integer, default=5)
@@ -99,9 +98,15 @@ class Trip(db.Model):
         full_data = json.loads(self.full_data_json)
         form_data = full_data.get('form_data', {})
         
-        client_full_name = self.client.to_dict()['full_name'] if self.client else None
-        client_email = self.client.email if self.client else None
-        client_phone = self.client.phone if self.client else None
+        # 🔧 CORRECTION: Gérer le cas où client_id est NULL
+        client_full_name = None
+        client_email = None
+        client_phone = None
+        
+        if self.client:
+            client_full_name = self.client.to_dict()['full_name']
+            client_email = self.client.email
+            client_phone = self.client.phone
 
         return {
             'id': self.id,

@@ -609,4 +609,3 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
 </body>
 </html>"""
     return html_template
-

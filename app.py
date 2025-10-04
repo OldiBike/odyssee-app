@@ -367,7 +367,9 @@ def create_app(config_class=Config):
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
 
         if request.method == 'GET':
-            return jsonify(trip.to_dict())
+            trip_details = trip.to_dict()
+            trip_details['full_data_json'] = trip.full_data_json 
+            return jsonify(trip_details)
 
         if request.method == 'DELETE':
             if g.user.role != 'admin' and trip.user_id != g.user.id:

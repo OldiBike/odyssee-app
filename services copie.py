@@ -1,4 +1,4 @@
-# services.py - Version finale, corrigée et complète
+# services.py - Version finale, fusionnée et corrigée
 import os
 import requests
 import json
@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 import unidecode
 
 class PublicationService:
+    """Gère la publication (upload, suppression) des fiches de voyage."""
     def __init__(self, config):
         self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
         self.api_key = 'SecretUploadKey2025'
@@ -19,20 +20,18 @@ class PublicationService:
         print(f"   API URL: {self.api_url}")
 
     def _upload_via_api(self, filename, content_bytes, directory):
-        """Méthode unifiée pour uploader des fichiers (HTML ou documents)."""
+        """Méthode unifiée pour uploader des fichiers via l'API de publication."""
         try:
             print(f"📤 Upload via API: {filename} vers {directory}/")
             
             content_base64 = base64.b64encode(content_bytes).decode('utf-8')
             
-            # Le payload ne contient PAS la clé API, conformément à la version qui fonctionnait.
             payload = {
                 'filename': filename,
                 'content': content_base64,
                 'directory': directory
             }
             
-            # La clé API est envoyée dans les en-têtes (headers), pour passer le pare-feu.
             headers = {
                 'Content-Type': 'application/json',
                 'X-Api-Key': self.api_key 
@@ -66,7 +65,6 @@ class PublicationService:
         """Télécharge un document depuis le serveur."""
         try:
             url = f"https://www.voyages-privileges.be/documents/{trip_id}/{filename}"
-            # Pour le téléchargement, l'authentification n'est pas nécessaire si les fichiers sont publics
             response = requests.get(url, timeout=30)
             if response.status_code == 200:
                 return response.content
@@ -77,68 +75,64 @@ class PublicationService:
             return None
 
     def _generate_base_filename(self, trip_data):
-        hotel_name = trip_data['form_data']['hotel_name'].split(',')[0].strip()
-        date_start = trip_data['form_data']['date_start']
-        date_end = trip_data['form_data']['date_end']
+        """Génère un nom de fichier standardisé basé sur l'hôtel et les dates."""
+        form_data = trip_data.get('form_data', {})
+        hotel_name = form_data.get('hotel_name', 'voyage').split(',')[0].strip()
+        date_start = form_data.get('date_start', 'nodate')
+        date_end = form_data.get('date_end', 'nodate')
         base_name = unidecode.unidecode(hotel_name).lower()
         base_name = re.sub(r'[^a-z0-9]+', '_', base_name).strip('_')
         return f"{base_name}_{date_start}_{date_end}"
 
     def publish_public_offer(self, trip):
-        """Publie une offre dans le dossier public /offres/"""
+        """Publie une offre dans le dossier public /offres/."""
         full_trip_data = json.loads(trip.full_data_json)
-        base_filename = self._generate_base_filename(full_trip_data)
-        filename = f"{base_filename}.html"
         html_content = generate_travel_page_html(
             full_trip_data['form_data'],
             full_trip_data['api_data'],
             full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
+            full_trip_data.get('comparison_total', 0),
+            creator_pseudo=trip.user.pseudo  # CORRECTION: On passe le pseudo du créateur
         )
+        base_filename = self._generate_base_filename(full_trip_data)
+        filename = f"{base_filename}.html"
         if self._upload_via_api(filename, html_content.encode('utf-8'), 'offres'):
             return filename
         return None
 
     def publish_client_offer(self, trip):
-        """Publie une offre privée dans le dossier /clients/"""
+        """Publie une offre privée dans le dossier /clients/."""
         full_trip_data = json.loads(trip.full_data_json)
         base_filename = self._generate_base_filename(full_trip_data)
-        raw_name = f"{trip.client_first_name} {trip.client_last_name}"
+        
+        raw_name = f"{trip.client.first_name} {trip.client.last_name}"
         slug = unidecode.unidecode(raw_name).lower()
         slug = re.sub(r"[\s']+", '_', slug)
         client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
         filename = f"{base_filename}_{client_name_slug}.html"
+        
         html_content = generate_travel_page_html(
             full_trip_data['form_data'],
             full_trip_data['api_data'],
             full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0)
+            full_trip_data.get('comparison_total', 0),
+            creator_pseudo=trip.user.pseudo  # CORRECTION: On passe le pseudo du créateur
         )
         if self._upload_via_api(filename, html_content.encode('utf-8'), 'clients'):
             return filename
         return None
 
     def unpublish(self, filename, is_client_offer=False):
-        """Supprime un fichier publié via l'API"""
+        """Supprime un fichier publié via l'API."""
         try:
             directory = 'clients' if is_client_offer else 'offres'
             print(f"🗑️ Suppression via API: {filename} dans {directory}/")
             
-            payload = {
-                'filename': filename,
-                'directory': directory
-            }
+            payload = { 'filename': filename, 'directory': directory }
+            headers = { 'Content-Type': 'application/json', 'X-Api-Key': self.api_key }
             
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key
-            }
-            response = requests.delete(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=30
-            )
+            response = requests.delete(self.api_url, json=payload, headers=headers, timeout=30)
+
             if response.status_code == 200 and response.json().get('success'):
                 print(f"✅ Suppression réussie: {filename}")
                 return True
@@ -149,7 +143,7 @@ class PublicationService:
             return False
     
     def test_connection(self):
-        """Test de connexion à l'API"""
+        """Test de connexion à l'API de publication."""
         try:
             print("\n🔍 TEST DE CONNEXION API")
             headers = {'X-Api-Key': self.api_key}
@@ -166,20 +160,20 @@ class PublicationService:
             return False
 
 class RealAPIGatherer:
-    # --- Le reste du fichier est identique et n'a pas besoin d'être modifié ---
+    """Récupère les données réelles depuis les APIs de Google (Maps, Gemini, YouTube)."""
     def __init__(self):
         self.google_api_key = os.environ.get('GOOGLE_API_KEY')
         if not self.google_api_key:
             print("❌ ERREUR CRITIQUE: Variable GOOGLE_API_KEY manquante")
         else:
             genai.configure(api_key=self.google_api_key)
-            print("✅ Clé API Google chargée")
+            print("✅ Clé API Google chargée et configurée")
 
     def generate_whatsapp_catchphrase(self, trip_details):
         if not self.google_api_key:
             return "Une offre à ne pas manquer !"
         try:
-            model = genai.GenerativeModel('models/gemini-1.5-pro-latest')
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
             prompt = (
                 f"Crée une très courte phrase marketing (maximum 15 mots) pour une publication WhatsApp concernant un voyage. "
                 f"Voici les détails : Hôtel '{trip_details['hotel_name']}' à {trip_details['destination']}. "
@@ -283,7 +277,7 @@ class RealAPIGatherer:
         if not self.google_api_key:
             return {"attractions": [], "restaurants": []}
         try:
-            model = genai.GenerativeModel('models/gemini-1.5-pro-latest')
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
             prompt = f'Donne-moi 8 points d\'intérêt pour {destination} et une sélection de 3 des meilleurs restaurants. Réponds UNIQUEMENT en JSON: {{"attractions": [{{"name": "Nom", "type": "plage|culture|gastronomie|activite"}}], "restaurants": [{{"name": "Nom du restaurant"}}]}}'
             response = model.generate_content(prompt)
             response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
@@ -306,8 +300,9 @@ class RealAPIGatherer:
 
         cultural_attraction_image = None
         if attractions_by_category.get('culture'):
-            first_cultural_attraction = attractions_by_category['culture'][0]
-            cultural_attraction_image = self.get_attraction_image(first_cultural_attraction, destination)
+             if attractions_by_category['culture']: # S'assurer que la liste n'est pas vide
+                first_cultural_attraction = attractions_by_category['culture'][0]
+                cultural_attraction_image = self.get_attraction_image(first_cultural_attraction, destination)
 
         reviews_data = self.get_real_hotel_reviews(hotel_name, destination)
 
@@ -322,7 +317,9 @@ class RealAPIGatherer:
             'cultural_attraction_image': cultural_attraction_image
         }
 
-def generate_travel_page_html(data, real_data, savings, comparison_total):
+def generate_travel_page_html(data, real_data, savings, comparison_total, creator_pseudo=None):
+    """Génère le contenu HTML complet de la page de voyage."""
+    
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()
@@ -453,10 +450,10 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         </div>
         """
     
-    total_photos = len(real_data['photos'])
-    image_gallery = "".join([f'<div class="image-item"><img src="{url}" alt="Photo de {data["hotel_name"]}"></div>' for url in real_data['photos'][:6]]) or '<p>Aucune photo disponible.</p>'
+    total_photos = len(real_data['photos']) if real_data.get('photos') else 0
+    image_gallery = "".join([f'<div class="image-item"><img src="{url}" alt="Photo de {data["hotel_name"]}"></div>' for url in real_data.get('photos', [])[:6]]) or '<p>Aucune photo disponible.</p>'
     more_photos_button = f'<div class="text-center mt-4"><button id="voirPlusPhotos" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-full transition-colors">📸 Voir plus de photos ({total_photos} au total)</button></div>' if total_photos > 6 else ""
-    modal_all_photos = "".join([f'<img src="{url}" alt="Photo {i+1} de {data["hotel_name"]}" class="modal-photo">' for i, url in enumerate(real_data['photos'])])
+    modal_all_photos = "".join([f'<img src="{url}" alt="Photo {i+1} de {data["hotel_name"]}" class="modal-photo">' for i, url in enumerate(real_data.get('photos', []))])
 
     video_html_block = ""
     if real_data.get('videos'):
@@ -468,8 +465,9 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
 
     destination_section = ""
     if real_data.get('cultural_attraction_image'):
-        cultural_attraction_name = real_data.get('attractions', {}).get('culture', [''])[0]
-        destination_section += f'<div class="mb-6 rounded-lg overflow-hidden shadow-lg"><img src="{real_data["cultural_attraction_image"]}" alt="Image de {cultural_attraction_name}" class="w-full h-48 object-cover"><div class="p-4 bg-gray-50"><h4 class="font-bold text-gray-800">Incontournable : {cultural_attraction_name}</h4></div></div>'
+        cultural_attraction_name = real_data.get('attractions', {}).get('culture', [''])[0] if real_data.get('attractions', {}).get('culture') else ''
+        if cultural_attraction_name:
+            destination_section += f'<div class="mb-6 rounded-lg overflow-hidden shadow-lg"><img src="{real_data["cultural_attraction_image"]}" alt="Image de {cultural_attraction_name}" class="w-full h-48 object-cover"><div class="p-4 bg-gray-50"><h4 class="font-bold text-gray-800">Incontournable : {cultural_attraction_name}</h4></div></div>'
 
     if real_data.get('restaurants'):
         restaurants_list_items = "".join([f'<li class="flex items-center"><i class="fas fa-utensils text-yellow-500 mr-3"></i><span>{resto.get("name")}</span></li>' for resto in real_data['restaurants']])
@@ -489,10 +487,13 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
         other_attractions_items = "".join([f'<div class="flex items-start space-x-3"><div class="feature-icon {colors.get(attr["category"], "bg-gray-500")}" style="width: 35px; height: 35px; font-size: 16px; flex-shrink: 0;"><i class="fas {icons.get(attr["category"], "fa-question")}"></i></div><div><h5 class="font-semibold text-sm text-gray-800">{attr["name"]}</h5><p class="text-gray-500 text-xs">{categories.get(attr["category"])}</p></div></div>' for attr in flat_attractions[:4]])
         destination_section += f'<div><h4 class="font-semibold text-lg mb-3 text-gray-800">À explorer également</h4><div class="space-y-4">{other_attractions_items}</div></div>'
 
+    creator_html = f'<p class="text-sm mt-3">Voyage proposé par <strong>{creator_pseudo}</strong></p>' if creator_pseudo else ""
+
     footer_html = f"""
         <div class="instagram-card p-6 bg-blue-500 text-white text-center">
             <h3 class="text-2xl font-bold mb-2">🌟 Réservez votre évasion !</h3>
             <p>Les places sont très limitées pour cette offre exclusive. Pour garantir votre place :</p>
+            {creator_html}
             <div class="mt-4 flex flex-col sm:flex-row justify-center gap-4">
                 <a href="tel:+32488433344" class="block w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full">📞 Appeler maintenant</a>
                 <a href="mailto:infos@voyages-privileges.be" class="block w-full sm:w-auto bg-white hover:bg-gray-100 text-blue-500 font-bold py-3 px-6 rounded-full">✉️ Envoyer un email</a>
@@ -527,7 +528,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
 <html lang="fr">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Voyages Privilèges - {display_hotel_name}</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.tailwindcss.com/2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com?plugins=aspect-ratio"></script>
@@ -555,7 +556,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
             <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" style="max-height: 50px; margin: auto;">
         </div>
         <div class="story-card">
-            <img src="{real_data['photos'][0] if real_data['photos'] else ''}" alt="{data['hotel_name']}" style="width: 100%; height: 256px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+            <img src="{real_data.get('photos', [''])[0]}" alt="{data['hotel_name']}" style="width: 100%; height: 256px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
             <h2 class="text-2xl font-bold">{display_hotel_name} {stars}</h2>
             <p>📍 {display_address}</p>
             <p class="mt-4">🗓️ Du {date_start} au {date_end}</p>
@@ -608,3 +609,4 @@ def generate_travel_page_html(data, real_data, savings, comparison_total):
 </body>
 </html>"""
     return html_template
+

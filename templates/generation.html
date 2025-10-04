@@ -5,6 +5,7 @@
 {% block head_extra %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
     <style>
+        /* Styles de la version 'main' qui fonctionnait, restaurés pour corriger la mise en page */
         .form-container {padding: 40px;}
         .form-group {margin-bottom: 25px;}
         label {display: block; margin-bottom: 8px; font-weight: 600; color: #333;}
@@ -171,8 +172,10 @@
 
         new google.maps.places.Autocomplete(destinationInput);
         new google.maps.places.Autocomplete(hotelInput, { types: ['establishment'] });
-        new google.maps.places.Autocomplete(departureInput, { types: ['(cities)'] });
-        new google.maps.places.Autocomplete(arrivalInput, { types: ['(cities)'] });
+        
+        // CORRECTION: Utiliser 'airport' au lieu de '(cities)' pour la prédiction des aéroports
+        new google.maps.places.Autocomplete(departureInput, { types: ['airport'] });
+        new google.maps.places.Autocomplete(arrivalInput, { types: ['airport'] });
 
         document.getElementById('searchBookingBtn').addEventListener('click', () => {
             const hotelName = hotelInput.value;
@@ -272,7 +275,7 @@
             if (data.success) {
                 generatedData = data;
                  resultDiv.innerHTML = `
-                    <div class="success">✅ Page générée !</div>
+                    <div class="success">✅ Fiche prête !</div>
                     <div class="button-container">
                         <a href="#" id="previewBtn" class="action-btn" style="background: #3B82F6;">👁️ Prévisualiser</a>
                         <button type="button" id="saveTripBtn" class="action-btn" style="background: #28a745;">💾 Enregistrer</button>

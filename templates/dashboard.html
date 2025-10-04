@@ -69,8 +69,8 @@
     }
     .financial-summary .grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem 0.5rem;
     }
     .financial-summary .item { text-align: center; }
     .financial-summary .label {
@@ -131,7 +131,6 @@
     </div>
 </div>
 
-<!-- Modale: Assigner à un client -->
 <div id="assign-client-modal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="close-button" onclick="closeModal('assign-client-modal')">&times;</span>
@@ -170,7 +169,6 @@
     </div>
 </div>
 
-<!-- Modale: Envoyer Offre -->
 <div id="send-offer-modal" class="modal">
     <div class="modal-content" style="max-width: 600px;">
         <span class="close-button" onclick="closeModal('send-offer-modal')">&times;</span>
@@ -210,7 +208,6 @@
     </div>
 </div>
 
-<!-- Modale: Finaliser la vente -->
 <div id="finalize-sale-modal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="close-button" onclick="closeModal('finalize-sale-modal')">&times;</span>
@@ -233,7 +230,6 @@
     </div>
 </div>
 
-<!-- Modale: Générer Facture -->
 <div id="invoice-modal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="close-button" onclick="closeModal('invoice-modal')">&times;</span>
@@ -262,7 +258,6 @@
     </div>
 </div>
 
-<!-- Modale: Renvoyer Facture -->
 <div id="resend-invoice-modal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="close-button" onclick="closeModal('resend-invoice-modal')">&times;</span>
@@ -277,13 +272,11 @@
     </div>
 </div>
 
-<!-- Modale: Modifier le voyage -->
 <div id="edit-trip-modal" class="modal">
     <div class="modal-content">
         <span class="close-button" onclick="closeEditModal()">&times;</span>
         <input type="hidden" id="trip-id-to-edit">
         
-        <!-- Vue Résumé -->
         <div class="summary-view">
             <h2 class="text-2xl font-bold mb-4" id="edit-modal-title">Détails du voyage</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -300,7 +293,6 @@
             </div>
         </div>
 
-        <!-- Vue Édition -->
         <div class="edit-view">
             <h2 class="text-2xl font-bold mb-4">Édition détaillée de l'offre</h2>
             <form id="edit-trip-form" class="space-y-4 text-sm" onsubmit="submitEditTrip(event)"></form>
@@ -414,6 +406,7 @@ function renderTable(trips) {
                 <td class="p-3 text-right space-x-2">
                     ${viewClientLink}
                     <button onclick="openEditTripModal(${trip.id})" title="Ajuster" class="text-yellow-500 text-xl">⚙️</button>
+                    <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
                     <button onclick="openSendOfferModal(${trip.id})" title="Envoyer Offre" class="text-purple-500 text-xl">💸</button>
                     <button onclick="openFinalizeSaleModal(${trip.id})" title="Marquer Payé" class="text-green-500 text-xl">✅</button>
                     <button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
@@ -426,6 +419,7 @@ function renderTable(trips) {
                 <td class="p-3 text-sm text-slate-600">${trip.price}€</td>
                 <td class="p-3 text-right space-x-2">
                     <a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" class="text-blue-500 text-xl">👁️</a>
+                    <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
                     <button onclick="openInvoiceModal(${trip.id})" title="Facture" class="text-blue-500 text-xl">🧾</button>
                     <button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
                 </td>`;
@@ -513,6 +507,24 @@ async function deleteTrip(tripId) {
     }
 }
 
+async function reproduceTrip(tripId) {
+    if (!confirm("Dupliquer ce voyage vers l'onglet 'Proposés' pour le modifier et l'assigner à un nouveau client ?")) return;
+    
+    try {
+        const response = await fetch(`/api/trip/${tripId}/reproduce`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success && result.new_trip_id) {
+            alert('Voyage dupliqué avec succès. La modale de modification va s\'ouvrir pour le nouveau voyage.');
+            openEditTripModal(result.new_trip_id);
+        } else {
+            alert('Erreur lors de la duplication: ' + result.message);
+        }
+    } catch (error) {
+        alert('Erreur réseau lors de la duplication.');
+    }
+}
+
 // ============================================================================
 // MODALE ÉDITION
 // ============================================================================
@@ -581,10 +593,10 @@ function populateEditTripModal(tripData) {
     }
     
     document.getElementById('trip-summary-col3').innerHTML = col3Content;
-    updateFinancialSummary(formData);
+    updateFinancialSummary(formData, tripData);
 }
 
-function updateFinancialSummary(formData) {
+function updateFinancialSummary(formData, tripData) {
     const getVal = (key) => parseFloat(formData[key]) || 0;
     const hotelB2B = getVal('hotel_b2b_price');
     const hotelB2C = getVal('hotel_b2c_price');
@@ -598,6 +610,10 @@ function updateFinancialSummary(formData) {
     const totalB2C = hotelB2C + flight + transfer + car + surcharge;
     const margin = packPrice - totalB2B;
     const savings = totalB2C - packPrice;
+
+    const userMarginPercentage = tripData ? tripData.user_margin_percentage : 80;
+    const sellerMargin = Math.round(margin * (userMarginPercentage / 100));
+    const vpMargin = margin - sellerMargin;
     
     const summaryHTML = `
         <h3 class="title">Analyse Financière</h3>
@@ -606,6 +622,8 @@ function updateFinancialSummary(formData) {
             <div class="item"><div class="label">Coût B2C</div><div class="value">${totalB2C}€</div></div>
             <div class="item"><div class="label">Économie Client</div><div class="value ${savings >= 0 ? 'positive' : 'negative'}">${savings}€</div></div>
             <div class="item"><div class="label">Marge Finale</div><div class="value ${margin >= 0 ? 'positive' : 'negative'}">${margin}€</div></div>
+            <div class="item"><div class="label">Marge Vendeur</div><div class="value positive">${sellerMargin}€</div></div>
+            <div class="item"><div class="label">Marge VP</div><div class="value" style="color:#4338ca;">${vpMargin}€</div></div>
         </div>
     `;
     
@@ -670,16 +688,15 @@ function populateEditForm(tripData) {
         </div>
     `;
     
-    // Attacher les événements pour le calcul en temps réel
     form.querySelectorAll('.cost-input-edit, select').forEach(input => {
         input.addEventListener('input', () => {
             const currentFormData = new FormData(form);
             const data = Object.fromEntries(currentFormData.entries());
-            updateFinancialSummary(data);
+            updateFinancialSummary(data, currentEditingTripData);
         });
     });
     
-    updateFinancialSummary(formData);
+    updateFinancialSummary(formData, tripData);
 }
 
 async function submitEditTrip(event) {

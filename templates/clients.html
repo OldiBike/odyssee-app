@@ -2,11 +2,25 @@
 
 {% block title %}Gestion des Clients{% endblock %}
 
+{% block head_extra %}
+<style>
+    .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+    .modal.is-open { display: flex; }
+    .modal-content { background-color: #fff; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 600px; }
+    .modal-content .view-mode { display: block; }
+    .modal-content .edit-mode { display: none; }
+    .modal-content.is-editing .view-mode { display: none; }
+    .modal-content.is-editing .edit-mode { display: block; }
+    .trip-history-item { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+    .trip-history-item:last-child { border-bottom: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div>
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-slate-800">Gestion des Clients</h1>
-        </div>
+    </div>
 
     <div class="bg-white p-6 rounded-2xl shadow-lg">
         <div class="overflow-x-auto">
@@ -27,12 +41,20 @@
     </div>
 </div>
 
+<div id="client-details-modal" class="modal">
+    <div class="modal-content" id="client-modal-content">
+        </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.getElementById('clients-table-body');
+    const modal = document.getElementById('client-details-modal');
+    const modalContent = document.getElementById('client-modal-content');
+    let currentClientId = null;
 
     async function fetchClients() {
         try {
@@ -73,25 +95,127 @@ document.addEventListener('DOMContentLoaded', function() {
         const actionTarget = e.target.closest('[data-action]');
         if (!actionTarget) return;
 
-        const action = actionTarget.dataset.action;
         const clientRow = actionTarget.closest('tr');
-        const clientId = clientRow.dataset.clientId;
+        currentClientId = clientRow.dataset.clientId;
+        const action = actionTarget.dataset.action;
 
         if (action === 'view') {
-            // Pour l'instant, on peut simplement alerter.
-            // Plus tard, on ouvrira une modale avec l'historique.
-            const response = await fetch(`/api/client/${clientId}`);
-            const clientDetails = await response.json();
-            
-            let tripList = 'Aucun voyage trouvé.';
-            if(clientDetails.trips && clientDetails.trips.length > 0) {
-                tripList = clientDetails.trips.map(trip => `<li>${trip.hotel_name} (${trip.status})</li>`).join('');
-            }
-            
-            alert(`Historique pour ${clientDetails.full_name}:\n\n<ul>${tripList}</ul>`);
+            openClientModal(currentClientId);
         }
     });
 
+    async function openClientModal(clientId) {
+        modalContent.innerHTML = '<p class="text-center p-8">Chargement...</p>';
+        modal.classList.add('is-open');
+
+        try {
+            const response = await fetch(`/api/client/${clientId}`);
+            if (!response.ok) throw new Error('Client non trouvé.');
+            const client = await response.json();
+            renderClientModal(client);
+        } catch (error) {
+            modalContent.innerHTML = `<p class="text-center p-8 text-red-500">${error.message}</p>`;
+        }
+    }
+
+    function renderClientModal(client) {
+        let tripListHtml = '<p class="text-sm text-slate-500">Aucun voyage enregistré pour ce client.</p>';
+        if (client.trips && client.trips.length > 0) {
+            tripListHtml = client.trips.map(trip => `
+                <div class="trip-history-item">
+                    <p class="font-semibold text-slate-800">${trip.hotel_name} - ${trip.destination}</p>
+                    <p class="text-sm text-slate-600">Status: <span class="font-medium">${trip.status}</span> | Date: ${trip.created_at}</p>
+                </div>
+            `).join('');
+        }
+
+        modalContent.innerHTML = `
+            <div class="view-mode">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">${client.full_name}</h2>
+                        <p class="text-sm text-slate-500">${client.email || ''}</p>
+                        <p class="text-sm text-slate-500">${client.phone || ''}</p>
+                    </div>
+                    <button class="close-modal-btn text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
+                </div>
+
+                <h3 class="font-semibold text-slate-700 mt-6 mb-2">Historique des voyages</h3>
+                <div class="border rounded-md max-h-60 overflow-y-auto">${tripListHtml}</div>
+
+                <div class="mt-6 flex justify-end">
+                    <button id="edit-client-btn" class="bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg">Modifier les informations</button>
+                </div>
+            </div>
+
+            <div class="edit-mode">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">Modifier le Client</h2>
+                <form id="edit-client-form" class="space-y-4">
+                    <div><label for="edit-first-name">Prénom</label><input type="text" id="edit-first-name" value="${client.first_name}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border" required></div>
+                    <div><label for="edit-last-name">Nom</label><input type="text" id="edit-last-name" value="${client.last_name}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border" required></div>
+                    <div><label for="edit-email">Email</label><input type="email" id="edit-email" value="${client.email || ''}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border" required></div>
+                    <div><label for="edit-phone">Téléphone</label><input type="tel" id="edit-phone" value="${client.phone || ''}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                    <div><label for="edit-address">Adresse</label><textarea id="edit-address" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border">${client.address || ''}</textarea></div>
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" id="cancel-edit-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                        <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        attachModalListeners();
+    }
+
+    function attachModalListeners() {
+        document.querySelector('.close-modal-btn').addEventListener('click', () => modal.classList.remove('is-open'));
+        document.getElementById('edit-client-btn').addEventListener('click', () => modalContent.classList.add('is-editing'));
+        document.getElementById('cancel-edit-btn').addEventListener('click', () => modalContent.classList.remove('is-editing'));
+        
+        document.getElementById('edit-client-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const updatedData = {
+                first_name: document.getElementById('edit-first-name').value,
+                last_name: document.getElementById('edit-last-name').value,
+                email: document.getElementById('edit-email').value,
+                phone: document.getElementById('edit-phone').value,
+                address: document.getElementById('edit-address').value
+            };
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.textContent = 'Sauvegarde...';
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/client/${currentClientId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Client mis à jour !');
+                    modal.classList.remove('is-open');
+                    fetchClients();
+                } else {
+                    alert('Erreur: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erreur réseau.');
+            } finally {
+                submitBtn.textContent = 'Sauvegarder';
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // Fermer la modale en cliquant à l'extérieur
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('is-open');
+            modalContent.classList.remove('is-editing');
+        }
+    });
 
     fetchClients();
 });

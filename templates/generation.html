@@ -119,14 +119,7 @@
             <h3 class="section-divider"><span>Services & Client</span></h3>
             <div class="form-group"><label for="exclusive_services">🎁 Services Exclusifs Inclus</label><textarea id="exclusive_services" name="exclusive_services" placeholder="ex: Accès au lounge VIP de l'aéroport&#10;Une bouteille de champagne en chambre&#10;Check-out tardif jusqu'à 14h"></textarea></div>
             
-            <div class="form-group">
-                <label for="client_id">👤 Assigner à un client existant (Optionnel)</label>
-                <select id="client_id" name="client_id">
-                    <option value="">-- Aucun client (créera une Proposition générale) --</option>
-                </select>
-            </div>
-
-            <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035-.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.486-.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg><span>Ajouter un profil Instagram (Optionnel)</span></button><div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle" name="instagram_handle" placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div></div>
+            <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.486-.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg><span>Ajouter un profil Instagram (Optionnel)</span></button><div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle" name="instagram_handle" placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div></div>
             
             <div class="form-group" style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 10px; border-radius: 8px;">
                 <label for="is_ultra_budget" style="display: flex; align-items: center; gap: 10px; margin: 0; color: #b91c1c; font-weight: bold;">
@@ -155,19 +148,38 @@
 <div id="client-modal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="close-button">×</span>
-        <h2 class="text-xl font-bold mb-4">Informations du Client</h2>
-        <form id="client-form">
-            <div class="space-y-4">
+        <h2 class="text-xl font-bold mb-4">Assigner le voyage à un client</h2>
+        
+        <div class="border-b border-gray-200 mb-4">
+            <nav class="flex space-x-4">
+                <button id="tab-new-client" class="px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600">Nouveau Client</button>
+                <button id="tab-existing-client" class="px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500">Client Existant</button>
+            </nav>
+        </div>
+
+        <div id="new-client-form">
+            <form id="client-form-new" class="space-y-4">
                 <div><label for="client_first_name" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
                 <div><label for="client_last_name" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
                 <div><label for="client_email" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
                 <div><label for="client_phone" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                 <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer et Assigner</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="existing-client-form" style="display: none;">
+            <div class="space-y-4">
+                <div>
+                    <label for="client-search" class="block text-sm font-medium text-slate-700">Rechercher un client</label>
+                    <input type="text" id="client-search" placeholder="Nom, prénom ou email..." class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border">
+                </div>
+                <div id="client-list" class="max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
+                    </div>
             </div>
-            <div class="mt-6 flex justify-end space-x-3">
-                <button type="button" class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer et Assigner</button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -178,6 +190,7 @@
 <script>
     let generatedData = null;
     const userMarginPercentage = {{ user_margin | default(80) }};
+    let allClients = [];
 
     function initializeApp() {
         const formatDate = (d) => {
@@ -258,23 +271,6 @@
             input.addEventListener('input', updateCostTotals);
         });
         updateCostTotals();
-        
-        async function loadClients() {
-            try {
-                const response = await fetch('/api/clients');
-                const clients = await response.json();
-                const select = document.getElementById('client_id');
-                clients.forEach(client => {
-                    const option = document.createElement('option');
-                    option.value = client.id;
-                    option.textContent = client.full_name;
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error("Erreur lors du chargement des clients:", error);
-            }
-        }
-        loadClients();
     }
 
     function updateCostTotals() {
@@ -442,8 +438,9 @@
             saveTripData({ ...generatedData, status: 'proposed' });
         });
 
-        document.getElementById('saveCustomBtn').addEventListener('click', () => {
+        document.getElementById('saveCustomBtn').addEventListener('click', async () => {
             if (!generatedData) return;
+            await loadClients();
             document.getElementById('client-modal').classList.add('is-open');
         });
     }
@@ -484,7 +481,7 @@
         setTimeout(() => { copyStatus.textContent = ""; }, 2000);
     });
 
-    document.getElementById('client-form').addEventListener('submit', (e) => {
+    document.getElementById('client-form-new').addEventListener('submit', (e) => {
         e.preventDefault();
         const clientData = {
             client_first_name: document.getElementById('client_first_name').value,
@@ -492,19 +489,24 @@
             client_email: document.getElementById('client_email').value,
             client_phone: document.getElementById('client_phone').value,
         };
-        // Logique de `main`: On assigne directement avec les nouvelles données client
         saveTripData({ ...generatedData, status: 'assigned', ...clientData });
         document.getElementById('client-modal').classList.remove('is-open');
     });
 
     async function saveTripData(payload) {
-        const btnId = payload.status === 'proposed' ? 'saveProposedBtn' : 'saveCustomBtn';
-        const btn = document.getElementById(btnId);
+        let btn;
+        if (payload.status === 'proposed') {
+            btn = document.getElementById('saveProposedBtn');
+        } else {
+            // Dans le cas d'une assignation, on ne change pas le bouton car l'action se passe dans la modale
+            btn = document.querySelector('#client-form-new button[type="submit"]');
+        }
         if(!btn) return;
         
         const originalText = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Sauvegarde...';
+
         try {
             const response = await fetch('/api/trips', {
                 method: 'POST',
@@ -522,9 +524,73 @@
             alert('Une erreur réseau est survenue lors de la sauvegarde.');
             console.error(error);
         } finally {
-             btn.disabled = false;
-             btn.textContent = originalText;
+             if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+             }
         }
     }
+
+    // Gestion de la modale client
+    document.getElementById('tab-new-client').addEventListener('click', function() {
+        document.getElementById('new-client-form').style.display = 'block';
+        document.getElementById('existing-client-form').style.display = 'none';
+        this.className = 'px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600';
+        document.getElementById('tab-existing-client').className = 'px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500';
+    });
+
+    document.getElementById('tab-existing-client').addEventListener('click', function() {
+        document.getElementById('new-client-form').style.display = 'none';
+        document.getElementById('existing-client-form').style.display = 'block';
+        this.className = 'px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600';
+        document.getElementById('tab-new-client').className = 'px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500';
+        renderClientList(allClients); // Affiche tous les clients au début
+    });
+
+    async function loadClients() {
+        try {
+            const response = await fetch('/api/clients');
+            allClients = await response.json();
+        } catch (error) {
+            console.error("Erreur lors du chargement des clients:", error);
+        }
+    }
+    
+    document.getElementById('client-search').addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filteredClients = allClients.filter(client => 
+            client.full_name.toLowerCase().includes(searchTerm) ||
+            client.email.toLowerCase().includes(searchTerm)
+        );
+        renderClientList(filteredClients);
+    });
+
+    function renderClientList(clients) {
+        const listContainer = document.getElementById('client-list');
+        listContainer.innerHTML = '';
+        if (clients.length === 0) {
+            listContainer.innerHTML = '<p class="text-slate-500 text-sm p-2">Aucun client trouvé.</p>';
+            return;
+        }
+        clients.forEach(client => {
+            const clientDiv = document.createElement('div');
+            clientDiv.className = 'p-2 hover:bg-slate-100 rounded cursor-pointer';
+            clientDiv.textContent = `${client.full_name} (${client.email})`;
+            clientDiv.onclick = () => {
+                const payload = { 
+                    ...generatedData, 
+                    status: 'assigned', 
+                    form_data: {
+                        ...generatedData.form_data,
+                        client_id: client.id 
+                    }
+                };
+                saveTripData(payload);
+                document.getElementById('client-modal').classList.remove('is-open');
+            };
+            listContainer.appendChild(clientDiv);
+        });
+    }
+
 </script>
 {% endblock %}

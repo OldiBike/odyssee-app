@@ -23,7 +23,7 @@ from flask_mail import Mail, Message
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from weasyprint import HTML
-from sqlalchemy import func, extract, desc
+from sqlalchemy import func, extract, desc, or_
 from collections import defaultdict
 import click
 
@@ -347,6 +347,32 @@ def create_app(config_class=Config):
             db.session.rollback()
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
+    
+    @app.route('/api/trip/<int:trip_id>/reproduce', methods=['POST'])
+    @login_required
+    def reproduce_trip(trip_id):
+        try:
+            source_trip = Trip.query.get_or_404(trip_id)
+
+            new_trip = Trip(
+                user_id=g.user.id,
+                client_id=None, 
+                full_data_json=source_trip.full_data_json,
+                hotel_name=source_trip.hotel_name,
+                destination=source_trip.destination,
+                price=source_trip.price,
+                status='proposed',
+                is_ultra_budget=source_trip.is_ultra_budget
+            )
+            db.session.add(new_trip)
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': 'Voyage dupliqué.', 'new_trip_id': new_trip.id})
+
+        except Exception as e:
+            db.session.rollback()
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/trips', methods=['GET'])
     @login_required
@@ -368,7 +394,8 @@ def create_app(config_class=Config):
 
         if request.method == 'GET':
             trip_details = trip.to_dict()
-            trip_details['full_data_json'] = trip.full_data_json 
+            trip_details['full_data_json'] = trip.full_data_json
+            trip_details['user_margin_percentage'] = trip.user.margin_percentage 
             return jsonify(trip_details)
 
         if request.method == 'DELETE':
@@ -819,7 +846,18 @@ def create_app(config_class=Config):
     @login_required
     def handle_clients():
         if request.method == 'GET':
-            clients = Client.query.order_by(Client.last_name).all()
+            search_term = request.args.get('search', '').lower()
+            query = Client.query
+            if search_term:
+                search_filter = f"%{search_term}%"
+                query = query.filter(
+                    or_(
+                        func.lower(Client.first_name).like(search_filter),
+                        func.lower(Client.last_name).like(search_filter),
+                        func.lower(Client.email).like(search_filter)
+                    )
+                )
+            clients = query.order_by(Client.last_name).all()
             return jsonify([client.to_dict() for client in clients])
         
         if request.method == 'POST':

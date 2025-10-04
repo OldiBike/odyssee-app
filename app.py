@@ -1,4 +1,4 @@
-# app.py - Version CORRIGÉE avec bugs résolus
+# app.py - Version complète avec gestion WhatsApp, Stripe, Emails et Factures
 import os
 import json
 import csv
@@ -37,7 +37,6 @@ migrate = Migrate()
 bcrypt = Bcrypt()
 
 def create_app(config_class=Config):
-    """Crée et configure l'instance de l'application Flask."""
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -213,26 +212,19 @@ def create_app(config_class=Config):
         html_content = generate_travel_page_html(data.get('form_data'), data.get('api_data'), data.get('savings'), data.get('comparison_total'), creator_pseudo=g.user.pseudo)
         return Response(html_content, mimetype='text/html')
 
-    # =========================================================================
-    # 🔧 CORRECTION PRINCIPALE : Route /api/trips POST
-    # =========================================================================
     @app.route('/api/trips', methods=['POST'])
     @login_required
     def save_trip():
-        """Enregistre un nouveau voyage (proposition OU assigné à un client)"""
         try:
             data = request.get_json()
             form_data = data.get('form_data', {})
             
-            # Déterminer si on a un client ou non
             client_id = None
             
-            # CAS 1: Client existant sélectionné depuis le formulaire
             if form_data.get('client_id'):
                 client_id = int(form_data.get('client_id'))
                 print(f"✅ Client existant sélectionné: ID {client_id}")
             
-            # CAS 2: Nouvelles données client (depuis la popup de génération)
             elif data.get('client_first_name') and data.get('client_last_name') and data.get('client_email'):
                 new_client_data = {
                     'first_name': data.get('client_first_name'),
@@ -241,7 +233,6 @@ def create_app(config_class=Config):
                     'phone': data.get('client_phone', ''),
                 }
                 
-                # Vérifier si le client existe déjà
                 existing_client = Client.query.filter_by(email=new_client_data['email']).first()
                 if existing_client:
                     client_id = existing_client.id
@@ -253,14 +244,11 @@ def create_app(config_class=Config):
                     client_id = new_client.id
                     print(f"✅ Nouveau client créé: ID {client_id}")
             
-            # CAS 3: Proposition générale (pas de client)
             else:
                 print("✅ Enregistrement comme proposition générale (pas de client)")
             
-            # Déterminer le statut
             status = 'assigned' if client_id else 'proposed'
             
-            # Créer le voyage
             new_trip = Trip(
                 user_id=g.user.id,
                 client_id=client_id,
@@ -280,7 +268,6 @@ def create_app(config_class=Config):
             
             print(f"✅ Voyage créé avec succès: ID {new_trip.id}, Status: {status}")
             
-            # Publication pour les clients assignés
             if status == 'assigned':
                 client_filename = publication_service.publish_client_offer(new_trip)
                 if client_filename:
@@ -302,13 +289,9 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': f'Erreur serveur: {str(e)}'}), 500
 
-    # =========================================================================
-    # Route pour assigner un voyage proposé à un client (depuis le dashboard)
-    # =========================================================================
     @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
     @login_required
     def assign_trip(trip_id):
-        """Assigne un voyage proposé à un client (crée une copie)"""
         try:
             source_trip = Trip.query.get_or_404(trip_id)
             if g.user.role != 'admin' and source_trip.user_id != g.user.id:
@@ -317,7 +300,6 @@ def create_app(config_class=Config):
             data = request.get_json()
             client_id = data.get('client_id')
 
-            # Si pas d'ID client, créer un nouveau client
             if not client_id:
                 new_client_data = {
                     'first_name': data.get('first_name'),
@@ -337,7 +319,6 @@ def create_app(config_class=Config):
                     db.session.flush()
                     client_id = new_client_obj.id
             
-            # Créer une COPIE du voyage pour l'assigner
             new_trip = Trip(
                 user_id=g.user.id,
                 client_id=client_id,
@@ -352,7 +333,6 @@ def create_app(config_class=Config):
             db.session.add(new_trip)
             db.session.commit()
 
-            # Publier la page client
             client_filename = publication_service.publish_client_offer(new_trip)
             if client_filename:
                 new_trip.client_published_filename = client_filename
@@ -482,6 +462,344 @@ def create_app(config_class=Config):
         except Exception as e:
             db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
+
+    # =========================================================================
+    # 🆕 ROUTE 1: ENVOI WHATSAPP
+    # =========================================================================
+    @app.route('/api/trip/<int:trip_id>/send-whatsapp', methods=['POST'])
+    @login_required
+    def send_to_whatsapp(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        if g.user.role != 'admin' and trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+        
+        try:
+            webhook_url = app.config.get('N8N_WHATSAPP_WEBHOOK')
+            if not webhook_url:
+                return jsonify({'success': False, 'message': 'Webhook WhatsApp non configuré.'}), 500
+            
+            full_data = json.loads(trip.full_data_json)
+            form_data = full_data.get('form_data', {})
+            
+            gatherer = RealAPIGatherer()
+            catchphrase = gatherer.generate_whatsapp_catchphrase({
+                'hotel_name': trip.hotel_name,
+                'destination': trip.destination
+            })
+            
+            offer_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/offres/{trip.published_filename}" if trip.published_filename else ""
+            
+            payload = {
+                'catchphrase': catchphrase,
+                'hotel_name': trip.hotel_name,
+                'destination': trip.destination,
+                'price': trip.price,
+                'offer_url': offer_url
+            }
+            
+            response = requests.post(webhook_url, json=payload, timeout=10)
+            
+            if response.status_code == 200:
+                return jsonify({'success': True, 'message': 'Message envoyé sur WhatsApp avec succès !'})
+            else:
+                return jsonify({'success': False, 'message': f'Erreur webhook: {response.status_code}'}), 500
+                
+        except Exception as e:
+            print(f"❌ Erreur WhatsApp: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # =========================================================================
+    # 🆕 ROUTE 2: ENVOI OFFRE (avec Stripe)
+    # =========================================================================
+    @app.route('/api/trip/<int:trip_id>/send-offer', methods=['POST'])
+    @login_required
+    def send_offer_email(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        if g.user.role != 'admin' and trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+        
+        if not trip.client:
+            return jsonify({'success': False, 'message': 'Aucun client assigné à ce voyage.'}), 400
+        
+        try:
+            data = request.get_json()
+            payment_type = data.get('payment_type', 'total')
+            
+            if payment_type == 'down_payment':
+                down_payment_amount = int(data.get('down_payment_amount', 0))
+                balance_due_date_str = data.get('balance_due_date', '')
+                
+                if not down_payment_amount or not balance_due_date_str:
+                    return jsonify({'success': False, 'message': 'Montant acompte et date solde requis.'}), 400
+                
+                balance_due_date = datetime.strptime(balance_due_date_str, '%Y-%m-%d').date()
+                amount_to_pay = down_payment_amount
+                
+                trip.down_payment_amount = down_payment_amount
+                trip.balance_due_date = balance_due_date
+            else:
+                amount_to_pay = trip.price
+            
+            payment_link = stripe.PaymentLink.create(
+                line_items=[{
+                    'price_data': {
+                        'currency': 'eur',
+                        'product_data': {
+                            'name': f'Voyage {trip.hotel_name}',
+                            'description': f'{trip.destination} - {trip.client.to_dict()["full_name"]}'
+                        },
+                        'unit_amount': amount_to_pay * 100
+                    },
+                    'quantity': 1
+                }],
+                after_completion={
+                    'type': 'redirect',
+                    'redirect': {'url': f"{app.config.get('SITE_PUBLIC_URL', '')}/merci"}
+                }
+            )
+            
+            trip.stripe_payment_link = payment_link.url
+            db.session.commit()
+            
+            full_data = json.loads(trip.full_data_json)
+            form_data = full_data.get('form_data', {})
+            api_data = full_data.get('api_data', {})
+            
+            public_offer_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/clients/{trip.client_published_filename}"
+            header_photo = api_data.get('photos', [''])[0] if api_data.get('photos') else ''
+            
+            if payment_type == 'down_payment':
+                template = 'offer_template_down_payment.html'
+                email_context = {
+                    'client_first_name': trip.client.first_name,
+                    'hotel_name': trip.hotel_name,
+                    'destination': trip.destination,
+                    'public_offer_url': public_offer_url,
+                    'header_photo': header_photo,
+                    'stripe_payment_link': payment_link.url,
+                    'down_payment_amount': down_payment_amount,
+                    'balance_amount': trip.price - down_payment_amount,
+                    'balance_due_date': balance_due_date.strftime('%d/%m/%Y'),
+                    'client_name': trip.client.to_dict()['full_name']
+                }
+            else:
+                template = 'offer_template.html'
+                email_context = {
+                    'client_first_name': trip.client.first_name,
+                    'hotel_name': trip.hotel_name,
+                    'destination': trip.destination,
+                    'public_offer_url': public_offer_url,
+                    'header_photo': header_photo,
+                    'stripe_payment_link': payment_link.url
+                }
+            
+            msg = Message(
+                subject=f'Votre proposition de voyage - {trip.hotel_name}',
+                recipients=[trip.client.email],
+                html=render_template(template, **email_context)
+            )
+            mail.send(msg)
+            
+            return jsonify({'success': True, 'message': 'Offre envoyée par email avec succès !'})
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Erreur envoi offre: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # =========================================================================
+    # 🆕 ROUTE 3: FINALISER VENTE (upload documents + email)
+    # =========================================================================
+    @app.route('/api/trip/<int:trip_id>/finalize-sale', methods=['POST'])
+    @login_required
+    def finalize_sale(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        if g.user.role != 'admin' and trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+        
+        if not trip.client:
+            return jsonify({'success': False, 'message': 'Aucun client assigné.'}), 400
+        
+        try:
+            uploaded_files = request.files.getlist('documents')
+            if not uploaded_files:
+                return jsonify({'success': False, 'message': 'Aucun document fourni.'}), 400
+            
+            uploaded_filenames = []
+            for file in uploaded_files:
+                if file and file.filename:
+                    filename = secure_filename(file.filename)
+                    file_content = file.read()
+                    
+                    success = publication_service.upload_document(filename, file_content, trip.id)
+                    if success:
+                        uploaded_filenames.append(filename)
+                    else:
+                        return jsonify({'success': False, 'message': f'Échec upload: {filename}'}), 500
+            
+            trip.document_filenames = ','.join(uploaded_filenames)
+            trip.status = 'sold'
+            trip.sold_at = datetime.utcnow()
+            db.session.commit()
+            
+            full_data = json.loads(trip.full_data_json)
+            api_data = full_data.get('api_data', {})
+            header_photo = api_data.get('photos', [''])[0] if api_data.get('photos') else ''
+            
+            msg = Message(
+                subject=f'Confirmation de votre réservation - {trip.hotel_name}',
+                recipients=[trip.client.email],
+                html=render_template('payment_confirmation.html',
+                    client_name=trip.client.to_dict()['full_name'],
+                    hotel_name=trip.hotel_name,
+                    destination=trip.destination,
+                    header_photo=header_photo
+                )
+            )
+            
+            for filename in uploaded_filenames:
+                file_content = publication_service.download_document(filename, trip.id)
+                if file_content:
+                    msg.attach(filename, 'application/octet-stream', file_content)
+            
+            mail.send(msg)
+            
+            return jsonify({'success': True, 'message': 'Vente finalisée et documents envoyés !'})
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Erreur finalisation vente: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # =========================================================================
+    # 🆕 ROUTE 4: GÉNÉRER FACTURE
+    # =========================================================================
+    @app.route('/api/trip/<int:trip_id>/generate-invoice', methods=['POST'])
+    @login_required
+    def generate_invoice(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        if g.user.role != 'admin' and trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+        
+        if not trip.client:
+            return jsonify({'success': False, 'message': 'Aucun client assigné.'}), 400
+        
+        try:
+            data = request.get_json()
+            client_name = data.get('client_name', trip.client.to_dict()['full_name'])
+            client_address = data.get('client_address', '')
+            client_tva = data.get('client_tva', '')
+            
+            invoice_number = f"VP-{datetime.now().strftime('%Y%m%d')}-{trip.id}"
+            
+            existing_invoice = Invoice.query.filter_by(invoice_number=invoice_number).first()
+            if existing_invoice:
+                invoice_number = f"{invoice_number}-{datetime.now().strftime('%H%M%S')}"
+            
+            new_invoice = Invoice(
+                invoice_number=invoice_number,
+                trip_id=trip.id
+            )
+            db.session.add(new_invoice)
+            db.session.commit()
+            
+            full_data = json.loads(trip.full_data_json)
+            form_data = full_data.get('form_data', {})
+            
+            date_start = datetime.strptime(form_data.get('date_start', ''), '%Y-%m-%d')
+            date_end = datetime.strptime(form_data.get('date_end', ''), '%Y-%m-%d')
+            number_of_nights = (date_end - date_start).days
+            
+            invoice_html = render_template('invoice_template.html',
+                invoice_number=invoice_number,
+                invoice_date=datetime.now().strftime('%d/%m/%Y'),
+                client_name=client_name,
+                client_address=client_address,
+                client_tva=client_tva if client_tva else '',
+                hotel_name=trip.hotel_name,
+                date_start=date_start.strftime('%d/%m/%Y'),
+                date_end=date_end.strftime('%d/%m/%Y'),
+                number_of_nights=number_of_nights,
+                total_price=trip.price
+            )
+            
+            pdf = HTML(string=invoice_html).write_pdf()
+            
+            msg = Message(
+                subject=f'Facture {invoice_number} - Voyages Privilèges',
+                recipients=[trip.client.email],
+                body=f'Bonjour,\n\nVeuillez trouver ci-joint votre facture {invoice_number}.\n\nCordialement,\nL\'équipe Voyages Privilèges'
+            )
+            msg.attach(f'{invoice_number}.pdf', 'application/pdf', pdf)
+            mail.send(msg)
+            
+            return jsonify({'success': True, 'message': 'Facture générée et envoyée par email !'})
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Erreur génération facture: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # =========================================================================
+    # 🆕 ROUTE 5: RENVOYER FACTURE
+    # =========================================================================
+    @app.route('/api/invoice/<int:invoice_id>/resend', methods=['POST'])
+    @login_required
+    def resend_invoice(invoice_id):
+        invoice = Invoice.query.get_or_404(invoice_id)
+        trip = invoice.trip
+        
+        if g.user.role != 'admin' and trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+        
+        if not trip.client:
+            return jsonify({'success': False, 'message': 'Aucun client assigné.'}), 400
+        
+        try:
+            full_data = json.loads(trip.full_data_json)
+            form_data = full_data.get('form_data', {})
+            
+            date_start = datetime.strptime(form_data.get('date_start', ''), '%Y-%m-%d')
+            date_end = datetime.strptime(form_data.get('date_end', ''), '%Y-%m-%d')
+            number_of_nights = (date_end - date_start).days
+            
+            invoice_html = render_template('invoice_template.html',
+                invoice_number=invoice.invoice_number,
+                invoice_date=invoice.created_at.strftime('%d/%m/%Y'),
+                client_name=trip.client.to_dict()['full_name'],
+                client_address=trip.client.address or '',
+                client_tva='',
+                hotel_name=trip.hotel_name,
+                date_start=date_start.strftime('%d/%m/%Y'),
+                date_end=date_end.strftime('%d/%m/%Y'),
+                number_of_nights=number_of_nights,
+                total_price=trip.price
+            )
+            
+            pdf = HTML(string=invoice_html).write_pdf()
+            
+            msg = Message(
+                subject=f'Facture {invoice.invoice_number} - Voyages Privilèges',
+                recipients=[trip.client.email],
+                body=f'Bonjour,\n\nVoici de nouveau votre facture {invoice.invoice_number}.\n\nCordialement,\nL\'équipe Voyages Privilèges'
+            )
+            msg.attach(f'{invoice.invoice_number}.pdf', 'application/pdf', pdf)
+            mail.send(msg)
+            
+            return jsonify({'success': True, 'message': 'Facture renvoyée par email !'})
+            
+        except Exception as e:
+            print(f"❌ Erreur renvoi facture: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # =========================================================================
+    # FIN DES 5 NOUVELLES ROUTES
+    # =========================================================================
 
     @app.route('/api/trip/<int:trip_id>/mark_sold', methods=['POST'])
     @login_required

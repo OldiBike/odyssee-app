@@ -5,9 +5,10 @@
 {% block head_extra %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
     <style>
-        /* Styles de la version 'main' qui fonctionnait, restaurés pour corriger la mise en page */
+        /* Styles de votre app.py original */
+        .container {max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;}
         .form-container {padding: 40px;}
-        .form-group {margin-bottom: 25px;}
+        .form-group {margin-bottom: 25px; width: 100%;}
         label {display: block; margin-bottom: 8px; font-weight: 600; color: #333;}
         input, select, textarea {width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; box-sizing: border-box;}
         input[type="checkbox"] { width: auto; }
@@ -25,11 +26,27 @@
         .success {color: #28a745; font-size: 18px; font-weight: 600; text-align: center;}
         .error {color: #dc3545; font-size: 18px; font-weight: 600;}
         .button-container {margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; align-items: center;}
-        .action-btn {color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer;}
+        .download-btn, .view-btn, .edit-btn, .html-code-btn, .reset-btn {color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer;}
+        .download-btn {background: #28a745;}
+        .view-btn {background: #3B82F6;}
+        .edit-btn {background: #ffc107; color: #333;}
+        .html-code-btn {background: #6c757d;}
+        .reset-btn { background: #9ca3af; padding: 8px 12px; font-size: 20px; line-height: 1; }
+        .video-edit-form { margin-top: 20px; display: flex; gap: 10px; align-items: center; padding: 15px; background-color: #e9ecef; border-radius: 10px;}
+        .stats {display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 20px;}
+        .stat-item {background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+        .stat-number {font-size: 24px; font-weight: bold; color: #3B82F6;}
+        .stat-label {color: #666; font-size: 14px;}
         .pac-container {z-index: 10000 !important;}
         h3.section-divider {text-align: center; border-bottom: 2px solid #e1e5e9; line-height: 0.1em; margin: 35px 0 25px;}
         h3.section-divider span { background:#fff; padding:0 10px; color: #aaa; font-size: 0.9em; text-transform: uppercase;}
-        .cost-calculator { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; background-color: #f8fafc; padding: 15px; border-radius: 10px; margin-top: -10px; margin-bottom: 25px; }
+        .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
+        .modal.is-open { display: flex; }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
+        .html-textarea { width: 100%; height: 400px; border: 1px solid #ccc; padding: 10px; font-family: monospace; white-space: pre; overflow: auto; resize: vertical; border-radius: 5px; }
+        .cost-calculator { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; background-color: #f8fafc; padding: 10px; border-radius: 10px; margin-top: -10px; margin-bottom: 25px; }
         .cost-calculator div { text-align: center; }
         .cost-calculator p { margin: 0; color: #4b5563; font-weight: 500; font-size: 12px; }
         .cost-calculator .cost-value { font-size: 18px; font-weight: bold; color: #1e293b; }
@@ -78,7 +95,9 @@
              <div class="form-group"><label for="pack_price">📦 Prix du pack (€)</label><input type="number" id="pack_price" name="pack_price" required placeholder="ex: 2400" class="cost-input"></div>
 
              <div class="cost-calculator">
-                <div><p>Coût Total B2B</p><span id="total-b2b-cost" class="cost-value">0 €</span></div>
+                <div><p>Coût B2B</p><span id="total-b2b-cost" class="cost-value">0 €</span></div>
+                <div><p>Coût B2C</p><span id="total-b2c-cost" class="cost-value">0 €</span></div>
+                <div><p>Écart B2C/B2B</p><span id="b2c-b2b-gap" class="cost-value">0 €</span></div>
                 <div><p>Économie Client</p><span id="client-saving" class="cost-value" style="color: #10b981;">0 €</span></div>
                 <div><p>Marge Finale</p><span id="final-margin" class="cost-value" style="color: #2563eb;">0 €</span></div>
                 <div><p>Marge Vendeur</p><span id="seller-margin" class="cost-value" style="color: #2563eb;">0 €</span></div>
@@ -123,6 +142,34 @@
     </div>
     <div class="loading" id="loading"><div class="loading-spinner"></div><h3>🔄 Appels API sécurisés...</h3></div>
     <div class="result" id="result"></div>
+</div>
+
+<div id="htmlCodeModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button">×</span>
+        <h2>Code HTML de la Fiche Voyage</h2>
+        <textarea id="htmlCodeDisplay" class="html-textarea" readonly></textarea>
+        <button id="copyHtmlCodeBtn" class="html-code-btn" style="margin-top: 15px;">📋 Copier le code</button>
+        <div id="copyStatus" style="text-align:center; font-size: 14px; color: green; margin-top: 5px;"></div>
+    </div>
+</div>
+<div id="client-modal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <span class="close-button">×</span>
+        <h2 class="text-xl font-bold mb-4">Informations du Client</h2>
+        <form id="client-form">
+            <div class="space-y-4">
+                <div><label for="client_first_name" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div><label for="client_last_name" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div><label for="client_email" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div><label for="client_phone" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer</button>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}
 
@@ -170,12 +217,23 @@
         const departureInput = document.getElementById('departure_city');
         const arrivalInput = document.getElementById('arrival_airport');
 
+        const hotelAutocomplete = new google.maps.places.Autocomplete(hotelInput, { types: ['establishment'] });
         new google.maps.places.Autocomplete(destinationInput);
-        new google.maps.places.Autocomplete(hotelInput, { types: ['establishment'] });
-        
-        // CORRECTION: Utiliser 'airport' au lieu de '(cities)' pour la prédiction des aéroports
         new google.maps.places.Autocomplete(departureInput, { types: ['airport'] });
         new google.maps.places.Autocomplete(arrivalInput, { types: ['airport'] });
+        
+        hotelAutocomplete.setFields(['name', 'address_components']);
+        hotelAutocomplete.addListener('place_changed', () => {
+            const place = hotelAutocomplete.getPlace();
+            if (place.address_components) {
+                let city = '', country = '';
+                for (const component of place.address_components) {
+                    if (component.types.includes('locality')) city = component.long_name;
+                    if (component.types.includes('country')) country = component.long_name;
+                }
+                if (city && country) destinationInput.value = `${city}, ${country}`;
+            }
+        });
 
         document.getElementById('searchBookingBtn').addEventListener('click', () => {
             const hotelName = hotelInput.value;
@@ -233,6 +291,7 @@
 
         const totalB2B = hotelB2B + flight + transfer + car + surcharge;
         const totalB2C = hotelB2C + flight + transfer + car + surcharge;
+        const gap = totalB2C - totalB2B;
         const saving = totalB2C - packPrice;
         const finalMargin = packPrice - totalB2B;
 
@@ -240,6 +299,8 @@
         const vpMargin = finalMargin - sellerMargin;
 
         document.getElementById('total-b2b-cost').textContent = `${totalB2B} €`;
+        document.getElementById('total-b2c-cost').textContent = `${totalB2C} €`;
+        document.getElementById('b2c-b2b-gap').textContent = `${gap} €`;
         document.getElementById('client-saving').textContent = `${saving} €`;
         document.getElementById('final-margin').textContent = `${finalMargin} €`;
         document.getElementById('seller-margin').textContent = `${sellerMargin} €`;
@@ -274,11 +335,31 @@
 
             if (data.success) {
                 generatedData = data;
-                 resultDiv.innerHTML = `
-                    <div class="success">✅ Fiche prête !</div>
+                resultDiv.innerHTML = `
+                    <div class="success">✅ Page générée !</div>
+                    <div class="stats">
+                        <div class="stat-item"><div class="stat-number">${data.api_data.photos.length}</div><div class="stat-label">Photos</div></div>
+                        <div class="stat-item"><div class="stat-number">${data.api_data.videos.length}</div><div class="stat-label">Vidéos</div></div>
+                        <div class="stat-item"><div class="stat-number">${data.api_data.total_reviews}</div><div class="stat-label">Avis</div></div>
+                        <div class="stat-item"><div class="stat-number">${Object.values(data.api_data.attractions).flat().length}</div><div class="stat-label">Attractions</div></div>
+                        <div class="stat-item"><div class="stat-number" style="color: #10b981;">${data.margin}€</div><div class="stat-label">Marge</div></div>
+                        <div class="stat-item"><div class="stat-number">${data.savings}€</div><div class="stat-label">Économies</div></div>
+                    </div>
                     <div class="button-container">
-                        <a href="#" id="previewBtn" class="action-btn" style="background: #3B82F6;">👁️ Prévisualiser</a>
-                        <button type="button" id="saveTripBtn" class="action-btn" style="background: #28a745;">💾 Enregistrer</button>
+                        <a href="#" id="previewBtn" class="view-btn">👁️ Prévisualiser</a>
+                        <a href="#" id="downloadBtn" class="download-btn">📥 Télécharger</a>
+                        <button type="button" id="htmlCodeBtn" class="html-code-btn">📄 Code HTML</button>
+                        <button type="button" id="editVideoBtn" class="edit-btn">✏️ Modifier Vidéo</button>
+                        <button type="button" id="resetFormBtn" class="reset-btn" title="Nouvelle recherche">🔄</button>
+                    </div>
+                    <div id="videoEditContainer" class="video-edit-form" style="display:none;"></div>
+                    <div id="editConfirmation" style="font-weight: bold; text-align: center; margin-top: 15px;"></div>
+                    <div style="margin-top: 30px; border-top: 2px solid #e1e5e9; padding-top: 20px; text-align: center;">
+                        <h3 style="font-size: 1.2em; color: #333; margin-bottom: 15px;">Prêt à sauvegarder ?</h3>
+                        <div class="button-container">
+                            <button id="saveProposedBtn" class="action-btn" style="background: #28a745;">Enregistrer comme Proposition</button>
+                            <button id="saveCustomBtn" class="action-btn" style="background: #fd7e14;">Créer pour un Client</button>
+                        </div>
                     </div>`;
                 attachResultListeners();
             } else {
@@ -293,6 +374,14 @@
     });
 
     function attachResultListeners() {
+        document.getElementById('resetFormBtn').addEventListener('click', () => {
+            document.getElementById('voyageForm').reset();
+            document.getElementById('cancellation_date_wrapper').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
+            updateCostTotals();
+            document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
+        });
+
         document.getElementById('previewBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             const html = await getPreviewHtml();
@@ -302,10 +391,69 @@
                 window.open(url, '_blank');
             }
         });
-        
-        document.getElementById('saveTripBtn').addEventListener('click', () => {
+
+        document.getElementById('downloadBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const html = await getPreviewHtml();
+            if (html) {
+                const blob = new Blob([html], { type: 'text/html' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `fiche_${generatedData.form_data.hotel_name.replace(/ /g, '_')}.html`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+
+        document.getElementById('htmlCodeBtn').addEventListener('click', async () => {
+            const html = await getPreviewHtml();
+            if (html) {
+                document.getElementById('htmlCodeDisplay').value = html;
+                document.getElementById('htmlCodeModal').style.display = 'flex';
+            }
+        });
+
+        document.getElementById('editVideoBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            const videoEditContainer = document.getElementById('videoEditContainer');
+            const currentVideo = generatedData.api_data.videos[0];
+            videoEditContainer.innerHTML = `
+                <input type="text" id="newVideoUrl" placeholder="Coller la nouvelle URL YouTube ici..." value="${currentVideo ? `https://www.youtube.com/watch?v=${currentVideo.id}` : ''}" class="w-full p-2 border rounded">
+                <button id="submitVideoChange" style="background-color: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer;">Valider</button>
+                <button id="deleteVideoBtn" style="background-color: #dc3545; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer;">Pas de Vidéo</button>
+            `;
+            videoEditContainer.style.display = 'flex';
+            e.target.style.display = 'none';
+
+            document.getElementById('submitVideoChange').addEventListener('click', () => {
+                const newUrl = document.getElementById('newVideoUrl').value;
+                const videoIdMatch = newUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11}).*/);
+                if (videoIdMatch && videoIdMatch[1]) {
+                    generatedData.api_data.videos = [{ id: videoIdMatch[1], title: 'Nouvelle Vidéo' }];
+                    document.getElementById('editConfirmation').textContent = '✅ Vidéo mise à jour. Cliquez sur "Prévisualiser" pour voir les changements.';
+                } else {
+                    alert("URL YouTube invalide.");
+                }
+                videoEditContainer.style.display = 'none';
+                document.getElementById('editVideoBtn').style.display = 'inline-block';
+            });
+            document.getElementById('deleteVideoBtn').addEventListener('click', () => {
+                generatedData.api_data.videos = [];
+                document.getElementById('editConfirmation').textContent = '✅ Vidéo supprimée. Cliquez sur "Prévisualiser" pour voir les changements.';
+                videoEditContainer.style.display = 'none';
+                document.getElementById('editVideoBtn').style.display = 'inline-block';
+            });
+        });
+
+        document.getElementById('saveProposedBtn').addEventListener('click', () => {
             if (!generatedData) return;
-            saveTripData(generatedData);
+            saveTripData({ ...generatedData, status: 'proposed' });
+        });
+
+        document.getElementById('saveCustomBtn').addEventListener('click', () => {
+            if (!generatedData) return;
+            document.getElementById('client-modal').style.display = 'flex';
         });
     }
 
@@ -325,8 +473,43 @@
         }
     }
 
+    document.querySelectorAll('.modal .close-button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.closest('.modal').style.display = 'none';
+        });
+    });
+    window.addEventListener('click', (event) => {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = 'none';
+        }
+    });
+    document.getElementById('copyHtmlCodeBtn').addEventListener('click', () => {
+        const textarea = document.getElementById('htmlCodeDisplay');
+        textarea.select();
+        document.execCommand("copy");
+        const copyStatus = document.getElementById('copyStatus');
+        copyStatus.textContent = "✅ Code copié !";
+        setTimeout(() => { copyStatus.textContent = ""; }, 2000);
+    });
+    document.getElementById('client-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const clientData = {
+            client_first_name: document.getElementById('client_first_name').value,
+            client_last_name: document.getElementById('client_last_name').value,
+            client_email: document.getElementById('client_email').value,
+            client_phone: document.getElementById('client_phone').value,
+        };
+        saveTripData({ ...generatedData, status: 'assigned', ...clientData });
+        document.getElementById('client-modal').style.display = 'none';
+    });
+
     async function saveTripData(payload) {
-        const btn = document.getElementById('saveTripBtn');
+        // Cette fonction est maintenant unifiée, on détermine le bouton cliqué pour le feedback
+        const btnId = payload.status === 'proposed' ? 'saveProposedBtn' : 'saveCustomBtn';
+        const btn = document.getElementById(btnId);
+        if(!btn) return; // Sécurité au cas où
+        
+        const originalText = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Sauvegarde...';
         try {
@@ -337,17 +520,17 @@
             });
             const result = await response.json();
             if (result.success) {
-                alert('Voyage enregistré avec succès ! Redirection vers le tableau de bord.');
+                alert('Voyage enregistré avec succès !');
                 window.location.href = `/dashboard?view=${result.trip.status}`;
             } else {
-                alert('Erreur lors de la sauvegarde: ' + result.message);
+                alert('Erreur lors de la sauvegarde: ' + result.error);
             }
         } catch (error) {
             alert('Une erreur réseau est survenue lors de la sauvegarde.');
             console.error(error);
         } finally {
              btn.disabled = false;
-             btn.textContent = '💾 Enregistrer';
+             btn.textContent = originalText;
         }
     }
 </script>

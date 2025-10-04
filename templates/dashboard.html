@@ -312,6 +312,8 @@ const viewMode = '{{ view_mode }}';
 const sitePublicUrl = '{{ site_public_url }}';
 let currentEditingTripData = null;
 let balanceDatePicker = null;
+// 🔧 MODIFICATION #4 - Variable pour gérer le workflow de duplication
+let isDuplicating = false; 
 
 // ============================================================================
 // FONCTIONS UTILITAIRES
@@ -322,7 +324,9 @@ function closeModal(modalId) {
 }
 
 function closeEditModal() {
-    document.getElementById('edit-trip-modal').classList.remove('is-open', 'is-editing');
+    const modal = document.getElementById('edit-trip-modal');
+    modal.classList.remove('is-open', 'is-editing');
+    isDuplicating = false; // Réinitialiser le statut de duplication
 }
 
 function openEditView() {
@@ -435,8 +439,6 @@ function renderTable(trips) {
 // ============================================================================
 
 async function togglePublish(tripId, checkbox) {
-    console.log('🔄 Toggle publication pour trip', tripId, 'vers', checkbox.checked);
-    
     const originalState = checkbox.checked;
     checkbox.disabled = true;
     
@@ -447,9 +449,7 @@ async function togglePublish(tripId, checkbox) {
             body: JSON.stringify({publish: checkbox.checked})
         });
         
-        console.log('📡 Réponse:', response.status);
         const result = await response.json();
-        console.log('📦 Résultat:', result);
         
         if (result.success) {
             alert(result.message);
@@ -459,7 +459,6 @@ async function togglePublish(tripId, checkbox) {
             checkbox.checked = !originalState;
         }
     } catch (error) {
-        console.error('❌ Erreur:', error);
         alert('Erreur réseau: ' + error.message);
         checkbox.checked = !originalState;
     } finally {
@@ -507,22 +506,13 @@ async function deleteTrip(tripId) {
     }
 }
 
+// 🔧 MODIFICATION #4 - Nouvelle logique pour le bouton Dupliquer
 async function reproduceTrip(tripId) {
-    if (!confirm("Dupliquer ce voyage vers l'onglet 'Proposés' pour le modifier et l'assigner à un nouveau client ?")) return;
-    
-    try {
-        const response = await fetch(`/api/trip/${tripId}/reproduce`, { method: 'POST' });
-        const result = await response.json();
-        
-        if (result.success && result.new_trip_id) {
-            alert('Voyage dupliqué avec succès. La modale de modification va s\'ouvrir pour le nouveau voyage.');
-            openEditTripModal(result.new_trip_id);
-        } else {
-            alert('Erreur lors de la duplication: ' + result.message);
-        }
-    } catch (error) {
-        alert('Erreur réseau lors de la duplication.');
-    }
+    if (!confirm("Dupliquer ce voyage ? La modale de modification va s'ouvrir pour le personnaliser.")) return;
+
+    isDuplicating = true; // Activer le mode duplication
+    await openEditTripModal(tripId); // Ouvrir la modale d'édition avec les données du voyage source
+    document.getElementById('edit-trip-modal').classList.add('is-editing'); // Passer directement en mode édition
 }
 
 // ============================================================================
@@ -530,24 +520,19 @@ async function reproduceTrip(tripId) {
 // ============================================================================
 
 async function openEditTripModal(tripId) {
-    console.log('🔵 Ouverture modale pour trip ID:', tripId);
-    
     try {
         const response = await fetch(`/api/trip/${tripId}`);
         if (!response.ok) throw new Error('Erreur récupération');
         
         const tripData = await response.json();
-        console.log('✅ Données récupérées');
         
         currentEditingTripData = tripData;
         populateEditTripModal(tripData);
         
         document.getElementById('edit-trip-modal').classList.add('is-open');
-        console.log('✅ Modale ouverte');
         
     } catch (error) {
-        console.error('❌ Erreur:', error);
-        alert('Erreur lors du chargement');
+        alert('Erreur lors du chargement des détails du voyage.');
     }
 }
 
@@ -640,26 +625,32 @@ function populateEditForm(tripData) {
     const form = document.getElementById('edit-trip-form');
     
     const starsOptions = ['2', '3', '4', '5'];
-    const starsSelect = starsOptions.map(opt => 
-        `<option value="${opt}" ${formData.stars == opt ? 'selected' : ''}>${opt}⭐</option>`).join('');
+    const starsSelect = starsOptions.map(opt => `<option value="${opt}" ${formData.stars == opt ? 'selected' : ''}>${opt}⭐</option>`).join('');
     
     const surchargeOptions = ['Logement seul', 'Petit déjeuner', 'Demi pension', 'Pension complète', 'All-In'];
-    const surchargeSelect = surchargeOptions.map(opt => 
-        `<option value="${opt}" ${formData.surcharge_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
+    const surchargeSelect = surchargeOptions.map(opt => `<option value="${opt}" ${formData.surcharge_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
     
     const baggageOptions = ['Pas de bagages', 'bagages 10 kilos', 'bagages 10 kilos + 1x 20 kilos'];
-    const baggageSelect = baggageOptions.map(opt => 
-        `<option value="${opt}" ${formData.baggage_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
+    const baggageSelect = baggageOptions.map(opt => `<option value="${opt}" ${formData.baggage_type === opt ? 'selected' : ''}>${opt}</option>`).join('');
     
     const isUltraBudgetChecked = tripData.is_ultra_budget ? 'checked' : '';
     
+    // 🔧 MODIFICATION #4 - Logique des boutons pour la duplication
+    const duplicateButtons = isDuplicating ? `
+        <button type="button" onclick="handleDuplicateSave('proposed')" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder comme Proposé</button>
+        <button type="button" onclick="openAssignModalForDuplicate()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg">Attribuer à un Client</button>
+    ` : '';
+    const normalSaveButton = !isDuplicating ? `
+        <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder</button>
+    ` : '';
+
     form.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
             <div><label>Nom Hôtel</label><input type="text" name="hotel_name" value="${formData.hotel_name}" class="w-full p-2 border rounded"></div>
             <div><label>Destination</label><input type="text" name="destination" value="${formData.destination}" class="w-full p-2 border rounded"></div>
             <div><label>Nb personnes</label><input type="number" name="num_people" value="${formData.num_people}" class="w-full p-2 border rounded"></div>
-            <div><label>Date Début</label><input type="text" name="date_start" value="${formData.date_start}" class="w-full p-2 border rounded"></div>
-            <div><label>Date Fin</label><input type="text" name="date_end" value="${formData.date_end}" class="w-full p-2 border rounded"></div>
+            <div><label>Date Début</label><input type="text" id="edit_date_start" name="date_start" value="${formData.date_start}" class="w-full p-2 border rounded" readonly></div>
+            <div><label>Date Fin</label><input type="text" id="edit_date_end" name="date_end" value="${formData.date_end}" class="w-full p-2 border rounded" readonly></div>
             <div><label>Catégorie</label><select name="stars" class="w-full p-2 border rounded">${starsSelect}</select></div>
             <div><label>Prix Vol (€)</label><input type="number" name="flight_price" value="${formData.flight_price}" class="w-full p-2 border rounded cost-input-edit"></div>
             <div><label>Départ</label><input type="text" name="departure_city" value="${formData.departure_city || ''}" class="w-full p-2 border rounded"></div>
@@ -684,9 +675,14 @@ function populateEditForm(tripData) {
         <div class="mt-6 flex justify-end space-x-3">
             <button type="button" onclick="document.getElementById('edit-trip-modal').classList.remove('is-editing')" 
                     class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-            <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder</button>
+            ${normalSaveButton}
+            ${duplicateButtons}
         </div>
     `;
+    
+    // 🔧 MODIFICATION #5 - Initialisation des Date Pickers
+    new Litepicker({ element: document.getElementById('edit_date_start'), singleMode: true, format: 'YYYY-MM-DD' });
+    new Litepicker({ element: document.getElementById('edit_date_end'), singleMode: true, format: 'YYYY-MM-DD' });
     
     form.querySelectorAll('.cost-input-edit, select').forEach(input => {
         input.addEventListener('input', () => {
@@ -708,9 +704,6 @@ async function submitEditTrip(event) {
     const data = Object.fromEntries(formData.entries());
     data.is_ultra_budget = form.querySelector('input[name="is_ultra_budget"]').checked;
     
-    const originalFormData = JSON.parse(currentEditingTripData.full_data_json).form_data;
-    const updatedFormData = { ...originalFormData, ...data };
-    
     const button = form.querySelector('button[type="submit"]');
     button.disabled = true;
     button.textContent = 'Sauvegarde...';
@@ -719,7 +712,7 @@ async function submitEditTrip(event) {
         const response = await fetch(`/api/trip/${tripId}/update`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedFormData)
+            body: JSON.stringify(data)
         });
         
         const result = await response.json();
@@ -738,6 +731,58 @@ async function submitEditTrip(event) {
         button.textContent = 'Sauvegarder';
     }
 }
+
+// ============================================================================
+// LOGIQUE DE DUPLICATION
+// ============================================================================
+function openAssignModalForDuplicate() {
+    // On réutilise la modale d'assignation existante
+    // Mais on va surcharger son comportement de soumission
+    openAssignModal(document.getElementById('trip-id-to-edit').value);
+}
+
+async function handleDuplicateSave(status, clientId = null) {
+    const sourceTripId = document.getElementById('trip-id-to-edit').value;
+    const form = document.getElementById('edit-trip-form');
+    const formData = new FormData(form);
+    const updatedData = Object.fromEntries(formData.entries());
+    updatedData.is_ultra_budget = form.querySelector('input[name="is_ultra_budget"]').checked;
+    
+    try {
+        // 1. Dupliquer le voyage
+        const reproResponse = await fetch(`/api/trip/${sourceTripId}/reproduce`, { method: 'POST' });
+        const reproResult = await reproResponse.json();
+        if (!reproResult.success) throw new Error(reproResult.message);
+        
+        const newTripId = reproResult.new_trip_id;
+
+        // 2. Mettre à jour les données du nouveau voyage
+        const updateResponse = await fetch(`/api/trip/${newTripId}/update`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+        });
+        if (!updateResponse.ok) throw new Error('Erreur lors de la mise à jour du voyage dupliqué.');
+
+        // 3. Assigner si un client est fourni
+        if (status === 'assigned' && clientId) {
+            const assignResponse = await fetch(`/api/trip/${newTripId}/assign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id: clientId })
+            });
+            const assignResult = await assignResponse.json();
+            if (!assignResult.success) throw new Error(assignResult.message);
+        }
+
+        alert('Opération de duplication réussie !');
+        window.location.href = `/dashboard?view=${status}`;
+
+    } catch (error) {
+        alert('Erreur lors de la duplication : ' + error.message);
+    }
+}
+
 
 // ============================================================================
 // AUTRES MODALES
@@ -767,12 +812,29 @@ async function loadClients() {
 }
 
 async function submitAssign() {
+    // Surcharge de la fonction pour gérer la duplication
+    if (isDuplicating) {
+        const isNewClient = document.getElementById('new-client-form').style.display !== 'none';
+        if (isNewClient) {
+            alert("Pour la duplication, veuillez d'abord créer le client via la page CRM, puis le sélectionner.");
+            return;
+        }
+        const clientId = document.getElementById('assign-client-id').value;
+        if (!clientId) {
+            alert('Sélectionnez un client');
+            return;
+        }
+        await handleDuplicateSave('assigned', clientId);
+        return;
+    }
+
+    // Comportement normal
     const tripId = document.getElementById('assign-trip-id').value;
-    const isNewClient = document.getElementById('new-client-form').style.display !== 'none';
+    const isNewClientNormal = document.getElementById('new-client-form').style.display !== 'none';
     
     let payload = {};
     
-    if (isNewClient) {
+    if (isNewClientNormal) {
         payload = {
             first_name: document.getElementById('client_first_name').value,
             last_name: document.getElementById('client_last_name').value,
@@ -963,9 +1025,6 @@ async function resendInvoice() {
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Dashboard initialisé');
-    
-    // Initialisation du DatePicker pour les acomptes
     balanceDatePicker = new Litepicker({
         element: document.getElementById('balance_due_date'),
         singleMode: true,
@@ -973,7 +1032,6 @@ document.addEventListener('DOMContentLoaded', function() {
         format: 'YYYY-MM-DD'
     });
     
-    // Gestion des onglets d'assignation
     document.getElementById('tab-new-client').addEventListener('click', function() {
         document.getElementById('new-client-form').style.display = 'block';
         document.getElementById('existing-client-form').style.display = 'none';
@@ -988,14 +1046,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('tab-new-client').className = 'px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500';
     });
     
-    // Fermeture des modales en cliquant à l'extérieur
     window.addEventListener('click', function(e) {
         if (e.target.classList.contains('modal')) {
             e.target.classList.remove('is-open', 'is-editing');
+            if (e.target.id === 'edit-trip-modal') isDuplicating = false;
         }
     });
     
-    // Chargement initial
     fetchTrips();
 });
 </script>

@@ -4,8 +4,11 @@
 
 {% block head_extra %}
 <style>
-    .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
+    .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
     .modal.is-open { display: flex; }
+    .stat-card { background-color: #f8fafc; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.75rem; text-align: center; }
+    .stat-value { font-size: 1.5rem; font-weight: bold; color: #1e293b; }
+    .stat-label { font-size: 0.875rem; color: #64748b; }
 </style>
 {% endblock %}
 
@@ -56,13 +59,25 @@
         </form>
     </div>
 </div>
+
+<div id="seller-stats-modal" class="modal">
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl">
+        <div class="flex justify-between items-start">
+            <h2 id="stats-modal-title" class="text-2xl font-bold text-slate-800 mb-4">Statistiques de Vente</h2>
+            <button class="close-modal-btn text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
+        </div>
+        <div id="stats-content" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.getElementById('sellers-table-body');
-    const modal = document.getElementById('seller-modal');
+    const sellerModal = document.getElementById('seller-modal');
+    const statsModal = document.getElementById('seller-stats-modal');
     const form = document.getElementById('seller-form');
     let currentEditingUserId = null;
 
@@ -89,12 +104,14 @@ document.addEventListener('DOMContentLoaded', function() {
             row.className = 'border-b border-slate-100 hover:bg-slate-50';
             row.dataset.userId = seller.id;
             
+            // 🔧 MODIFICATION #3 - Ajout de l'icône oeil pour les stats
             row.innerHTML = `
                 <td class="p-3 font-medium text-slate-800">${seller.pseudo}</td>
                 <td class="p-3 text-sm text-slate-600">${seller.username}</td>
                 <td class="p-3 text-sm text-slate-600">${seller.margin_percentage}%</td>
                 <td class="p-3 text-sm text-slate-600">${seller.generation_usage}</td>
                 <td class="p-3 text-right space-x-2">
+                    <button data-action="stats" title="Voir les statistiques" class="text-blue-500 text-xl">👁️</button>
                     <button data-action="add-quota" title="Ajouter 5 générations" class="text-green-500 text-xl">⚡</button>
                     <button data-action="edit" title="Modifier" class="text-yellow-500 text-xl">✏️</button>
                 </td>
@@ -108,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('password-field').style.display = isEdit ? 'none' : 'block';
         document.getElementById('password').required = !isEdit;
         document.getElementById('modal-title').textContent = isEdit ? 'Modifier le Vendeur' : 'Ajouter un Vendeur';
-        modal.classList.add('is-open');
+        sellerModal.classList.add('is-open');
     }
 
     document.getElementById('add-seller-btn').addEventListener('click', () => {
@@ -126,9 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (action === 'edit') {
             try {
-                // Cette API n'existe pas encore, il faudra la créer dans app.py
                 const response = await fetch(`/api/seller/${userId}`);
-                if (!response.ok) throw new Error('Seller not found');
+                if (!response.ok) throw new Error('Vendeur non trouvé');
                 const seller = await response.json();
                 
                 currentEditingUserId = userId;
@@ -147,6 +163,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (confirm('Voulez-vous ajouter 5 générations au quota de ce vendeur pour aujourd\'hui ?')) {
                 addQuota(userId, actionTarget);
             }
+        // 🔧 MODIFICATION #3 - Logique pour ouvrir la modale de stats
+        } else if (action === 'stats') {
+            openStatsModal(userId);
         }
     });
 
@@ -171,6 +190,46 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // 🔧 MODIFICATION #3 - Fonction pour charger et afficher les stats
+    async function openStatsModal(userId) {
+        const statsContent = document.getElementById('stats-content');
+        statsModal.classList.add('is-open');
+        statsContent.innerHTML = '<p class="col-span-full text-center">Chargement des statistiques...</p>';
+
+        try {
+            const response = await fetch(`/api/seller/${userId}/stats`);
+            if (!response.ok) throw new Error('Erreur réseau');
+            const result = await response.json();
+
+            if (result.success) {
+                const stats = result.stats;
+                document.getElementById('stats-modal-title').textContent = `Statistiques de ${document.querySelector(`tr[data-user-id='${userId}'] td:first-child`).textContent}`;
+                statsContent.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.total_sales}</div>
+                        <div class="stat-label">Ventes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.total_revenue} €</div>
+                        <div class="stat-label">Chiffre d'Affaires</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: #10b981;">${stats.total_seller_margin} €</div>
+                        <div class="stat-label">Marge Vendeur</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: #3b82f6;">${stats.total_vp_margin} €</div>
+                        <div class="stat-label">Marge VP</div>
+                    </div>
+                `;
+            } else {
+                statsContent.innerHTML = `<p class="col-span-full text-center text-red-500">${result.message}</p>`;
+            }
+        } catch (error) {
+            statsContent.innerHTML = `<p class="col-span-full text-center text-red-500">Erreur de chargement des statistiques.</p>`;
+        }
+    }
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -187,7 +246,8 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.password = password;
         }
         
-        const url = currentEditingUserId ? `/api/seller/${currentEditingUserId}` : '/api/seller';
+        // 🔧 MODIFICATION #2 - CORRECTION DE L'URL D'AJOUT
+        const url = currentEditingUserId ? `/api/seller/${currentEditingUserId}` : '/api/sellers';
         const method = currentEditingUserId ? 'PUT' : 'POST';
         
         try {
@@ -199,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
             alert(result.message);
             if (result.success) {
-                modal.classList.remove('is-open');
+                sellerModal.classList.remove('is-open');
                 fetchSellers();
             }
         } catch (error) {
@@ -208,7 +268,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.querySelectorAll('.close-modal-btn').forEach(btn => {
-        btn.addEventListener('click', () => modal.classList.remove('is-open'));
+        btn.addEventListener('click', () => {
+            btn.closest('.modal').classList.remove('is-open');
+        });
     });
 
     fetchSellers();

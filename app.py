@@ -166,11 +166,16 @@ def create_app(config_class=Config):
     def generate_preview():
         if g.user.role == 'vendeur':
             today = date.today()
-            if g.user.last_generation_date != today:
+            # 🔧 MODIFICATION #1 - CORRECTION QUOTA API
+            # Gère le cas où la date est None (nouveau vendeur) ou différente d'aujourd'hui
+            if g.user.last_generation_date is None or g.user.last_generation_date != today:
                 g.user.generation_count = 0
                 g.user.last_generation_date = today
+                db.session.commit() # Sauvegarde le reset immédiatement
+
             if g.user.generation_count >= g.user.daily_generation_limit:
                 return jsonify({'success': False, 'error': f"Quota de {g.user.daily_generation_limit} générations atteint."}), 429
+            
             g.user.generation_count += 1
             db.session.commit()
         
@@ -200,7 +205,7 @@ def create_app(config_class=Config):
             return jsonify({'success': True, 'form_data': data, 'api_data': real_data, 'margin': margin, 'savings': savings, 'comparison_total': comparison_total})
         except Exception as e:
             if g.user.role == 'vendeur':
-                g.user.generation_count -= 1
+                g.user.generation_count -= 1 # Décrémente en cas d'erreur
                 db.session.commit()
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -348,6 +353,7 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
     
+    # 🔧 MODIFICATION #4 - ROUTE POUR DUPLIQUER UN VOYAGE
     @app.route('/api/trip/<int:trip_id>/reproduce', methods=['POST'])
     @login_required
     def reproduce_trip(trip_id):
@@ -355,13 +361,13 @@ def create_app(config_class=Config):
             source_trip = Trip.query.get_or_404(trip_id)
 
             new_trip = Trip(
-                user_id=g.user.id,
-                client_id=None, 
+                user_id=g.user.id, # Attribuer au nouvel utilisateur
+                client_id=None, # Toujours commencer sans client
                 full_data_json=source_trip.full_data_json,
                 hotel_name=source_trip.hotel_name,
                 destination=source_trip.destination,
                 price=source_trip.price,
-                status='proposed',
+                status='proposed', # Toujours commencer en 'proposed'
                 is_ultra_budget=source_trip.is_ultra_budget
             )
             db.session.add(new_trip)
@@ -492,9 +498,6 @@ def create_app(config_class=Config):
             db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
 
-    # =========================================================================
-    # 🆕 ROUTE 1: ENVOI WHATSAPP
-    # =========================================================================
     @app.route('/api/trip/<int:trip_id>/send-whatsapp', methods=['POST'])
     @login_required
     def send_to_whatsapp(trip_id):
@@ -506,9 +509,6 @@ def create_app(config_class=Config):
             webhook_url = app.config.get('N8N_WHATSAPP_WEBHOOK')
             if not webhook_url:
                 return jsonify({'success': False, 'message': 'Webhook WhatsApp non configuré.'}), 500
-            
-            full_data = json.loads(trip.full_data_json)
-            form_data = full_data.get('form_data', {})
             
             gatherer = RealAPIGatherer()
             catchphrase = gatherer.generate_whatsapp_catchphrase({
@@ -538,9 +538,6 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 
-    # =========================================================================
-    # 🆕 ROUTE 2: ENVOI OFFRE (avec Stripe)
-    # =========================================================================
     @app.route('/api/trip/<int:trip_id>/send-offer', methods=['POST'])
     @login_required
     def send_offer_email(trip_id):
@@ -592,7 +589,6 @@ def create_app(config_class=Config):
             db.session.commit()
             
             full_data = json.loads(trip.full_data_json)
-            form_data = full_data.get('form_data', {})
             api_data = full_data.get('api_data', {})
             
             public_offer_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/clients/{trip.client_published_filename}"
@@ -638,9 +634,6 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 
-    # =========================================================================
-    # 🆕 ROUTE 3: FINALISER VENTE (upload documents + email)
-    # =========================================================================
     @app.route('/api/trip/<int:trip_id>/finalize-sale', methods=['POST'])
     @login_required
     def finalize_sale(trip_id):
@@ -703,9 +696,6 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 
-    # =========================================================================
-    # 🆕 ROUTE 4: GÉNÉRER FACTURE
-    # =========================================================================
     @app.route('/api/trip/<int:trip_id>/generate-invoice', methods=['POST'])
     @login_required
     def generate_invoice(trip_id):
@@ -773,9 +763,6 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 
-    # =========================================================================
-    # 🆕 ROUTE 5: RENVOYER FACTURE
-    # =========================================================================
     @app.route('/api/invoice/<int:invoice_id>/resend', methods=['POST'])
     @login_required
     def resend_invoice(invoice_id):
@@ -825,10 +812,6 @@ def create_app(config_class=Config):
             print(f"❌ Erreur renvoi facture: {e}")
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
-
-    # =========================================================================
-    # FIN DES 5 NOUVELLES ROUTES
-    # =========================================================================
 
     @app.route('/api/trip/<int:trip_id>/mark_sold', methods=['POST'])
     @login_required
@@ -914,7 +897,11 @@ def create_app(config_class=Config):
     def handle_sellers():
         if request.method == 'GET':
             today = date.today()
-            users_to_reset = User.query.filter(User.last_generation_date != today, User.role == 'vendeur').all()
+            # 🔧 MODIFICATION #1 - CORRECTION QUOTA API
+            # Gère les cas où la date est None (nouveau vendeur)
+            users_to_reset = User.query.filter(User.role == 'vendeur').filter(
+                or_(User.last_generation_date == None, User.last_generation_date != today)
+            ).all()
             for user in users_to_reset:
                 user.generation_count = 0
                 user.last_generation_date = today
@@ -943,6 +930,40 @@ def create_app(config_class=Config):
             except Exception as e:
                 db.session.rollback()
                 return jsonify({'success': False, 'message': str(e)}), 500
+
+    # 🔧 MODIFICATION #3 - NOUVELLE ROUTE POUR LES STATS VENDEUR
+    @app.route('/api/seller/<int:user_id>/stats', methods=['GET'])
+    @admin_required
+    def get_seller_stats(user_id):
+        user = User.query.get_or_404(user_id)
+        
+        sales = Trip.query.filter_by(user_id=user.id, status='sold').all()
+
+        total_sales = len(sales)
+        total_revenue = sum(sale.price for sale in sales)
+        total_seller_margin = 0
+        total_vp_margin = 0
+
+        for sale in sales:
+            try:
+                full_data = json.loads(sale.full_data_json)
+                total_margin = full_data.get('margin', 0)
+                seller_margin = round(total_margin * (user.margin_percentage / 100))
+                
+                total_seller_margin += seller_margin
+                total_vp_margin += (total_margin - seller_margin)
+            except (json.JSONDecodeError, KeyError):
+                continue
+        
+        stats = {
+            'total_sales': total_sales,
+            'total_revenue': total_revenue,
+            'total_seller_margin': total_seller_margin,
+            'total_vp_margin': total_vp_margin
+        }
+
+        return jsonify({'success': True, 'stats': stats})
+
 
     @app.route('/api/seller/<int:user_id>', methods=['GET', 'PUT'])
     @admin_required

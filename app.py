@@ -1,4 +1,4 @@
-# app.py - Version finale avec commande de création d'admin
+# app.py - Version finale, fusionnée et corrigée
 import os
 import json
 import csv
@@ -37,6 +37,7 @@ migrate = Migrate()
 bcrypt = Bcrypt()
 
 def create_app(config_class=Config):
+    """Crée et configure l'instance de l'application Flask."""
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -50,7 +51,6 @@ def create_app(config_class=Config):
     if app.config.get('STRIPE_API_KEY'):
         stripe.api_key = app.config['STRIPE_API_KEY']
 
-    # --- NOUVELLE COMMANDE CLI POUR CREER L'ADMIN ---
     @app.cli.command("create-admin")
     def create_admin_command():
         """Crée le(s) compte(s) admin à partir des variables d'environnement."""
@@ -82,10 +82,10 @@ def create_app(config_class=Config):
                 else:
                     print(f"❌ Données manquantes pour l'admin {i}. Compte non créé.")
             db.session.commit()
-    # --- FIN DE LA NOUVELLE COMMANDE ---
 
     publication_service = PublicationService(app.config)
 
+    # --- DECORATEURS D'AUTHENTIFICATION ---
     def login_required(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -100,21 +100,20 @@ def create_app(config_class=Config):
 
     def admin_required(f):
         @wraps(f)
+        @login_required
         def decorated_function(*args, **kwargs):
-            if not g.user or g.user.role != 'admin':
+            if g.user.role != 'admin':
                 return jsonify({'success': False, 'message': 'Accès non autorisé.'}), 403
             return f(*args, **kwargs)
         return decorated_function
 
+    # --- ROUTES D'AUTHENTIFICATION ET DE NAVIGATION ---
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
             username = request.form.get('username')
             password = request.form.get('password')
-            print(f"DEBUG: Username reçu: '{username}'")
-            print(f"DEBUG: Password reçu: '{password}'")
             user = User.query.filter_by(username=username).first()
-            print(f"DEBUG: User trouvé: {user}")
             if user and bcrypt.check_password_hash(user.password, password):
                 session.clear()
                 session['user_id'] = user.id
@@ -135,6 +134,7 @@ def create_app(config_class=Config):
     def home():
         return redirect(url_for('generation_tool'))
 
+    # --- ROUTES DES PAGES PRINCIPALES ---
     @app.route('/generation')
     @login_required
     def generation_tool():
@@ -143,7 +143,7 @@ def create_app(config_class=Config):
     @app.route('/dashboard')
     @login_required
     def dashboard():
-        return render_template('dashboard.html', view_mode=request.args.get('view', 'proposed'), site_public_url=app.config.get('SITE_PUBLIC_URL', ''), google_api_key=app.config['GOOGLE_API_KEY'])
+        return render_template('dashboard.html', view_mode=request.args.get('view', 'proposed'), site_public_url=app.config.get('SITE_PUBLIC_URL', ''))
 
     @app.route('/sellers')
     @login_required
@@ -166,6 +166,7 @@ def create_app(config_class=Config):
     def stats_page():
         return render_template('stats.html')
 
+    # --- API POUR LA GÉNÉRATION DE VOYAGES ---
     @app.route('/api/generate-preview', methods=['POST'])
     @login_required
     def generate_preview():
@@ -173,7 +174,6 @@ def create_app(config_class=Config):
             today = date.today()
             if g.user.last_generation_date != today:
                 g.user.generation_count = 0
-                g.user.daily_generation_limit = 5
                 g.user.last_generation_date = today
             if g.user.generation_count >= g.user.daily_generation_limit:
                 return jsonify({'success': False, 'error': f"Quota de {g.user.daily_generation_limit} générations atteint."}), 429
@@ -218,18 +218,30 @@ def create_app(config_class=Config):
         html_content = generate_travel_page_html(data.get('form_data'), data.get('api_data'), data.get('savings'), data.get('comparison_total'), creator_pseudo=g.user.pseudo)
         return Response(html_content, mimetype='text/html')
 
+    # --- API CRUD POUR LES VOYAGES (TRIPS) ---
     @app.route('/api/trips', methods=['POST'])
     @login_required
     def save_trip():
         data = request.get_json()
         form_data = data.get('form_data')
+        
+        status = data.get('status', 'proposed')
         client_id = form_data.get('client_id') if form_data.get('client_id') else None
 
+        if client_id:
+            status = 'assigned'
+
         new_trip = Trip(
-            user_id=g.user.id, client_id=client_id, full_data_json=json.dumps(data), hotel_name=form_data.get('hotel_name'),
-            destination=form_data.get('destination'), price=int(form_data.get('pack_price') or 0),
-            status='assigned' if client_id else 'proposed', is_ultra_budget=data.get('is_ultra_budget', False)
+            user_id=g.user.id,
+            client_id=client_id,
+            full_data_json=json.dumps(data),
+            hotel_name=form_data.get('hotel_name'),
+            destination=form_data.get('destination'),
+            price=int(form_data.get('pack_price') or 0),
+            status=status,
+            is_ultra_budget=form_data.get('is_ultra_budget', False)
         )
+        
         if new_trip.status == 'assigned':
             new_trip.assigned_at = datetime.utcnow()
 
@@ -241,8 +253,13 @@ def create_app(config_class=Config):
             if client_filename:
                 new_trip.client_published_filename = client_filename
                 db.session.commit()
+            else:
+                db.session.delete(new_trip)
+                db.session.commit()
+                return jsonify({'success': False, 'message': "Le voyage a été enregistré, mais la publication de la page client a échoué. L'enregistrement a été annulé."}), 500
 
         return jsonify({'success': True, 'message': 'Voyage enregistré !', 'trip': new_trip.to_dict()})
+
 
     @app.route('/api/trips', methods=['GET'])
     @login_required
@@ -259,14 +276,14 @@ def create_app(config_class=Config):
     def handle_trip(trip_id):
         trip = Trip.query.get_or_404(trip_id)
         
+        if g.user.role == 'vendeur' and trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+
         if request.method == 'GET':
             return jsonify(trip.to_dict())
 
-        if g.user.role != 'admin' and trip.user_id != g.user.id:
-            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
-
         if request.method == 'DELETE':
-            if trip.is_published:
+            if trip.is_published and trip.published_filename:
                 publication_service.unpublish(trip.published_filename)
             if trip.client_published_filename:
                 publication_service.unpublish(trip.client_published_filename, is_client_offer=True)
@@ -286,9 +303,9 @@ def create_app(config_class=Config):
             full_data = json.loads(trip.full_data_json)
             full_data['form_data'].update(new_form_data)
             
+            pack_price = int(new_form_data.get('pack_price') or 0)
             hotel_b2b_price = int(new_form_data.get('hotel_b2b_price') or 0)
             hotel_b2c_price = int(new_form_data.get('hotel_b2c_price') or 0)
-            pack_price = int(new_form_data.get('pack_price') or 0)
             flight_price = int(new_form_data.get('flight_price') or 0)
             transfer_cost = int(new_form_data.get('transfer_cost') or 0)
             surcharge_cost = int(new_form_data.get('surcharge_cost') or 0)
@@ -356,12 +373,35 @@ def create_app(config_class=Config):
             db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
 
+    @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
+    @login_required
+    def assign_trip(trip_id):
+        trip = Trip.query.get_or_404(trip_id)
+        if g.user.role != 'admin' and trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+
+        client_id = request.get_json().get('client_id')
+        if not client_id:
+            return jsonify({'success': False, 'message': 'ID de client manquant.'}), 400
+
+        trip.client_id = client_id
+        trip.status = 'assigned'
+        trip.assigned_at = datetime.utcnow()
+        
+        client_filename = publication_service.publish_client_offer(trip)
+        if client_filename:
+            trip.client_published_filename = client_filename
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Voyage assigné au client avec succès !'})
+        else:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': 'Erreur lors de la publication de la page client.'}), 500
+
     @app.route('/api/trip/<int:trip_id>/repropose', methods=['POST'])
     @login_required
     def repropose_trip(trip_id):
         original_trip = Trip.query.get_or_404(trip_id)
-        data = request.get_json()
-        client_id = data.get('client_id')
+        client_id = request.get_json().get('client_id')
         if not client_id:
             return jsonify({'success': False, 'message': 'Veuillez sélectionner un client.'}), 400
 
@@ -395,6 +435,7 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Voyage marqué comme vendu !'})
 
+    # --- API CRUD POUR LES CLIENTS ---
     @app.route('/api/clients', methods=['GET', 'POST'])
     @login_required
     def handle_clients():
@@ -429,6 +470,9 @@ def create_app(config_class=Config):
             client_data['trips'] = [trip.to_dict() for trip in client.trips]
             return jsonify(client_data)
         
+        if g.user.role != 'admin':
+             return jsonify({'success': False, 'message': 'Action réservée aux administrateurs.'}), 403
+
         if request.method == 'PUT':
             data = request.get_json()
             try:
@@ -444,12 +488,11 @@ def create_app(config_class=Config):
                 return jsonify({'success': False, 'message': str(e)}), 500
         
         if request.method == 'DELETE':
-            if g.user.role != 'admin':
-                return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
             db.session.delete(client)
             db.session.commit()
             return jsonify({'success': True, 'message': 'Client supprimé.'})
 
+    # --- API CRUD POUR LES VENDEURS (ADMIN SEULEMENT) ---
     @app.route('/api/sellers', methods=['GET', 'POST'])
     @login_required
     @admin_required
@@ -459,7 +502,6 @@ def create_app(config_class=Config):
             users_to_reset = User.query.filter(User.last_generation_date != today, User.role == 'vendeur').all()
             for user in users_to_reset:
                 user.generation_count = 0
-                user.daily_generation_limit = 5
                 user.last_generation_date = today
             if users_to_reset:
                 db.session.commit()
@@ -520,6 +562,7 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': f'Quota augmenté à {user.daily_generation_limit}'})
 
+    # --- API POUR LES RAPPORTS ET STATISTIQUES ---
     def _get_sales_query():
         query = Trip.query.join(User).join(Client).filter(Trip.status == 'sold')
         if g.user.role == 'vendeur':

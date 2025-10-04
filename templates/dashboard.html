@@ -8,7 +8,7 @@
 <style>
     .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
     .modal.is-open { display: flex; }
-    .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 800px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
+    .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 10px; }
     .disabled-btn { opacity: 0.5; cursor: not-allowed; }
 </style>
 {% endblock %}
@@ -59,24 +59,40 @@
 </div>
 
 <div id="assign-client-modal" class="modal">
-    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 class="text-xl font-bold mb-4">Assigner le voyage à un client</h2>
-        <form id="assign-client-form">
-            <input type="hidden" id="assign-trip-id">
+    <div class="modal-content">
+        <h2 id="assign-modal-title" class="text-xl font-bold mb-4">Assigner le voyage</h2>
+        <input type="hidden" id="assign-trip-id">
+        
+        <div class="border-b border-gray-200 mb-4">
+            <nav class="flex space-x-4" aria-label="Tabs">
+                <button id="tab-new-client" class="px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-blue-500 text-blue-600">Nouveau Client</button>
+                <button id="tab-existing-client" class="px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700">Client Existant</button>
+            </nav>
+        </div>
+
+        <form id="new-client-form-dashboard">
             <div class="space-y-4">
-                 <div>
-                    <label for="assign-client-id" class="block text-sm font-medium text-slate-700">Sélectionner un client existant</label>
-                    <select id="assign-client-id" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border">
-                        <option value="">-- Choisir un client --</option>
-                    </select>
-                </div>
-                 <p class="text-center text-sm text-slate-500">Ou <a href="{{ url_for('clients_page') }}" target="_blank" class="text-blue-600 underline">créez un nouveau client</a>.</p>
-            </div>
-            <div class="mt-6 flex justify-end space-x-3">
-                <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Assigner et Publier Fiche</button>
+                <div><label for="client_first_name_dashboard" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_last_name_dashboard" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_email_dashboard" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email_dashboard" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_phone_dashboard" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone_dashboard" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
             </div>
         </form>
+
+        <form id="existing-client-form-dashboard" style="display: none;">
+             <div>
+                <label for="assign-client-id" class="block text-sm font-medium text-slate-700">Sélectionner un client existant</label>
+                <select id="assign-client-id" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border">
+                    <option value="">-- Choisir un client --</option>
+                </select>
+            </div>
+             <p class="text-center text-sm text-slate-500 mt-4">Ou <a href="{{ url_for('clients_page') }}" target="_blank" class="text-blue-600 underline">gérez vos clients ici</a>.</p>
+        </form>
+
+        <div class="mt-6 flex justify-end space-x-3">
+            <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+            <button type="button" id="submit-assign-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Assigner et Publier</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -138,7 +154,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td class="p-3 text-right space-x-2">
                         ${viewOnlineLink}
-                        <button data-action="repropose" title="Créer une copie assignée à un autre client" class="text-indigo-500 text-xl">🔄</button>
                         <button data-action="assign" title="Assigner à un client" class="text-blue-500 text-xl ${disabledClass}" ${disabledAttr}>💰</button>
                         <button data-action="delete" title="Supprimer" class="text-red-500 text-xl ${disabledClass}" ${disabledAttr}>🗑️</button>
                     </td>`;
@@ -170,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     tableBody.addEventListener('click', async function(e) {
         const actionTarget = e.target.closest('[data-action]');
-        if (!actionTarget) return;
+        if (!actionTarget || actionTarget.disabled) return;
 
         const action = actionTarget.dataset.action;
         const tripRow = actionTarget.closest('tr');
@@ -185,10 +200,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 deleteTrip(tripId, tripRow);
             }
         }
-        else if (action === 'assign' || action === 'repropose') {
+        else if (action === 'assign') {
             document.getElementById('assign-trip-id').value = tripId;
-            const actionTitle = action === 'assign' ? 'Assigner le voyage à un client' : 'Reproposer à un nouveau client';
-            assignClientModal.querySelector('h2').textContent = actionTitle;
+            assignClientModal.querySelector('h2').textContent = 'Assigner le voyage à un client';
+            switchTab('new');
             loadClientsIntoModal();
             assignClientModal.classList.add('is-open');
         }
@@ -196,6 +211,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if(confirm('Confirmez-vous que ce voyage est vendu ?')) {
                  updateTripStatus(tripId, 'sold', tripRow);
             }
+        }
+    });
+    
+    tableBody.addEventListener('change', function(e) {
+        if (e.target.matches('input[type="checkbox"][data-action="toggle-publish"]') && !e.target.disabled) {
+            const tripId = e.target.closest('tr').dataset.tripId;
+            togglePublish(tripId, e.target, e.target.closest('tr'));
         }
     });
 
@@ -213,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (shouldPublish && result.url) {
                     alert(`Voyage publié !\nURL: ${result.url}`);
                 }
-                fetchTrips(); // Refresh the table to update the view link
+                fetchTrips(); 
             } else {
                 alert('Erreur: ' + result.message);
                 checkbox.checked = !shouldPublish;
@@ -239,24 +261,86 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Erreur réseau.');
         }
     }
+    
+    const tabNewClient = document.getElementById('tab-new-client');
+    const tabExistingClient = document.getElementById('tab-existing-client');
+    const formNewClient = document.getElementById('new-client-form-dashboard');
+    const formExistingClient = document.getElementById('existing-client-form-dashboard');
 
-    async function updateTripStatus(tripId, status, row) {
-        try {
-            const response = await fetch(`/api/trip/${tripId}/status`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({status: status})
-            });
-            const result = await response.json();
-             if (result.success) {
-                row.remove();
-            } else {
-                alert('Erreur: ' + result.message);
-            }
-        } catch (error) {
-            alert('Erreur réseau.');
+    function switchTab(tab) {
+        if (tab === 'new') {
+            tabNewClient.classList.add('border-blue-500', 'text-blue-600');
+            tabNewClient.classList.remove('border-transparent', 'text-gray-500');
+            tabExistingClient.classList.remove('border-blue-500', 'text-blue-600');
+            tabExistingClient.classList.add('border-transparent', 'text-gray-500');
+            formNewClient.style.display = 'block';
+            formExistingClient.style.display = 'none';
+        } else {
+            tabExistingClient.classList.add('border-blue-500', 'text-blue-600');
+            tabExistingClient.classList.remove('border-transparent', 'text-gray-500');
+            tabNewClient.classList.remove('border-blue-500', 'text-blue-600');
+            tabNewClient.classList.add('border-transparent', 'text-gray-500');
+            formExistingClient.style.display = 'block';
+            formNewClient.style.display = 'none';
         }
     }
+
+    tabNewClient.addEventListener('click', () => switchTab('new'));
+    tabExistingClient.addEventListener('click', () => switchTab('existing'));
+
+    document.getElementById('submit-assign-btn').addEventListener('click', async function(e) {
+        const tripId = document.getElementById('assign-trip-id').value;
+        const button = e.target;
+        button.disabled = true;
+        button.textContent = 'En cours...';
+        
+        let payload;
+        let isNewClient = formNewClient.style.display === 'block';
+        let url = `/api/trip/${tripId}/assign`;
+
+        if (isNewClient) {
+            payload = {
+                first_name: document.getElementById('client_first_name_dashboard').value,
+                last_name: document.getElementById('client_last_name_dashboard').value,
+                email: document.getElementById('client_email_dashboard').value,
+                phone: document.getElementById('client_phone_dashboard').value,
+            };
+            if (!payload.first_name || !payload.last_name || !payload.email) {
+                alert('Veuillez remplir les informations du nouveau client.');
+                button.disabled = false;
+                button.textContent = 'Assigner et Publier';
+                return;
+            }
+        } else {
+            const clientId = document.getElementById('assign-client-id').value;
+            if (!clientId) {
+                alert('Veuillez sélectionner un client existant.');
+                button.disabled = false;
+                button.textContent = 'Assigner et Publier';
+                return;
+            }
+            payload = { client_id: clientId };
+        }
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) {
+                assignClientModal.classList.remove('is-open');
+                fetchTrips();
+            }
+        } catch (error) {
+            alert('Erreur réseau lors de l\'assignation.');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Assigner et Publier';
+        }
+    });
 
     async function loadClientsIntoModal() {
         const select = document.getElementById('assign-client-id');
@@ -275,44 +359,6 @@ document.addEventListener('DOMContentLoaded', function() {
             select.innerHTML = '<option value="">Erreur de chargement</option>';
         }
     }
-
-    document.getElementById('assign-client-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const tripId = document.getElementById('assign-trip-id').value;
-        const clientId = document.getElementById('assign-client-id').value;
-        const h2Text = assignClientModal.querySelector('h2').textContent;
-        const isReproposing = h2Text.includes('Reproposer');
-        
-        if (!clientId) {
-            alert('Veuillez sélectionner un client.');
-            return;
-        }
-
-        const url = isReproposing ? `/api/trip/${tripId}/repropose` : `/api/trip/${tripId}/assign`;
-        
-        const button = this.querySelector('button[type="submit"]');
-        button.disabled = true;
-        button.textContent = 'En cours...';
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({client_id: clientId})
-            });
-            const result = await response.json();
-            alert(result.message);
-            if (result.success) {
-                assignClientModal.classList.remove('is-open');
-                fetchTrips();
-            }
-        } catch (error) {
-            alert('Erreur réseau.');
-        } finally {
-            button.disabled = false;
-            button.textContent = 'Assigner et Publier Fiche';
-        }
-    });
 
     document.querySelectorAll('.close-modal-btn').forEach(btn => {
         btn.addEventListener('click', () => {

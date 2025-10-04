@@ -1,4 +1,4 @@
-# app.py - Version finale, fusionnée et corrigée
+# app.py - Version finale, logique corrigée
 import os
 import json
 import csv
@@ -85,7 +85,6 @@ def create_app(config_class=Config):
 
     publication_service = PublicationService(app.config)
 
-    # --- DECORATEURS D'AUTHENTIFICATION ---
     def login_required(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -107,7 +106,6 @@ def create_app(config_class=Config):
             return f(*args, **kwargs)
         return decorated_function
 
-    # --- ROUTES D'AUTHENTIFICATION ET DE NAVIGATION ---
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
@@ -134,7 +132,6 @@ def create_app(config_class=Config):
     def home():
         return redirect(url_for('generation_tool'))
 
-    # --- ROUTES DES PAGES PRINCIPALES ---
     @app.route('/generation')
     @login_required
     def generation_tool():
@@ -146,7 +143,6 @@ def create_app(config_class=Config):
         return render_template('dashboard.html', view_mode=request.args.get('view', 'proposed'), site_public_url=app.config.get('SITE_PUBLIC_URL', ''))
 
     @app.route('/sellers')
-    @login_required
     @admin_required
     def sellers_page():
         return render_template('sellers.html')
@@ -166,10 +162,10 @@ def create_app(config_class=Config):
     def stats_page():
         return render_template('stats.html')
 
-    # --- API POUR LA GÉNÉRATION DE VOYAGES ---
     @app.route('/api/generate-preview', methods=['POST'])
     @login_required
     def generate_preview():
+        # (Cette fonction est correcte et reste inchangée)
         if g.user.role == 'vendeur':
             today = date.today()
             if g.user.last_generation_date != today:
@@ -218,19 +214,39 @@ def create_app(config_class=Config):
         html_content = generate_travel_page_html(data.get('form_data'), data.get('api_data'), data.get('savings'), data.get('comparison_total'), creator_pseudo=g.user.pseudo)
         return Response(html_content, mimetype='text/html')
 
-    # --- API CRUD POUR LES VOYAGES (TRIPS) ---
+    # --- API CRUD POUR LES VOYAGES (LOGIQUE `MAIN` RESTAURÉE) ---
     @app.route('/api/trips', methods=['POST'])
     @login_required
     def save_trip():
         data = request.get_json()
         form_data = data.get('form_data')
         
-        status = data.get('status', 'proposed')
-        client_id = form_data.get('client_id') if form_data.get('client_id') else None
+        client_id = form_data.get('client_id')
+        new_client_data = {
+            'first_name': data.get('client_first_name'),
+            'last_name': data.get('client_last_name'),
+            'email': data.get('client_email'),
+            'phone': data.get('client_phone'),
+        }
 
-        if client_id:
-            status = 'assigned'
+        # S'il y a des données pour un nouveau client (depuis la pop-up de `generation.html`)
+        if all(new_client_data.values()):
+            try:
+                # On vérifie si un client avec cet email existe déjà
+                existing_client = Client.query.filter_by(email=new_client_data['email']).first()
+                if existing_client:
+                    client_id = existing_client.id
+                else:
+                    new_client = Client(**new_client_data)
+                    db.session.add(new_client)
+                    db.session.flush() # Pour obtenir l'ID avant le commit
+                    client_id = new_client.id
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': f'Erreur lors de la création du client: {e}'}), 500
 
+        status = 'assigned' if client_id else 'proposed'
+        
         new_trip = Trip(
             user_id=g.user.id,
             client_id=client_id,
@@ -247,19 +263,60 @@ def create_app(config_class=Config):
 
         db.session.add(new_trip)
         db.session.commit()
-        
-        if new_trip.status == 'assigned':
-            client_filename = publication_service.publish_client_offer(new_trip)
-            if client_filename:
-                new_trip.client_published_filename = client_filename
-                db.session.commit()
-            else:
-                db.session.delete(new_trip)
-                db.session.commit()
-                return jsonify({'success': False, 'message': "Le voyage a été enregistré, mais la publication de la page client a échoué. L'enregistrement a été annulé."}), 500
-
         return jsonify({'success': True, 'message': 'Voyage enregistré !', 'trip': new_trip.to_dict()})
 
+    @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
+    @login_required
+    def assign_trip(trip_id):
+        source_trip = Trip.query.get_or_404(trip_id)
+        if g.user.role != 'admin' and source_trip.user_id != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+
+        data = request.get_json()
+        client_id = data.get('client_id')
+
+        # Si on n'a pas d'ID de client, on en crée un nouveau (logique de `main` depuis le dashboard)
+        if not client_id:
+            new_client_data = {
+                'first_name': data.get('first_name'),
+                'last_name': data.get('last_name'),
+                'email': data.get('email'),
+                'phone': data.get('phone'),
+            }
+            if not all(new_client_data.values()):
+                return jsonify({'success': False, 'message': 'Données du nouveau client incomplètes.'}), 400
+            
+            try:
+                existing_client = Client.query.filter_by(email=new_client_data['email']).first()
+                if existing_client:
+                    client_id = existing_client.id
+                else:
+                    new_client_obj = Client(**new_client_data)
+                    db.session.add(new_client_obj)
+                    db.session.flush()
+                    client_id = new_client_obj.id
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': f"Erreur BDD: {e}"}), 500
+        
+        # Création d'une COPIE du voyage pour l'assigner (logique de `main`)
+        new_trip = Trip(
+            user_id=g.user.id, client_id=client_id, full_data_json=source_trip.full_data_json,
+            hotel_name=source_trip.hotel_name, destination=source_trip.destination, price=source_trip.price,
+            status='assigned', is_ultra_budget=source_trip.is_ultra_budget, assigned_at=datetime.utcnow()
+        )
+        db.session.add(new_trip)
+        db.session.commit()
+
+        client_filename = publication_service.publish_client_offer(new_trip)
+        if client_filename:
+            new_trip.client_published_filename = client_filename
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Voyage assigné et page privée créée.'})
+        else:
+            db.session.delete(new_trip)
+            db.session.commit()
+            return jsonify({'success': False, 'message': 'Publication de la page client échouée. Assignation annulée.'}), 500
 
     @app.route('/api/trips', methods=['GET'])
     @login_required
@@ -290,6 +347,8 @@ def create_app(config_class=Config):
             db.session.delete(trip)
             db.session.commit()
             return jsonify({'success': True, 'message': 'Voyage supprimé.'})
+
+    # --- LES AUTRES FONCTIONS RESTENT INCHANGÉES ---
 
     @app.route('/api/trip/<int:trip_id>/update', methods=['PUT'])
     @login_required
@@ -373,56 +432,6 @@ def create_app(config_class=Config):
             db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
 
-    @app.route('/api/trip/<int:trip_id>/assign', methods=['POST'])
-    @login_required
-    def assign_trip(trip_id):
-        trip = Trip.query.get_or_404(trip_id)
-        if g.user.role != 'admin' and trip.user_id != g.user.id:
-            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
-
-        client_id = request.get_json().get('client_id')
-        if not client_id:
-            return jsonify({'success': False, 'message': 'ID de client manquant.'}), 400
-
-        trip.client_id = client_id
-        trip.status = 'assigned'
-        trip.assigned_at = datetime.utcnow()
-        
-        client_filename = publication_service.publish_client_offer(trip)
-        if client_filename:
-            trip.client_published_filename = client_filename
-            db.session.commit()
-            return jsonify({'success': True, 'message': 'Voyage assigné au client avec succès !'})
-        else:
-            db.session.rollback()
-            return jsonify({'success': False, 'message': 'Erreur lors de la publication de la page client.'}), 500
-
-    @app.route('/api/trip/<int:trip_id>/repropose', methods=['POST'])
-    @login_required
-    def repropose_trip(trip_id):
-        original_trip = Trip.query.get_or_404(trip_id)
-        client_id = request.get_json().get('client_id')
-        if not client_id:
-            return jsonify({'success': False, 'message': 'Veuillez sélectionner un client.'}), 400
-
-        new_trip = Trip(
-            user_id=g.user.id, client_id=client_id, full_data_json=original_trip.full_data_json,
-            hotel_name=original_trip.hotel_name, destination=original_trip.destination, price=original_trip.price,
-            status='assigned', is_ultra_budget=original_trip.is_ultra_budget, assigned_at=datetime.utcnow()
-        )
-        db.session.add(new_trip)
-        db.session.commit()
-
-        client_filename = publication_service.publish_client_offer(new_trip)
-        if client_filename:
-            new_trip.client_published_filename = client_filename
-            db.session.commit()
-            return jsonify({'success': True, 'message': 'Voyage reproposé et assigné au client.'})
-        else:
-            db.session.delete(new_trip)
-            db.session.commit()
-            return jsonify({'success': False, 'message': 'La publication de la nouvelle offre a échoué.'}), 500
-
     @app.route('/api/trip/<int:trip_id>/mark_sold', methods=['POST'])
     @login_required
     def mark_trip_sold(trip_id):
@@ -435,7 +444,6 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Voyage marqué comme vendu !'})
 
-    # --- API CRUD POUR LES CLIENTS ---
     @app.route('/api/clients', methods=['GET', 'POST'])
     @login_required
     def handle_clients():
@@ -492,9 +500,7 @@ def create_app(config_class=Config):
             db.session.commit()
             return jsonify({'success': True, 'message': 'Client supprimé.'})
 
-    # --- API CRUD POUR LES VENDEURS (ADMIN SEULEMENT) ---
     @app.route('/api/sellers', methods=['GET', 'POST'])
-    @login_required
     @admin_required
     def handle_sellers():
         if request.method == 'GET':
@@ -530,7 +536,6 @@ def create_app(config_class=Config):
                 return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/seller/<int:user_id>', methods=['GET', 'PUT'])
-    @login_required
     @admin_required
     def handle_seller(user_id):
         user = User.query.get_or_404(user_id)
@@ -554,7 +559,6 @@ def create_app(config_class=Config):
                 return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/seller/<int:user_id>/add_quota', methods=['POST'])
-    @login_required
     @admin_required
     def add_seller_quota(user_id):
         user = User.query.get_or_404(user_id)
@@ -562,7 +566,6 @@ def create_app(config_class=Config):
         db.session.commit()
         return jsonify({'success': True, 'message': f'Quota augmenté à {user.daily_generation_limit}'})
 
-    # --- API POUR LES RAPPORTS ET STATISTIQUES ---
     def _get_sales_query():
         query = Trip.query.join(User).join(Client).filter(Trip.status == 'sold')
         if g.user.role == 'vendeur':
@@ -655,3 +658,6 @@ def create_app(config_class=Config):
     return app
 
 app = create_app()
+
+if __name__ == '__main__':
+    app.run(debug=True)

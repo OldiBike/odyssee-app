@@ -5,8 +5,7 @@
 {% block head_extra %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
     <style>
-        /* Styles de votre app.py original */
-        .container {max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;}
+        /* Fusion des styles des deux versions pour une mise en page correcte et complète */
         .form-container {padding: 40px;}
         .form-group {margin-bottom: 25px; width: 100%;}
         label {display: block; margin-bottom: 8px; font-weight: 600; color: #333;}
@@ -26,7 +25,7 @@
         .success {color: #28a745; font-size: 18px; font-weight: 600; text-align: center;}
         .error {color: #dc3545; font-size: 18px; font-weight: 600;}
         .button-container {margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; align-items: center;}
-        .download-btn, .view-btn, .edit-btn, .html-code-btn, .reset-btn {color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer;}
+        .action-btn, .download-btn, .view-btn, .edit-btn, .html-code-btn, .reset-btn {color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer;}
         .download-btn {background: #28a745;}
         .view-btn {background: #3B82F6;}
         .edit-btn {background: #ffc107; color: #333;}
@@ -43,8 +42,7 @@
         .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
         .modal.is-open { display: flex; }
         .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
-        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
-        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .html-textarea { width: 100%; height: 400px; border: 1px solid #ccc; padding: 10px; font-family: monospace; white-space: pre; overflow: auto; resize: vertical; border-radius: 5px; }
         .cost-calculator { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; background-color: #f8fafc; padding: 10px; border-radius: 10px; margin-top: -10px; margin-bottom: 25px; }
         .cost-calculator div { text-align: center; }
@@ -122,10 +120,10 @@
             <div class="form-group"><label for="exclusive_services">🎁 Services Exclusifs Inclus</label><textarea id="exclusive_services" name="exclusive_services" placeholder="ex: Accès au lounge VIP de l'aéroport&#10;Une bouteille de champagne en chambre&#10;Check-out tardif jusqu'à 14h"></textarea></div>
             
             <div class="form-group">
-                <label for="client_id">👤 Assigner à un client (Optionnel)</label>
+                <label for="client_id">👤 Assigner à un client existant (Optionnel)</label>
                 <select id="client_id" name="client_id">
-                    <option value="">-- Aucun client (Proposition générale) --</option>
-                    </select>
+                    <option value="">-- Aucun client (créera une Proposition générale) --</option>
+                </select>
             </div>
 
             <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035-.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.486-.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg><span>Ajouter un profil Instagram (Optionnel)</span></button><div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle" name="instagram_handle" placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div></div>
@@ -153,20 +151,21 @@
         <div id="copyStatus" style="text-align:center; font-size: 14px; color: green; margin-top: 5px;"></div>
     </div>
 </div>
+
 <div id="client-modal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="close-button">×</span>
         <h2 class="text-xl font-bold mb-4">Informations du Client</h2>
         <form id="client-form">
             <div class="space-y-4">
-                <div><label for="client_first_name" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                <div><label for="client_last_name" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                <div><label for="client_email" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
-                <div><label for="client_phone" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></div>
+                <div><label for="client_first_name" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_last_name" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_email" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_phone" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
             </div>
             <div class="mt-6 flex justify-end space-x-3">
                 <button type="button" class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer</button>
+                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer et Assigner</button>
             </div>
         </form>
     </div>
@@ -280,7 +279,6 @@
 
     function updateCostTotals() {
         const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
-
         const hotelB2B = getVal('hotel_b2b_price');
         const hotelB2C = getVal('hotel_b2c_price');
         const flight = getVal('flight_price');
@@ -288,16 +286,13 @@
         const car = getVal('car_rental_cost');
         const surcharge = getVal('surcharge_cost');
         const packPrice = getVal('pack_price');
-
         const totalB2B = hotelB2B + flight + transfer + car + surcharge;
         const totalB2C = hotelB2C + flight + transfer + car + surcharge;
         const gap = totalB2C - totalB2B;
         const saving = totalB2C - packPrice;
         const finalMargin = packPrice - totalB2B;
-
         const sellerMargin = Math.round(finalMargin * (userMarginPercentage / 100));
         const vpMargin = finalMargin - sellerMargin;
-
         document.getElementById('total-b2b-cost').textContent = `${totalB2B} €`;
         document.getElementById('total-b2c-cost').textContent = `${totalB2C} €`;
         document.getElementById('b2c-b2b-gap').textContent = `${gap} €`;
@@ -320,12 +315,8 @@
 
         fetch('/api/generate-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(response => {
-            if (response.status === 429) {
-                return response.json().then(err => { throw new Error(err.error) });
-            }
-            if (!response.ok) {
-                 return response.text().then(text => { throw new Error('Erreur serveur: ' + text) });
-            }
+            if (response.status === 429) { return response.json().then(err => { throw new Error(err.error) }); }
+            if (!response.ok) { return response.text().then(text => { throw new Error('Erreur serveur: ' + text) }); }
             return response.json();
         })
         .then(data => {
@@ -410,7 +401,7 @@
             const html = await getPreviewHtml();
             if (html) {
                 document.getElementById('htmlCodeDisplay').value = html;
-                document.getElementById('htmlCodeModal').style.display = 'flex';
+                document.getElementById('htmlCodeModal').classList.add('is-open');
             }
         });
 
@@ -419,9 +410,9 @@
             const videoEditContainer = document.getElementById('videoEditContainer');
             const currentVideo = generatedData.api_data.videos[0];
             videoEditContainer.innerHTML = `
-                <input type="text" id="newVideoUrl" placeholder="Coller la nouvelle URL YouTube ici..." value="${currentVideo ? `https://www.youtube.com/watch?v=${currentVideo.id}` : ''}" class="w-full p-2 border rounded">
-                <button id="submitVideoChange" style="background-color: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer;">Valider</button>
-                <button id="deleteVideoBtn" style="background-color: #dc3545; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer;">Pas de Vidéo</button>
+                <input type="text" id="newVideoUrl" placeholder="Coller la nouvelle URL YouTube ici..." value="${currentVideo ? `https://www.youtube.com/watch?v=${currentVideo.id}` : ''}" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc;">
+                <button id="submitVideoChange" class="action-btn" style="background-color: #28a745;">Valider</button>
+                <button id="deleteVideoBtn" class="action-btn" style="background-color: #dc3545;">Pas de Vidéo</button>
             `;
             videoEditContainer.style.display = 'flex';
             e.target.style.display = 'none';
@@ -431,7 +422,7 @@
                 const videoIdMatch = newUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11}).*/);
                 if (videoIdMatch && videoIdMatch[1]) {
                     generatedData.api_data.videos = [{ id: videoIdMatch[1], title: 'Nouvelle Vidéo' }];
-                    document.getElementById('editConfirmation').textContent = '✅ Vidéo mise à jour. Cliquez sur "Prévisualiser" pour voir les changements.';
+                    document.getElementById('editConfirmation').textContent = '✅ Vidéo mise à jour. Prévisualisez pour voir le changement.';
                 } else {
                     alert("URL YouTube invalide.");
                 }
@@ -440,12 +431,12 @@
             });
             document.getElementById('deleteVideoBtn').addEventListener('click', () => {
                 generatedData.api_data.videos = [];
-                document.getElementById('editConfirmation').textContent = '✅ Vidéo supprimée. Cliquez sur "Prévisualiser" pour voir les changements.';
+                document.getElementById('editConfirmation').textContent = '✅ Vidéo supprimée. Prévisualisez pour voir le changement.';
                 videoEditContainer.style.display = 'none';
                 document.getElementById('editVideoBtn').style.display = 'inline-block';
             });
         });
-
+        
         document.getElementById('saveProposedBtn').addEventListener('click', () => {
             if (!generatedData) return;
             saveTripData({ ...generatedData, status: 'proposed' });
@@ -453,7 +444,7 @@
 
         document.getElementById('saveCustomBtn').addEventListener('click', () => {
             if (!generatedData) return;
-            document.getElementById('client-modal').style.display = 'flex';
+            document.getElementById('client-modal').classList.add('is-open');
         });
     }
 
@@ -475,14 +466,15 @@
 
     document.querySelectorAll('.modal .close-button').forEach(btn => {
         btn.addEventListener('click', () => {
-            btn.closest('.modal').style.display = 'none';
+            btn.closest('.modal').classList.remove('is-open');
         });
     });
     window.addEventListener('click', (event) => {
         if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
+            event.target.classList.remove('is-open');
         }
     });
+
     document.getElementById('copyHtmlCodeBtn').addEventListener('click', () => {
         const textarea = document.getElementById('htmlCodeDisplay');
         textarea.select();
@@ -491,6 +483,7 @@
         copyStatus.textContent = "✅ Code copié !";
         setTimeout(() => { copyStatus.textContent = ""; }, 2000);
     });
+
     document.getElementById('client-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const clientData = {
@@ -499,15 +492,15 @@
             client_email: document.getElementById('client_email').value,
             client_phone: document.getElementById('client_phone').value,
         };
+        // Logique de `main`: On assigne directement avec les nouvelles données client
         saveTripData({ ...generatedData, status: 'assigned', ...clientData });
-        document.getElementById('client-modal').style.display = 'none';
+        document.getElementById('client-modal').classList.remove('is-open');
     });
 
     async function saveTripData(payload) {
-        // Cette fonction est maintenant unifiée, on détermine le bouton cliqué pour le feedback
         const btnId = payload.status === 'proposed' ? 'saveProposedBtn' : 'saveCustomBtn';
         const btn = document.getElementById(btnId);
-        if(!btn) return; // Sécurité au cas où
+        if(!btn) return;
         
         const originalText = btn.textContent;
         btn.disabled = true;
@@ -520,10 +513,10 @@
             });
             const result = await response.json();
             if (result.success) {
-                alert('Voyage enregistré avec succès !');
+                alert('Voyage enregistré avec succès ! Redirection vers le tableau de bord.');
                 window.location.href = `/dashboard?view=${result.trip.status}`;
             } else {
-                alert('Erreur lors de la sauvegarde: ' + result.error);
+                alert('Erreur lors de la sauvegarde: ' + result.message);
             }
         } catch (error) {
             alert('Une erreur réseau est survenue lors de la sauvegarde.');

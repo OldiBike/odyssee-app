@@ -131,18 +131,20 @@
                         {% if view_mode == 'proposed' %}
                             <th class="p-3 text-sm font-semibold text-slate-500">Date Ajout</th>
                             <th class="p-3 text-sm font-semibold text-slate-500">Hôtel</th>
-                            <th class="p-3 text-sm font-semibold text-slate-500">Destination</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Vendeur</th>
                             <th class="p-3 text-sm font-semibold text-slate-500 text-center">Publier</th>
                             <th class="p-3 text-sm font-semibold text-slate-500 text-right">Actions</th>
                         {% elif view_mode == 'assigned' %}
                             <th class="p-3 text-sm font-semibold text-slate-500">Date Assign.</th>
                             <th class="p-3 text-sm font-semibold text-slate-500">Hôtel</th>
                             <th class="p-3 text-sm font-semibold text-slate-500">Client</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Vendeur</th>
                             <th class="p-3 text-sm font-semibold text-slate-500 text-right">Actions</th>
                         {% elif view_mode == 'sold' %}
                             <th class="p-3 text-sm font-semibold text-slate-500">Date Vente</th>
                             <th class="p-3 text-sm font-semibold text-slate-500">Hôtel</th>
                             <th class="p-3 text-sm font-semibold text-slate-500">Client</th>
+                            <th class="p-3 text-sm font-semibold text-slate-500">Vendeur</th>
                             <th class="p-3 text-sm font-semibold text-slate-500">Prix</th>
                             <th class="p-3 text-sm font-semibold text-slate-500 text-right">Actions</th>
                         {% endif %}
@@ -417,16 +419,18 @@ function renderTable(trips) {
             const viewOnlineLink = trip.is_published 
                 ? `<a href="${sitePublicUrl}/offres/${trip.published_filename}" target="_blank" title="Voir en ligne" class="text-blue-500 text-xl">👁️</a>`
                 : `<span class="text-gray-400 text-xl">👁️</span>`;
-            
+
+            let editButton = '';
             let deleteButton = '';
             if (isOwner || isAdmin) {
+                editButton = `<button onclick="openEditTripModal(${trip.id})" title="Modifier" class="text-yellow-500 text-xl">⚙️</button>`;
                 deleteButton = `<button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>`;
             }
             
             rowHtml = `
                 <td class="p-3 text-sm text-slate-600">${trip.created_at}</td>
                 <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
-                <td class="p-3 text-sm text-slate-600">${trip.destination}</td>
+                <td class="p-3 text-sm text-slate-600">${trip.creator_pseudo}</td>
                 <td class="p-3 text-center">
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" class="sr-only peer" ${trip.is_published ? 'checked' : ''} 
@@ -436,7 +440,7 @@ function renderTable(trips) {
                 </td>
                 <td class="p-3 text-right space-x-2">
                     ${viewOnlineLink}
-                    <button onclick="openEditTripModal(${trip.id})" title="Modifier" class="text-yellow-500 text-xl">⚙️</button>
+                    ${editButton}
                     <button onclick="generateInstagramCarousel(event, ${trip.id})" title="Réseaux Sociaux" class="text-pink-500 text-xl">📸</button>
                     <button onclick="sendToWhatsApp(${trip.id}, this)" title="WhatsApp" class="text-green-500 text-xl">✳️</button>
                     <button onclick="openAssignModal(${trip.id})" title="Assigner" class="text-blue-500 text-xl">💰</button>
@@ -468,6 +472,7 @@ function renderTable(trips) {
                 <td class="p-3 text-sm text-slate-600">${trip.assigned_at}</td>
                 <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
                 <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
+                <td class="p-3 text-sm text-slate-600">${trip.creator_pseudo}</td>
                 <td class="p-3 text-right space-x-2">${actionButtons}</td>`;
         } else if (viewMode === 'sold') {
             let deleteButton = '';
@@ -478,6 +483,7 @@ function renderTable(trips) {
                 <td class="p-3 text-sm text-slate-600">${trip.sold_at || 'N/A'}</td>
                 <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
                 <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
+                <td class="p-3 text-sm text-slate-600">${trip.creator_pseudo}</td>
                 <td class="p-3 text-sm text-slate-600">${trip.price}€</td>
                 <td class="p-3 text-right space-x-2">
                     <a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" class="text-blue-500 text-xl">👁️</a>

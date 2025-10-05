@@ -342,8 +342,8 @@ def create_app(config_class=Config):
     def assign_trip(trip_id):
         try:
             source_trip = Trip.query.get_or_404(trip_id)
-            if g.user.role != 'admin' and source_trip.user_id != g.user.id:
-                return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+            # N'importe quel vendeur peut assigner un voyage proposé
+            # La vérification de propriété est retirée.
 
             data = request.get_json()
             client_id = data.get('client_id')
@@ -367,6 +367,7 @@ def create_app(config_class=Config):
                     db.session.flush()
                     client_id = new_client_obj.id
             
+            # MODIFICATION : Le nouveau propriétaire est l'utilisateur qui fait l'assignation
             new_trip = Trip(
                 user_id=g.user.id,
                 client_id=client_id,
@@ -473,6 +474,7 @@ def create_app(config_class=Config):
     @login_required
     def update_trip_details(trip_id):
         trip = Trip.query.get_or_404(trip_id)
+        # MODIFICATION : Un vendeur ne peut modifier que ses propres voyages.
         if g.user.role != 'admin' and trip.user_id != g.user.id:
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
         

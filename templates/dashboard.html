@@ -6,40 +6,40 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <style>
-    .modal { 
-        display: none; 
-        position: fixed; 
-        z-index: 99999 !important; 
-        left: 0; 
-        top: 0; 
-        width: 100%; 
-        height: 100%; 
-        overflow: auto; 
-        background-color: rgba(0,0,0,0.6); 
-        justify-content: center; 
-        align-items: center; 
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 99999 !important;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.6);
+        justify-content: center;
+        align-items: center;
     }
     .modal.is-open { display: flex !important; }
-    .modal-content { 
-        background-color: #fefefe; 
-        margin: auto; 
-        padding: 20px; 
-        border: 1px solid #888; 
-        border-radius: 10px; 
-        max-width: 90%; 
-        width: 1200px; 
-        max-height: 90vh; 
-        overflow-y: auto; 
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        border-radius: 10px;
+        max-width: 90%;
+        width: 1200px;
+        max-height: 90vh;
+        overflow-y: auto;
         z-index: 100000 !important;
         position: relative;
     }
-    .close-button { 
-        color: #aaa; 
-        float: right; 
-        font-size: 28px; 
-        font-weight: bold; 
-        cursor: pointer; 
-        line-height: 20px; 
+    .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 20px;
     }
     .close-button:hover { color: #000; }
     
@@ -86,6 +86,31 @@
     }
     .financial-summary .value.positive { color: #10b981; }
     .financial-summary .value.negative { color: #ef4444; }
+
+    /* Styles pour la modale de chargement Instagram */
+    #loading-modal-content {
+        width: 400px;
+        max-width: 90%;
+        text-align: center;
+    }
+    #progress-bar-container {
+        width: 100%;
+        background-color: #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 15px 0;
+    }
+    #progress-bar {
+        width: 0%;
+        height: 20px;
+        background-color: #3B82F6;
+        border-radius: 10px;
+        transition: width 0.3s ease-in-out;
+    }
+    #progress-status {
+        font-size: 14px;
+        color: #4b5563;
+    }
 </style>
 {% endblock %}
 
@@ -300,6 +325,16 @@
     </div>
 </div>
 
+<div id="loading-modal" class="modal">
+    <div id="loading-modal-content" class="modal-content">
+        <h2 class="text-xl font-bold mb-2">Génération du Pack Instagram</h2>
+        <p id="progress-status">Initialisation...</p>
+        <div id="progress-bar-container">
+            <div id="progress-bar"></div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -312,7 +347,6 @@ const viewMode = '{{ view_mode }}';
 const sitePublicUrl = '{{ site_public_url }}';
 let currentEditingTripData = null;
 let balanceDatePicker = null;
-// 🔧 MODIFICATION #4 - Variable pour gérer le workflow de duplication
 let isDuplicating = false; 
 
 // ============================================================================
@@ -326,7 +360,7 @@ function closeModal(modalId) {
 function closeEditModal() {
     const modal = document.getElementById('edit-trip-modal');
     modal.classList.remove('is-open', 'is-editing');
-    isDuplicating = false; // Réinitialiser le statut de duplication
+    isDuplicating = false; 
 }
 
 function openEditView() {
@@ -394,6 +428,7 @@ function renderTable(trips) {
                 <td class="p-3 text-right space-x-2">
                     ${viewOnlineLink}
                     <button onclick="openEditTripModal(${trip.id})" title="Modifier" class="text-yellow-500 text-xl">⚙️</button>
+                    <button onclick="generateInstagramCarousel(event, ${trip.id})" title="Réseaux Sociaux" class="text-pink-500 text-xl">📸</button>
                     <button onclick="sendToWhatsApp(${trip.id}, this)" title="WhatsApp" class="text-green-500 text-xl">✳️</button>
                     <button onclick="openAssignModal(${trip.id})" title="Assigner" class="text-blue-500 text-xl">💰</button>
                     <button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
@@ -506,13 +541,12 @@ async function deleteTrip(tripId) {
     }
 }
 
-// 🔧 MODIFICATION #4 - Nouvelle logique pour le bouton Dupliquer
 async function reproduceTrip(tripId) {
     if (!confirm("Dupliquer ce voyage ? La modale de modification va s'ouvrir pour le personnaliser.")) return;
 
-    isDuplicating = true; // Activer le mode duplication
-    await openEditTripModal(tripId); // Ouvrir la modale d'édition avec les données du voyage source
-    document.getElementById('edit-trip-modal').classList.add('is-editing'); // Passer directement en mode édition
+    isDuplicating = true;
+    await openEditTripModal(tripId);
+    document.getElementById('edit-trip-modal').classList.add('is-editing');
 }
 
 // ============================================================================
@@ -635,7 +669,6 @@ function populateEditForm(tripData) {
     
     const isUltraBudgetChecked = tripData.is_ultra_budget ? 'checked' : '';
     
-    // 🔧 MODIFICATION #4 - Logique des boutons pour la duplication
     const duplicateButtons = isDuplicating ? `
         <button type="button" onclick="handleDuplicateSave('proposed')" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Sauvegarder comme Proposé</button>
         <button type="button" onclick="openAssignModalForDuplicate()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg">Attribuer à un Client</button>
@@ -680,7 +713,6 @@ function populateEditForm(tripData) {
         </div>
     `;
     
-    // 🔧 MODIFICATION #5 - Initialisation des Date Pickers
     new Litepicker({ element: document.getElementById('edit_date_start'), singleMode: true, format: 'YYYY-MM-DD' });
     new Litepicker({ element: document.getElementById('edit_date_end'), singleMode: true, format: 'YYYY-MM-DD' });
     
@@ -736,8 +768,6 @@ async function submitEditTrip(event) {
 // LOGIQUE DE DUPLICATION
 // ============================================================================
 function openAssignModalForDuplicate() {
-    // On réutilise la modale d'assignation existante
-    // Mais on va surcharger son comportement de soumission
     openAssignModal(document.getElementById('trip-id-to-edit').value);
 }
 
@@ -749,14 +779,12 @@ async function handleDuplicateSave(status, clientId = null) {
     updatedData.is_ultra_budget = form.querySelector('input[name="is_ultra_budget"]').checked;
     
     try {
-        // 1. Dupliquer le voyage
         const reproResponse = await fetch(`/api/trip/${sourceTripId}/reproduce`, { method: 'POST' });
         const reproResult = await reproResponse.json();
         if (!reproResult.success) throw new Error(reproResult.message);
         
         const newTripId = reproResult.new_trip_id;
 
-        // 2. Mettre à jour les données du nouveau voyage
         const updateResponse = await fetch(`/api/trip/${newTripId}/update`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -764,7 +792,6 @@ async function handleDuplicateSave(status, clientId = null) {
         });
         if (!updateResponse.ok) throw new Error('Erreur lors de la mise à jour du voyage dupliqué.');
 
-        // 3. Assigner si un client est fourni
         if (status === 'assigned' && clientId) {
             const assignResponse = await fetch(`/api/trip/${newTripId}/assign`, {
                 method: 'POST',
@@ -812,7 +839,6 @@ async function loadClients() {
 }
 
 async function submitAssign() {
-    // Surcharge de la fonction pour gérer la duplication
     if (isDuplicating) {
         const isNewClient = document.getElementById('new-client-form').style.display !== 'none';
         if (isNewClient) {
@@ -828,7 +854,6 @@ async function submitAssign() {
         return;
     }
 
-    // Comportement normal
     const tripId = document.getElementById('assign-trip-id').value;
     const isNewClientNormal = document.getElementById('new-client-form').style.display !== 'none';
     
@@ -1018,6 +1043,153 @@ async function resendInvoice() {
     } catch (error) {
         alert('Erreur réseau');
     }
+}
+
+// ============================================================================
+// FONCTION DE GÉNÉRATION DU CAROUSEL INSTAGRAM
+// ============================================================================
+
+function updateProgress(percentage, statusText) {
+    document.getElementById('progress-bar').style.width = percentage + '%';
+    document.getElementById('progress-status').textContent = statusText;
+}
+
+async function generateInstagramCarousel(event, tripId) {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳';
+    btn.disabled = true;
+    
+    const loadingModal = document.getElementById('loading-modal');
+    loadingModal.classList.add('is-open');
+    updateProgress(0, 'Initialisation...');
+
+    try {
+        updateProgress(5, 'Récupération des données du voyage...');
+        const tripResponse = await fetch(`/api/trip/${tripId}`);
+        if (!tripResponse.ok) throw new Error('Impossible de récupérer les données du voyage.');
+        const tripData = await tripResponse.json();
+        const generatedData = JSON.parse(tripData.full_data_json);
+
+        updateProgress(10, 'Génération du contenu (IA)...');
+        const response = await fetch('/api/generate-instagram-carousel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(generatedData)
+        });
+        if (!response.ok) throw new Error('Erreur serveur lors de la génération du carrousel.');
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Erreur inconnue du serveur.');
+        
+        updateProgress(20, 'Chargement des librairies...');
+        if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+        if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+        
+        updateProgress(25, 'Préparation de l\'environnement de rendu...');
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-99999px';
+        iframe.style.width = '1080px';
+        iframe.style.height = '4320px';
+        document.body.appendChild(iframe);
+        
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(result.html);
+        iframeDoc.close();
+        
+        updateProgress(30, 'Chargement des images...');
+        await new Promise((resolve, reject) => {
+            const images = iframeDoc.getElementsByTagName('img');
+            let loadedCount = 0;
+            const totalImages = images.length;
+            if (totalImages === 0) {
+                resolve();
+                return;
+            }
+            const timeout = setTimeout(() => reject(new Error("Timeout: le chargement des images prend trop de temps.")), 15000);
+
+            const imageLoaded = () => {
+                loadedCount++;
+                if (loadedCount === totalImages) {
+                    clearTimeout(timeout);
+                    setTimeout(resolve, 500);
+                }
+            };
+
+            for (let i = 0; i < totalImages; i++) {
+                if (images[i].complete) {
+                    imageLoaded();
+                } else {
+                    images[i].onload = imageLoaded;
+                    images[i].onerror = () => reject(new Error(`Impossible de charger l'image: ${images[i].src}`));
+                }
+            }
+        });
+        
+        const slides = iframeDoc.querySelectorAll('.slide');
+        const zip = new JSZip();
+        
+        for (let i = 0; i < slides.length; i++) {
+            const progress = 30 + Math.round((i / slides.length) * 50);
+            updateProgress(progress, `Capture du slide ${i + 1}/${slides.length}...`);
+            
+            const slide = slides[i];
+            const canvas = await html2canvas(slide, {
+                width: 1080, height: 1080, scale: 2,
+                useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false
+            });
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+            zip.file(`slide_${i + 1}.jpg`, blob);
+        }
+        
+        updateProgress(85, 'Ajout des textes...');
+        zip.file('caption.txt', result.caption);
+        zip.file('hashtags.txt', result.hashtags);
+        const guide = `GUIDE D'UTILISATION - CAROUSEL INSTAGRAM\n========================================\n\n1. Ouvrez Instagram et créez un post carousel.\n2. Ajoutez les 4 slides DANS L'ORDRE (1, 2, 3, 4).\n3. Copiez le contenu de caption.txt dans la légende.\n4. Ajoutez les hashtags de hashtags.txt.\n5. Publiez ! 🚀`;
+        zip.file('GUIDE.txt', guide);
+        
+        document.body.removeChild(iframe);
+        
+        updateProgress(95, 'Création du fichier ZIP...');
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const hotelName = generatedData.form_data.hotel_name.split(',')[0].trim();
+        const filename = `instagram_${hotelName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.zip`;
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        
+        updateProgress(100, 'Terminé !');
+        setTimeout(() => loadingModal.classList.remove('is-open'), 1000);
+
+    } catch (error) {
+        loadingModal.classList.remove('is-open');
+        console.error('❌ Erreur:', error);
+        alert(`❌ Erreur lors de la génération du pack Instagram:\n\n${error.message}`);
+    } finally {
+        btn.innerHTML = '📸';
+        btn.disabled = false;
+    }
+}
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
 }
 
 // ============================================================================

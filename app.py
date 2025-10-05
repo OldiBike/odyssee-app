@@ -8,6 +8,7 @@ from datetime import datetime, date, timedelta
 import traceback
 from functools import wraps
 from werkzeug.utils import secure_filename
+import urllib.parse
 
 from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -17,7 +18,7 @@ if os.path.exists(dotenv_path):
 else:
     print("⚠️ Fichier .env introuvable au chemin:", dotenv_path)
 
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response, g
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response, g, send_file
 from flask_migrate import Migrate
 from flask_mail import Mail, Message
 from flask_cors import CORS
@@ -166,12 +167,10 @@ def create_app(config_class=Config):
     def generate_preview():
         if g.user.role == 'vendeur':
             today = date.today()
-            # 🔧 MODIFICATION #1 - CORRECTION QUOTA API
-            # Gère le cas où la date est None (nouveau vendeur) ou différente d'aujourd'hui
             if g.user.last_generation_date is None or g.user.last_generation_date != today:
                 g.user.generation_count = 0
                 g.user.last_generation_date = today
-                db.session.commit() # Sauvegarde le reset immédiatement
+                db.session.commit()
 
             if g.user.generation_count >= g.user.daily_generation_limit:
                 return jsonify({'success': False, 'error': f"Quota de {g.user.daily_generation_limit} générations atteint."}), 429
@@ -205,10 +204,51 @@ def create_app(config_class=Config):
             return jsonify({'success': True, 'form_data': data, 'api_data': real_data, 'margin': margin, 'savings': savings, 'comparison_total': comparison_total})
         except Exception as e:
             if g.user.role == 'vendeur':
-                g.user.generation_count -= 1 # Décrémente en cas d'erreur
+                g.user.generation_count -= 1
                 db.session.commit()
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/generate-instagram-carousel', methods=['POST'])
+    @login_required
+    def generate_instagram_carousel_route():
+        """Génère le carousel Instagram avec légende et hashtags"""
+        try:
+            data = request.get_json()
+            from services_instagram import generate_instagram_carousel
+            result = generate_instagram_carousel(
+                data.get('form_data'),
+                data.get('api_data')
+            )
+            return jsonify({
+                'success': True,
+                'html': result['html'],
+                'caption': result['caption'],
+                'hashtags': result['hashtags']
+            })
+        except Exception as e:
+            print(f"❌ Erreur génération carousel: {e}")
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/image-proxy')
+    def image_proxy():
+        """Proxy pour contourner les problèmes de CORS avec les images externes."""
+        url = request.args.get('url')
+        if not url:
+            return "URL manquante", 400
+        
+        try:
+            response = requests.get(url, stream=True, timeout=15)
+            response.raise_for_status()
+            
+            return send_file(
+                io.BytesIO(response.content),
+                mimetype=response.headers.get('Content-Type', 'image/jpeg')
+            )
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Erreur proxy image: {e}")
+            return f"Erreur lors de la récupération de l'image: {e}", 500
 
     @app.route('/api/render-html-preview', methods=['POST'])
     @login_required
@@ -353,7 +393,6 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
     
-    # 🔧 MODIFICATION #4 - ROUTE POUR DUPLIQUER UN VOYAGE
     @app.route('/api/trip/<int:trip_id>/reproduce', methods=['POST'])
     @login_required
     def reproduce_trip(trip_id):
@@ -361,13 +400,13 @@ def create_app(config_class=Config):
             source_trip = Trip.query.get_or_404(trip_id)
 
             new_trip = Trip(
-                user_id=g.user.id, # Attribuer au nouvel utilisateur
-                client_id=None, # Toujours commencer sans client
+                user_id=g.user.id,
+                client_id=None,
                 full_data_json=source_trip.full_data_json,
                 hotel_name=source_trip.hotel_name,
                 destination=source_trip.destination,
                 price=source_trip.price,
-                status='proposed', # Toujours commencer en 'proposed'
+                status='proposed',
                 is_ultra_budget=source_trip.is_ultra_budget
             )
             db.session.add(new_trip)
@@ -897,8 +936,6 @@ def create_app(config_class=Config):
     def handle_sellers():
         if request.method == 'GET':
             today = date.today()
-            # 🔧 MODIFICATION #1 - CORRECTION QUOTA API
-            # Gère les cas où la date est None (nouveau vendeur)
             users_to_reset = User.query.filter(User.role == 'vendeur').filter(
                 or_(User.last_generation_date == None, User.last_generation_date != today)
             ).all()
@@ -931,7 +968,6 @@ def create_app(config_class=Config):
                 db.session.rollback()
                 return jsonify({'success': False, 'message': str(e)}), 500
 
-    # 🔧 MODIFICATION #3 - NOUVELLE ROUTE POUR LES STATS VENDEUR
     @app.route('/api/seller/<int:user_id>/stats', methods=['GET'])
     @admin_required
     def get_seller_stats(user_id):

@@ -140,7 +140,10 @@ def create_app(config_class=Config):
     @app.route('/dashboard')
     @login_required
     def dashboard():
-        return render_template('dashboard.html', view_mode=request.args.get('view', 'proposed'), site_public_url=app.config.get('SITE_PUBLIC_URL', ''))
+        return render_template('dashboard.html', 
+                               view_mode=request.args.get('view', 'proposed'), 
+                               site_public_url=app.config.get('SITE_PUBLIC_URL', ''),
+                               current_user_id=session.get('user_id'))
 
     @app.route('/sellers')
     @admin_required
@@ -424,8 +427,10 @@ def create_app(config_class=Config):
     def get_trips():
         status = request.args.get('status', 'proposed')
         query = Trip.query.filter_by(status=status)
-        if g.user.role == 'vendeur':
-            query = query.filter_by(user_id=g.user.id)
+        
+        # Les vendeurs voient tous les voyages, la logique d'affichage des boutons est dans le frontend.
+        # Le filtre par vendeur a été retiré.
+        
         trips = query.order_by(desc(Trip.created_at)).all()
         return jsonify([trip.to_dict() for trip in trips])
 
@@ -433,24 +438,33 @@ def create_app(config_class=Config):
     @login_required
     def handle_trip(trip_id):
         trip = Trip.query.get_or_404(trip_id)
-        
-        if g.user.role == 'vendeur' and trip.user_id != g.user.id:
-            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
 
         if request.method == 'GET':
+            # N'importe quel utilisateur connecté peut voir les détails.
             trip_details = trip.to_dict()
             trip_details['full_data_json'] = trip.full_data_json
             trip_details['user_margin_percentage'] = trip.user.margin_percentage 
             return jsonify(trip_details)
 
         if request.method == 'DELETE':
-            if g.user.role != 'admin' and trip.user_id != g.user.id:
-                return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
-                
+            # Un admin peut tout supprimer.
+            if g.user.role == 'admin':
+                pass # Autorisé
+            # Restrictions pour les vendeurs
+            elif g.user.role == 'vendeur':
+                # Un vendeur ne peut pas supprimer un voyage vendu.
+                if trip.status == 'sold':
+                    return jsonify({'success': False, 'message': 'Action non autorisée : vous ne pouvez pas supprimer un voyage vendu.'}), 403
+                # Un vendeur ne peut supprimer que ses propres voyages.
+                if trip.user_id != g.user.id:
+                    return jsonify({'success': False, 'message': 'Action non autorisée : vous ne pouvez supprimer que vos propres voyages.'}), 403
+            
+            # Si on arrive ici, la suppression est autorisée.
             if trip.is_published and trip.published_filename:
                 publication_service.unpublish(trip.published_filename)
             if trip.client_published_filename:
                 publication_service.unpublish(trip.client_published_filename, is_client_offer=True)
+            
             db.session.delete(trip)
             db.session.commit()
             return jsonify({'success': True, 'message': 'Voyage supprimé.'})

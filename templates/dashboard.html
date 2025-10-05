@@ -348,6 +348,8 @@ const sitePublicUrl = '{{ site_public_url }}';
 let currentEditingTripData = null;
 let balanceDatePicker = null;
 let isDuplicating = false; 
+const currentUserId = {{ current_user_id|tojson }};
+const isAdmin = "{{ session.get('role') }}" === 'admin';
 
 // ============================================================================
 // FONCTIONS UTILITAIRES
@@ -408,11 +410,18 @@ function renderTable(trips) {
         row.className = 'border-b border-slate-100 hover:bg-slate-50';
         row.dataset.tripId = trip.id;
         
+        const isOwner = trip.user_id === currentUserId;
         let rowHtml = '';
+
         if (viewMode === 'proposed') {
             const viewOnlineLink = trip.is_published 
                 ? `<a href="${sitePublicUrl}/offres/${trip.published_filename}" target="_blank" title="Voir en ligne" class="text-blue-500 text-xl">👁️</a>`
                 : `<span class="text-gray-400 text-xl">👁️</span>`;
+            
+            let deleteButton = '';
+            if (isOwner || isAdmin) {
+                deleteButton = `<button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>`;
+            }
             
             rowHtml = `
                 <td class="p-3 text-sm text-slate-600">${trip.created_at}</td>
@@ -431,26 +440,40 @@ function renderTable(trips) {
                     <button onclick="generateInstagramCarousel(event, ${trip.id})" title="Réseaux Sociaux" class="text-pink-500 text-xl">📸</button>
                     <button onclick="sendToWhatsApp(${trip.id}, this)" title="WhatsApp" class="text-green-500 text-xl">✳️</button>
                     <button onclick="openAssignModal(${trip.id})" title="Assigner" class="text-blue-500 text-xl">💰</button>
-                    <button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
+                    ${deleteButton}
                 </td>`;
         } else if (viewMode === 'assigned') {
             const viewClientLink = trip.client_published_filename
                 ? `<a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" class="text-blue-500 text-xl">👁️</a>`
                 : `<span class="text-gray-400 text-xl">👁️</span>`;
             
-            rowHtml = `
-                <td class="p-3 text-sm text-slate-600">${trip.assigned_at}</td>
-                <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
-                <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
-                <td class="p-3 text-right space-x-2">
+            let actionButtons = '';
+            if (isOwner || isAdmin) {
+                actionButtons = `
                     ${viewClientLink}
                     <button onclick="openEditTripModal(${trip.id})" title="Ajuster" class="text-yellow-500 text-xl">⚙️</button>
                     <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
                     <button onclick="openSendOfferModal(${trip.id})" title="Envoyer Offre" class="text-purple-500 text-xl">💸</button>
                     <button onclick="openFinalizeSaleModal(${trip.id})" title="Marquer Payé" class="text-green-500 text-xl">✅</button>
                     <button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
-                </td>`;
+                `;
+            } else {
+                actionButtons = `
+                    ${viewClientLink}
+                    <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
+                `;
+            }
+
+            rowHtml = `
+                <td class="p-3 text-sm text-slate-600">${trip.assigned_at}</td>
+                <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
+                <td class="p-3 text-sm text-slate-600">${trip.client_full_name}</td>
+                <td class="p-3 text-right space-x-2">${actionButtons}</td>`;
         } else if (viewMode === 'sold') {
+            let deleteButton = '';
+            if (isAdmin) {
+                deleteButton = `<button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>`;
+            }
             rowHtml = `
                 <td class="p-3 text-sm text-slate-600">${trip.sold_at || 'N/A'}</td>
                 <td class="p-3 font-medium text-slate-800">${trip.hotel_name}</td>
@@ -460,7 +483,7 @@ function renderTable(trips) {
                     <a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" class="text-blue-500 text-xl">👁️</a>
                     <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
                     <button onclick="openInvoiceModal(${trip.id})" title="Facture" class="text-blue-500 text-xl">🧾</button>
-                    <button onclick="deleteTrip(${trip.id})" title="Supprimer" class="text-red-500 text-xl">🗑️</button>
+                    ${deleteButton}
                 </td>`;
         }
         

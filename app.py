@@ -1101,6 +1101,56 @@ def create_app(config_class=Config):
         output.seek(0)
         return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment;filename=export_ventes.csv"})
 
+    @app.route('/api/published-trips')
+    def get_published_trips():
+        """API publique pour récupérer tous les voyages publiés (pour la galerie)."""
+        try:
+            published_trips = Trip.query.filter_by(is_published=True).order_by(desc(Trip.created_at)).all()
+            
+            trips_data = []
+            for trip in published_trips:
+                try:
+                    full_data = json.loads(trip.full_data_json)
+                    form_data = full_data.get('form_data', {})
+                    api_data = full_data.get('api_data', {})
+                    
+                    # Calculer la durée du séjour
+                    duration = 0
+                    if form_data.get('date_start') and form_data.get('date_end'):
+                        from datetime import datetime
+                        start = datetime.strptime(form_data['date_start'], '%Y-%m-%d')
+                        end = datetime.strptime(form_data['date_end'], '%Y-%m-%d')
+                        duration = (end - start).days
+                    
+                    # Première photo ou image par défaut
+                    photos = api_data.get('photos', [])
+                    image_url = photos[0] if photos else ''
+                    
+                    # URL de l'offre publique
+                    offer_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/offres/{trip.published_filename}"
+                    
+                    trips_data.append({
+                        'id': trip.id,
+                        'hotel_name': trip.hotel_name,
+                        'destination': trip.destination,
+                        'price': trip.price,
+                        'num_people': int(form_data.get('num_people', 2)),
+                        'duration': duration,
+                        'savings': full_data.get('savings', 0),
+                        'is_ultra_budget': trip.is_ultra_budget,
+                        'image_url': image_url,
+                        'offer_url': offer_url
+                    })
+                except Exception as e:
+                    print(f"❌ Erreur lors du traitement du voyage ID {trip.id}: {e}")
+                    continue
+            
+            return jsonify(trips_data)
+        except Exception as e:
+            print(f"❌ Erreur API published-trips: {e}")
+            traceback.print_exc()
+            return jsonify([]), 500
+
     @app.route('/api/stats')
     @login_required
     def get_stats_data():

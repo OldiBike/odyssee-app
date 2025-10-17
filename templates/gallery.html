@@ -118,6 +118,14 @@
                     }
 
                     trips.forEach(trip => {
+                        // Debug : afficher les données du voyage
+                        console.log('Trip data:', {
+                            hotel: trip.hotel_name,
+                            num_people: trip.num_people,
+                            num_children: trip.num_children,
+                            type_num_children: typeof trip.num_children
+                        });
+                        
                         let bottomBannerHTML = '';
                         if (trip.is_ultra_budget) {
                             bottomBannerHTML = `<div class="mt-2 inline-block bg-red-100 text-red-800 text-sm font-semibold px-3 py-1 rounded-full">Ultra Budget</div>`;

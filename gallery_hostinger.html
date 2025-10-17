@@ -133,6 +133,16 @@
                             const days = nights + 1;
                             durationHTML = `<p class="text-xs text-slate-500">${days} jours / ${nights} nuits</p>`;
                         }
+                        
+                        // Construction du texte pour le nombre de personnes/enfants
+                        let peopleText = '';
+                        if (trip.num_children && trip.num_children > 0) {
+                            const personnes = trip.num_people > 1 ? 'personnes' : 'personne';
+                            const enfants = trip.num_children > 1 ? 'enfants' : 'enfant';
+                            peopleText = `pour ${trip.num_people} ${personnes} + ${trip.num_children} ${enfants}`;
+                        } else {
+                            peopleText = `pour ${trip.num_people} ${trip.num_people > 1 ? 'personnes' : 'personne'}`;
+                        }
 
                         const card = `
                             <div class="gallery-card">
@@ -145,7 +155,7 @@
                                         </div>
                                         <div class="mt-4">
                                             <p class="text-xl font-bold text-blue-600">À partir de ${trip.price}€</p>
-                                            <p class="text-xs text-slate-500">pour ${trip.num_people} personnes</p>
+                                            <p class="text-xs text-slate-500">${peopleText}</p>
                                             ${durationHTML}
                                             ${bottomBannerHTML}
                                         </div>

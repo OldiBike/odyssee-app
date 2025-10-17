@@ -1129,12 +1129,16 @@ def create_app(config_class=Config):
                     # URL de l'offre publique
                     offer_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/offres/{trip.published_filename}"
                     
+                    num_people = int(form_data.get('num_people', 2))
+                    num_children = int(form_data.get('num_children', 0))
+                    
                     trips_data.append({
                         'id': trip.id,
                         'hotel_name': trip.hotel_name,
                         'destination': trip.destination,
                         'price': trip.price,
-                        'num_people': int(form_data.get('num_people', 2)),
+                        'num_people': num_people,
+                        'num_children': num_children,
                         'duration': duration,
                         'savings': full_data.get('savings', 0),
                         'is_ultra_budget': trip.is_ultra_budget,

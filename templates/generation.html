@@ -66,7 +66,17 @@
             </div>
             <div class="form-row">
                 <div class="form-group"><label for="stars">⭐ Catégorie de l'hôtel</label><select id="stars" name="stars"><option value="2">2⭐</option><option value="3">3⭐</option><option value="4" selected>4⭐</option><option value="5">5⭐</option></select></div>
-                <div class="form-group"><label for="num_people">👥 Nombre de personnes</label><input type="number" id="num_people" name="num_people" value="2" min="1"></div>
+                <div class="form-group">
+                    <label for="num_people">👥 Nombre de personnes</label>
+                    <input type="number" id="num_people" name="num_people" value="2" min="1">
+                    <button type="button" id="toggleChildrenBtn" style="margin-top: 8px; padding: 6px 12px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 16px;">➕</span> Ajouter des enfants
+                    </button>
+                    <div id="children_wrapper" style="display:none; margin-top: 10px;">
+                        <label for="num_children">👶 Nombre d'enfants</label>
+                        <input type="number" id="num_children" name="num_children" value="0" min="0" placeholder="Nombre d'enfants">
+                    </div>
+                </div>
             </div>
 
             <h3 class="section-divider"><span>Détails du Vol & Transferts</span></h3>
@@ -222,6 +232,17 @@
 
         document.getElementById('toggleInstagramBtn').addEventListener('click', function() {
             document.getElementById('instagram_wrapper').style.display = document.getElementById('instagram_wrapper').style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.getElementById('toggleChildrenBtn').addEventListener('click', function() {
+            const wrapper = document.getElementById('children_wrapper');
+            if (wrapper.style.display === 'block') {
+                wrapper.style.display = 'none';
+                this.innerHTML = '<span style="font-size: 16px;">➕</span> Ajouter des enfants';
+            } else {
+                wrapper.style.display = 'block';
+                this.innerHTML = '<span style="font-size: 16px;">➖</span> Retirer les enfants';
+            }
         });
 
         const hotelInput = document.getElementById('hotel_name');

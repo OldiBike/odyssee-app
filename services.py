@@ -330,10 +330,21 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     date_end = datetime.strptime(data['date_end'], '%Y-%m-%d').strftime('%d %B %Y')
     stars = "⭐" * int(data.get('stars') or 0)
     num_people = int(data.get('num_people') or 2)
-    price_for_text = f"pour {num_people} personnes" if num_people > 1 else "pour 1 personne"
+    num_children = int(data.get('num_children') or 0)
+    
+    # Construction du texte pour le nombre de personnes/enfants
+    if num_children > 0:
+        people_text = f"{num_people} personne{'s' if num_people > 1 else ''}"
+        children_text = f"{num_children} enfant{'s' if num_children > 1 else ''}"
+        price_for_text = f"pour {people_text} + {children_text}"
+    else:
+        price_for_text = f"pour {num_people} personnes" if num_people > 1 else "pour 1 personne"
     
     your_price = int(data.get('pack_price') or 0)
-    price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>' if num_people > 0 else ""
+    # N'afficher le prix par personne que s'il n'y a pas d'enfants
+    price_per_person_text = ''
+    if num_children == 0 and num_people > 0:
+        price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>'
     
     is_ultra_budget = data.get('is_ultra_budget', False)
 

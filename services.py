@@ -321,13 +321,30 @@ class RealAPIGatherer:
 def generate_travel_page_html(data, real_data, savings, comparison_total, creator_pseudo=None):
     """Génère le contenu HTML complet de la page de voyage."""
     
+    # Dictionnaire pour traduire les mois en français
+    mois_fr = {
+        'January': 'janvier', 'February': 'février', 'March': 'mars', 'April': 'avril',
+        'May': 'mai', 'June': 'juin', 'July': 'juillet', 'August': 'août',
+        'September': 'septembre', 'October': 'octobre', 'November': 'novembre', 'December': 'décembre'
+    }
+    
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()
     display_address = ', '.join(hotel_name_parts[1:]).strip() if len(hotel_name_parts) > 1 else data.get('destination', '')
 
-    date_start = datetime.strptime(data['date_start'], '%Y-%m-%d').strftime('%d %B %Y')
-    date_end = datetime.strptime(data['date_end'], '%Y-%m-%d').strftime('%d %B %Y')
+    # Formater les dates en français
+    date_start_obj = datetime.strptime(data['date_start'], '%Y-%m-%d')
+    date_start_en = date_start_obj.strftime('%d %B %Y')
+    date_start = date_start_en
+    for eng, fr in mois_fr.items():
+        date_start = date_start.replace(eng, fr)
+    
+    date_end_obj = datetime.strptime(data['date_end'], '%Y-%m-%d')
+    date_end_en = date_end_obj.strftime('%d %B %Y')
+    date_end = date_end_en
+    for eng, fr in mois_fr.items():
+        date_end = date_end.replace(eng, fr)
     stars = "⭐" * int(data.get('stars') or 0)
     num_people = int(data.get('num_people') or 2)
     num_children = int(data.get('num_children') or 0)

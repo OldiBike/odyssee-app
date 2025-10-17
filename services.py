@@ -12,12 +12,13 @@ import unidecode
 class PublicationService:
     """Gère la publication (upload, suppression) des fiches de voyage."""
     def __init__(self, config):
-        self.api_url = 'https://www.voyages-privileges.be/api/upload.php'
-        self.api_key = 'SecretUploadKey2025'
+        self.api_url = config.get('UPLOAD_API_URL') or os.environ.get('UPLOAD_API_URL', 'https://www.voyages-privileges.be/api/upload.php')
+        self.api_key = config.get('UPLOAD_API_KEY') or os.environ.get('UPLOAD_API_KEY', 'SecretUploadKey2025')
         
         print(f"📡 Configuration Publication:")
         print(f"   Mode: API HTTP (Railway compatible)")
         print(f"   API URL: {self.api_url}")
+        print(f"   API Key: {self.api_key[:10]}... (tronquée pour sécurité)")
 
     def _upload_via_api(self, filename, content_bytes, directory):
         """Méthode unifiée pour uploader des fichiers via l'API de publication."""

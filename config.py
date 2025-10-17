@@ -42,3 +42,7 @@ class Config:
     # URLs
     SITE_PUBLIC_URL = os.environ.get('SITE_PUBLIC_URL')
     N8N_WHATSAPP_WEBHOOK = os.environ.get('N8N_WHATSAPP_WEBHOOK')
+    
+    # Configuration API de publication (Hostinger)
+    UPLOAD_API_URL = os.environ.get('UPLOAD_API_URL')
+    UPLOAD_API_KEY = os.environ.get('UPLOAD_API_KEY')

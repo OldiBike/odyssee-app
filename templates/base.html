@@ -12,6 +12,9 @@
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .nav-link { padding: 0.75rem 1rem; color: #475569; font-weight: 500; border-bottom: 3px solid transparent; transition: all 0.2s ease-in-out; white-space: nowrap; }
         .nav-link.active, .nav-link:hover { color: #2563eb; border-bottom-color: #2563eb; }
+        .mobile-menu { display: none; }
+        .mobile-menu.active { display: block; }
+        .hamburger { cursor: pointer; }
     </style>
     {% block head_extra %}{% endblock %}
 </head>
@@ -23,6 +26,15 @@
                     <div class="flex-shrink-0">
                         <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo" class="h-10">
                     </div>
+                    
+                    <!-- Bouton hamburger pour mobile -->
+                    <button class="md:hidden hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Navigation desktop -->
                     <nav class="hidden md:flex items-center space-x-2 overflow-x-auto">
                         <a href="{{ url_for('generation_tool') }}" class="nav-link {% if request.endpoint == 'generation_tool' %}active{% endif %}">Génération</a>
                         <a href="{{ url_for('dashboard', view='proposed') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view', 'proposed') == 'proposed' %}active{% endif %}">Proposés</a>
@@ -36,11 +48,29 @@
                         <a href="{{ url_for('sellers_page') }}" class="nav-link {% if request.endpoint == 'sellers_page' %}active{% endif %}">Vendeurs</a>
                         {% endif %}
                     </nav>
-                    <div class="text-right flex items-center">
+                    
+                    <div class="text-right flex items-center md:flex">
                         <span class="text-sm text-gray-600 hidden sm:inline">👤 {{ session.get('pseudo', 'Utilisateur') }}</span>
                         <a href="{{ url_for('logout') }}" class="ml-4 text-sm text-red-600 hover:underline">Déconnexion</a>
                     </div>
                 </div>
+                
+                <!-- Menu mobile -->
+                <nav id="mobile-menu" class="mobile-menu md:hidden pb-4">
+                    <div class="flex flex-col space-y-1">
+                        <a href="{{ url_for('generation_tool') }}" class="nav-link {% if request.endpoint == 'generation_tool' %}active{% endif %}">Génération</a>
+                        <a href="{{ url_for('dashboard', view='proposed') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view', 'proposed') == 'proposed' %}active{% endif %}">Proposés</a>
+                        <a href="{{ url_for('dashboard', view='assigned') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'assigned' %}active{% endif %}">Clients</a>
+                        <a href="{{ url_for('dashboard', view='sold') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'sold' %}active{% endif %}">Vendus</a>
+                        <a href="{{ url_for('clients_page') }}" class="nav-link {% if request.endpoint == 'clients_page' %}active{% endif %}">CRM Clients</a>
+                        <a href="{{ url_for('sales_report_page') }}" class="nav-link {% if request.endpoint == 'sales_report_page' %}active{% endif %}">Rapport Ventes</a>
+                        <a href="{{ url_for('stats_page') }}" class="nav-link {% if request.endpoint == 'stats_page' %}active{% endif %}">Statistiques</a>
+                        
+                        {% if session.get('role') == 'admin' %}
+                        <a href="{{ url_for('sellers_page') }}" class="nav-link {% if request.endpoint == 'sellers_page' %}active{% endif %}">Vendeurs</a>
+                        {% endif %}
+                    </div>
+                </nav>
             </div>
         </header>
 
@@ -48,6 +78,12 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('active');
+        }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -402,6 +402,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-400"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages à main uniquement</h4><p class="text-gray-600 text-xs">Pas de bagages cabine</p></div></div>'
     elif baggage_option == 'bagages 10 kilos':
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 10 kilos</h4><p class="text-gray-600 text-xs">1 bagage inclus par personne en cabine</p></div></div>'
+    elif baggage_option == 'Bagage 20 kilos':
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage en soute inclus par personne</p></div></div>'
     elif baggage_option == 'bagages 10 kilos + 1x 20 kilos':
         baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10 kilos + 1x 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage 10 kilos inclus par personne en cabine et un bagage 20 kilo en soute</p></div></div>'
     elif baggage_option == 'Pas de bagages':

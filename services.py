@@ -612,11 +612,13 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     <script src="https://cdn.tailwindcss.com?plugins=aspect-ratio"></script>
     <style>
         body {{ font-family: 'Poppins', sans-serif; }} .section-title {{ font-family: 'Playfair Display', serif; }}
+        .main-container {{ max-width: 600px; margin: auto; padding: 10px; }}
         .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; }}
         .story-card, .instagram-card + .instagram-card {{ margin-top: 20px; }}
         .story-card {{ {story_card_style} border-radius: 25px; padding: 25px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); margin-top: 0; }}
         .image-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }}
         .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px;}}
+        .reviews-grid {{ display: grid; grid-template-columns: 1fr; gap: 16px; }}
         .economy-highlight {{ background: linear-gradient(45deg, #ffd700, #ffb347); color: #333; padding: 15px; border-radius: 15px; text-align: center; margin-top: 20px; font-weight: bold;}}
         .feature-icon {{ width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }}
         .modal-photos {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; overflow-y: auto; padding: 20px; }}
@@ -625,11 +627,27 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         .close-photos:hover {{ background: rgba(255,255,255,0.2); }}
         .modal-photo {{ width: 100%; margin-bottom: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }}
         .photo-counter {{ position: fixed; top: 20px; left: 30px; color: white; background: rgba(0,0,0,0.5); padding: 10px 15px; border-radius: 20px; font-weight: bold; z-index: 1001; }}
+        
+        /* Tablette (640px - 1023px) */
+        @media (min-width: 640px) and (max-width: 1023px) {{
+            .main-container {{ max-width: 900px; padding: 20px; }}
+        }}
+        
+        /* PC (1024px et plus) - Optimisation large écran */
+        @media (min-width: 1024px) {{
+            .main-container {{ max-width: 1200px; padding: 30px; }}
+            .image-grid {{ grid-template-columns: repeat(3, 1fr); gap: 20px; }}
+            .image-item img {{ height: 250px; }}
+            .reviews-grid {{ grid-template-columns: repeat(2, 1fr); gap: 20px; }}
+            .story-card {{ padding: 40px; }}
+            .instagram-card {{ padding: 30px !important; }}
+        }}
+        
         @media (max-width: 768px) {{ .close-photos {{ top: 15px; right: 15px; font-size: 30px; width: 40px; height: 40px; }} .photo-counter {{ top: 15px; left: 15px; padding: 8px 12px; font-size: 14px; }} .modal-photos-content {{ padding-top: 80px; padding-left: 10px; padding-right: 10px; }} }}
     </style>
 </head>
 <body>
-    <div style="max-width: 600px; margin: auto; padding: 10px;">
+    <div class="main-container">
         <div style="text-align: center; padding-top: 20px; padding-bottom: 10px;">
             <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" style="max-height: 50px; margin: auto;">
         </div>
@@ -655,7 +673,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>
         <div id="photosModal" class="modal-photos"><span class="close-photos" id="closePhotos">×</span><div class="photo-counter" id="photoCounter">Photo 1 sur {total_photos}</div><div class="modal-photos-content">{modal_all_photos}</div></div>
         {video_html_block}
-        <div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Avis des clients</h3><div class="space-y-4">{reviews_section}</div></div>
+        <div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Avis des clients</h3><div class="reviews-grid">{reviews_section}</div></div>
         <div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Découvrir {city_name}</h3>{destination_section}</div>
         {footer_html}
     </div>

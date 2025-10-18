@@ -454,7 +454,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         <div class="mt-4 p-3 rounded-lg border-2 border-red-200 bg-red-50 text-sm">
             <h4 class="font-bold text-red-800 mb-2">⚠️ Tarif minimum avec les conditions suivantes :</h4>
             <ul class="text-xs text-red-700 list-none pl-0">{conditions_list_html}</ul>
-            <p class="text-xs text-blue-700 mt-2">💡 Possibilité d’ajouter des services à la carte sur demande.</p>
+            <p class="text-xs text-blue-700 mt-2">💡 Possibilité d'ajouter des services à la carte sur demande.</p>
         </div>
         '''
         pricing_block_html = f"""
@@ -465,19 +465,35 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         </div>
         """
     else:
-        comparison_block = f"""
-            <div class="flex justify-between"><span>Hôtel ({data.get('stars')}⭐)</span><span class="font-semibold">{data.get('hotel_b2c_price', 'N/A')} €</span></div>
-            {flight_text_html}{transfer_text_html}{car_rental_text_html}{surcharge_text_html}
-            <hr class="my-3"><div class="flex justify-between text-base font-bold text-red-600"><span>TOTAL ESTIMÉ</span><span>{comparison_total} €</span></div>
-        """
-        pricing_block_html = f"""
-        <div class="instagram-card p-6">
-            <h3 class="section-title text-xl mb-4">Pourquoi nous choisir ?</h3>
-            <div class="p-4 rounded-lg border-2 border-red-200 bg-red-50 mb-4"><h4 class="font-bold text-center mb-2">Prix estimé ailleurs</h4><div class="text-sm space-y-1">{comparison_block}</div></div>{exclusive_services_html}
-            <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
-            <div class="economy-highlight">💰 Vous économisez {savings} € !</div>
-        </div>
-        """
+        # Vérifier si l'économie est inférieure à 45€
+        if savings < 45:
+            # Si économie < 45€ et qu'il y a des services additionnels, afficher un bloc simplifié
+            if data.get('exclusive_services', '').strip():
+                pricing_block_html = f"""
+                <div class="instagram-card p-6">
+                    <h3 class="section-title text-xl mb-4">Nos services exclusifs inclus</h3>
+                    {exclusive_services_html}
+                    <div class="p-4 rounded-lg bg-green-600 text-white mt-4"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
+                </div>
+                """
+            else:
+                # Si économie < 45€ et pas de services additionnels, ne pas afficher le bloc
+                pricing_block_html = ""
+        else:
+            # Économie >= 45€, afficher le bloc complet "Pourquoi nous choisir ?"
+            comparison_block = f"""
+                <div class="flex justify-between"><span>Hôtel ({data.get('stars')}⭐)</span><span class="font-semibold">{data.get('hotel_b2c_price', 'N/A')} €</span></div>
+                {flight_text_html}{transfer_text_html}{car_rental_text_html}{surcharge_text_html}
+                <hr class="my-3"><div class="flex justify-between text-base font-bold text-red-600"><span>TOTAL ESTIMÉ</span><span>{comparison_total} €</span></div>
+            """
+            pricing_block_html = f"""
+            <div class="instagram-card p-6">
+                <h3 class="section-title text-xl mb-4">Pourquoi nous choisir ?</h3>
+                <div class="p-4 rounded-lg border-2 border-red-200 bg-red-50 mb-4"><h4 class="font-bold text-center mb-2">Prix estimé ailleurs</h4><div class="text-sm space-y-1">{comparison_block}</div></div>{exclusive_services_html}
+                <div class="p-4 rounded-lg bg-green-600 text-white"><h4 class="font-bold text-center mb-2">Notre Offre</h4><div class="text-center text-2xl font-bold">{your_price} €</div>{cancellation_html}</div>
+                <div class="economy-highlight">💰 Vous économisez {savings} € !</div>
+            </div>
+            """
     
     total_photos = len(real_data['photos']) if real_data.get('photos') else 0
     image_gallery = "".join([f'<div class="image-item"><img src="{url}" alt="Photo de {data["hotel_name"]}"></div>' for url in real_data.get('photos', [])[:6]]) or '<p>Aucune photo disponible.</p>'

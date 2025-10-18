@@ -44,6 +44,13 @@
         .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
         .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .html-textarea { width: 100%; height: 400px; border: 1px solid #ccc; padding: 10px; font-family: monospace; white-space: pre; overflow: auto; resize: vertical; border-radius: 5px; }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; max-height: 500px; overflow-y: auto; }
+        .photo-item { position: relative; cursor: pointer; border: 3px solid transparent; border-radius: 8px; overflow: hidden; transition: all 0.3s; }
+        .photo-item:hover { border-color: #3B82F6; transform: scale(1.05); }
+        .photo-item.selected { border-color: #28a745; box-shadow: 0 0 15px rgba(40, 167, 69, 0.5); }
+        .photo-item img { width: 100%; height: 150px; object-fit: cover; display: block; }
+        .photo-item .check-mark { position: absolute; top: 10px; right: 10px; background: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: none; align-items: center; justify-content: center; font-weight: bold; }
+        .photo-item.selected .check-mark { display: flex; }
         .cost-calculator { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; background-color: #f8fafc; padding: 10px; border-radius: 10px; margin-top: -10px; margin-bottom: 25px; }
         .cost-calculator div { text-align: center; }
         .cost-calculator p { margin: 0; color: #4b5563; font-weight: 500; font-size: 12px; }
@@ -152,6 +159,18 @@
         <textarea id="htmlCodeDisplay" class="html-textarea" readonly></textarea>
         <button id="copyHtmlCodeBtn" class="html-code-btn" style="margin-top: 15px;">📋 Copier le code</button>
         <div id="copyStatus" style="text-align:center; font-size: 14px; color: green; margin-top: 5px;"></div>
+    </div>
+</div>
+
+<div id="changeImageModal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+        <span class="close-button">×</span>
+        <h2>Choisir l'image principale</h2>
+        <p style="color: #666; margin-bottom: 10px;">Cliquez sur l'image que vous souhaitez utiliser comme photo principale dans le bloc de tête</p>
+        <div id="photoGridContainer" class="photo-grid"></div>
+        <div style="margin-top: 20px; text-align: center;">
+            <button id="confirmImageChangeBtn" class="action-btn" style="background: #28a745;">✓ Confirmer la sélection</button>
+        </div>
     </div>
 </div>
 
@@ -357,6 +376,7 @@
                         <a href="#" id="previewBtn" class="view-btn">👁️ Prévisualiser</a>
                         <a href="#" id="downloadBtn" class="download-btn">📥 Télécharger</a>
                         <button type="button" id="htmlCodeBtn" class="html-code-btn">📄 Code HTML</button>
+                        <button type="button" id="changeImageBtn" class="edit-btn" style="background: #8b5cf6;">🖼️ Changer Image</button>
                         <button type="button" id="editVideoBtn" class="edit-btn">✏️ Modifier Vidéo</button>
                         <button type="button" id="resetFormBtn" class="reset-btn" title="Nouvelle recherche">🔄</button>
                     </div>
@@ -420,6 +440,52 @@
                 document.getElementById('htmlCodeDisplay').value = html;
                 document.getElementById('htmlCodeModal').classList.add('is-open');
             }
+        });
+
+        document.getElementById('changeImageBtn').addEventListener('click', function() {
+            if (!generatedData || !generatedData.api_data.photos || generatedData.api_data.photos.length === 0) {
+                alert("Aucune photo disponible pour la sélection.");
+                return;
+            }
+            
+            const photoGrid = document.getElementById('photoGridContainer');
+            
+            photoGrid.innerHTML = generatedData.api_data.photos.map(function(photoUrl, index) {
+                return '<div class="photo-item ' + (index === 0 ? 'selected' : '') + '" data-index="' + index + '" data-url="' + photoUrl + '">' +
+                    '<img src="' + photoUrl + '" alt="Photo ' + (index + 1) + '">' +
+                    '<div class="check-mark">✓</div>' +
+                    '</div>';
+            }).join('');
+            
+            // Gestion de la sélection des photos
+            photoGrid.querySelectorAll('.photo-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    photoGrid.querySelectorAll('.photo-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+            
+            document.getElementById('changeImageModal').classList.add('is-open');
+        });
+        
+        document.getElementById('confirmImageChangeBtn').addEventListener('click', function() {
+            const selectedItem = document.querySelector('.photo-item.selected');
+            if (!selectedItem) {
+                alert("Veuillez sélectionner une photo.");
+                return;
+            }
+            
+            const selectedIndex = parseInt(selectedItem.dataset.index);
+            const selectedUrl = selectedItem.dataset.url;
+            
+            // Réorganiser le tableau des photos pour mettre la photo sélectionnée en premier
+            const newPhotosArray = [...generatedData.api_data.photos];
+            newPhotosArray.splice(selectedIndex, 1);
+            newPhotosArray.unshift(selectedUrl);
+            generatedData.api_data.photos = newPhotosArray;
+            
+            document.getElementById('changeImageModal').classList.remove('is-open');
+            document.getElementById('editConfirmation').textContent = '✅ Image principale mise à jour. Prévisualisez pour voir le changement.';
         });
 
         document.getElementById('editVideoBtn').addEventListener('click', (e) => {

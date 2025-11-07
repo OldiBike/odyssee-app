@@ -452,11 +452,27 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     price_per_person_text = ''
     if num_children == 0 and num_people > 0:
         price_per_person_text = f'<p class="text-sm font-light mt-1">soit {round(your_price / num_people)} € par personne</p>'
-    
     is_ultra_budget = data.get('is_ultra_budget', False)
-
     cancellation_html = ""
     flight_price = int(data.get('flight_price') or 0)
+    # Définition des détails du vol avec les heures (déplacée ici pour éviter UnboundLocalError)
+    # Note: Les heures sont maintenant inversées dans le formulaire pour la saisie
+    # departure_time est l'heure de décollage (saisie sous aéroport d'arrivée)
+    # arrival_time est l'heure d'atterrissage (saisie sous aéroport de départ)
+    departure_time_input = data.get('departure_time', '') # C'est l'heure de décollage
+    arrival_time_input = data.get('arrival_time', '')     # C'est l'heure d'atterrissage
+
+    # Texte de la route du vol (sans les heures)
+    flight_route_text = f'Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}'
+
+    # Phrase descriptive des heures
+    flight_times_description = ""
+    if arrival_time_input and departure_time_input:
+        flight_times_description = f" (Vous atterrissez à {arrival_time_input} et vous décollez à {departure_time_input})"
+    elif arrival_time_input:
+        flight_times_description = f" (Vous atterrissez à {arrival_time_input})"
+    elif departure_time_input:
+        flight_times_description = f" (Vous décollez à {departure_time_input})"
     if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
         if flight_price > 0:
             cancellation_html = f"""
@@ -482,10 +498,10 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
 
     city_name = data.get('destination', '').split(',')[0].strip()
     exclusive_services_html = f'<div class="p-4 mt-4 rounded-lg border-2 border-blue-200 bg-blue-50"><h4 class="font-bold text-blue-800 mb-2">Nos Services additionnels offerts</h4><p class="text-sm text-gray-700">{data.get("exclusive_services", "").strip().replace(chr(10), "<br>")}</p></div>' if data.get('exclusive_services', '').strip() else ""
-    
-    flight_text_html = f'<div class="flex justify-between"><span>Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</span><span class="font-semibold">{flight_price}€</span></div>' if flight_price > 0 else ""
-    flight_inclusion_html = f'<div class="flex items-center"><div class="feature-icon bg-blue-500"><i class="fas fa-plane"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}</h4><p class="text-gray-600 text-xs">Aller-retour inclus</p></div></div>' if flight_price > 0 else ""
-    
+
+    flight_text_html = f'<div class="flex justify-between"><span>{flight_route_text}</span><span class="font-semibold">{flight_price}€</span></div>' if flight_price > 0 else ""
+    flight_inclusion_html = f'<div class="flex items-center"><div class="feature-icon bg-blue-500"><i class="fas fa-plane"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{flight_route_text}</h4><p class="text-gray-600 text-xs">Aller-retour inclus{flight_times_description}</p></div></div>' if flight_price > 0 else ""
+
     baggage_option = data.get('baggage_type', 'bagages 10 kilos')
     baggage_inclusion_html = ''
     if is_ultra_budget and baggage_option == 'Pas de bagages':
@@ -691,8 +707,16 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             <p class="text-xs text-gray-500">SRL RIDEA (OldiBike)<br>Numéro de société : 1024.916.054 - RC Exploitation : 99730451</p>
         </div>
     """
-    
     story_card_style = "background: linear-gradient(135deg, #FECACA 0%, #F87171 100%);" if is_ultra_budget else "background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);"
+    cancellation_html = ""
+    if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
+        if flight_price > 0:
+            cancellation_html = f"""
+            <p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite de l'hôtel jusqu'au {data.get("cancellation_date")}</p>
+            <p class="text-xs font-bold text-orange-800 mt-1 text-center">Les vols ({flight_price} €) ne sont pas remboursables.</p>
+            """
+        else:
+            cancellation_html = f'<p class="text-xs font-light mt-1 text-center">✓ Annulation gratuite jusqu\'au {data.get("cancellation_date")}</p>'
 
     # --- NOUVEAU : Bloc Événement ---
     event_block_html = ""
@@ -934,3 +958,5 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
 </body>
 </html>"""
     return html_template
+    baggage_option = data.get('baggage_type', 'bagages 10 kilos')
+    baggage_inclusion_html = ''

@@ -129,7 +129,7 @@
                         let bottomBannerHTML = '';
                         if (trip.is_ultra_budget) {
                             bottomBannerHTML = `<div class="mt-2 inline-block bg-red-100 text-red-800 text-sm font-semibold px-3 py-1 rounded-full">Ultra Budget</div>`;
-                        } else if (trip.savings > 0) {
+                        } else if (trip.savings >= 50) {
                             bottomBannerHTML = `<div class="mt-2 inline-block bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
                                   Économisez ${trip.savings}€
                                  </div>`;

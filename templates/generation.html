@@ -495,16 +495,23 @@
         });
 
         document.getElementById('changeImageBtn').addEventListener('click', function() {
-            if (!generatedData || !generatedData.api_data.photos || generatedData.api_data.photos.length === 0) {
-                alert("Aucune photo disponible pour la sélection.");
+            const hotelPhotos = generatedData?.api_data?.photos || [];
+            const eventPhotos = eventData?.images || [];
+            const allPhotos = [...hotelPhotos, ...eventPhotos];
+
+            if (allPhotos.length === 0) {
+                alert("Aucune photo (hôtel ou événement) n'est disponible pour la sélection.");
                 return;
             }
             
             const photoGrid = document.getElementById('photoGridContainer');
             
-            photoGrid.innerHTML = generatedData.api_data.photos.map(function(photoUrl, index) {
-                return '<div class="photo-item ' + (index === 0 ? 'selected' : '') + '" data-index="' + index + '" data-url="' + photoUrl + '">' +
-                    '<img src="' + photoUrl + '" alt="Photo ' + (index + 1) + '">' +
+            // La première photo de l'hôtel est sélectionnée par défaut
+            const mainPhotoUrl = hotelPhotos.length > 0 ? hotelPhotos[0] : (eventPhotos.length > 0 ? eventPhotos[0] : '');
+
+            photoGrid.innerHTML = allPhotos.map(function(photoUrl, index) {
+                return '<div class="photo-item ' + (photoUrl === mainPhotoUrl ? 'selected' : '') + '" data-url="' + photoUrl + '">' +
+                    '<img src="' + photoUrl + '" alt="Photo ' + (index + 1) + '" loading="lazy">' +
                     '<div class="check-mark">✓</div>' +
                     '</div>';
             }).join('');
@@ -527,13 +534,22 @@
                 return;
             }
             
-            const selectedIndex = parseInt(selectedItem.dataset.index);
             const selectedUrl = selectedItem.dataset.url;
             
-            // Réorganiser le tableau des photos pour mettre la photo sélectionnée en premier
-            const newPhotosArray = [...generatedData.api_data.photos];
-            newPhotosArray.splice(selectedIndex, 1);
-            newPhotosArray.unshift(selectedUrl);
+            // On s'assure que api_data.photos existe
+            if (!generatedData.api_data.photos) {
+                generatedData.api_data.photos = [];
+            }
+
+            // On retire l'URL sélectionnée si elle existe déjà dans la liste des photos de l'hôtel
+            const existingIndex = generatedData.api_data.photos.indexOf(selectedUrl);
+            if (existingIndex > -1) {
+                generatedData.api_data.photos.splice(existingIndex, 1);
+            }
+
+            // On ajoute l'URL sélectionnée au début de la liste des photos de l'hôtel
+            const newPhotosArray = [selectedUrl, ...generatedData.api_data.photos];
+            
             generatedData.api_data.photos = newPhotosArray;
             
             document.getElementById('changeImageModal').classList.remove('is-open');

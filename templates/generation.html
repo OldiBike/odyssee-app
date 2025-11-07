@@ -57,6 +57,15 @@
         .cost-calculator .cost-value { font-size: 18px; font-weight: bold; color: #1e293b; }
         @media (max-width: 768px) {.form-row {flex-direction: column; gap: 0;} .form-container {padding: 20px;}}
     </style>
+    <style>
+        /* Styles pour la modale Événement */
+        #event-drop-zone { border: 2px dashed #ccc; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: background-color 0.2s; }
+        #event-drop-zone.dragover { background-color: #e9f5ff; border-color: #3B82F6; }
+        #event-image-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px; }
+        .preview-image-container { position: relative; }
+        .preview-image { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; }
+        .remove-image-btn { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; border: none; cursor: pointer; font-size: 12px; line-height: 20px; text-align: center; }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -136,6 +145,12 @@
             <h3 class="section-divider"><span>Services & Client</span></h3>
             <div class="form-group"><label for="exclusive_services">🎁 Services Exclusifs Inclus</label><textarea id="exclusive_services" name="exclusive_services" placeholder="ex: Accès au lounge VIP de l'aéroport&#10;Une bouteille de champagne en chambre&#10;Check-out tardif jusqu'à 14h"></textarea></div>
             
+            <div class="form-group">
+                <button type="button" id="openEventModalBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;">
+                    🎉 Ajouter un événement (Optionnel)
+                </button>
+            </div>
+
             <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.486-.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg><span>Ajouter un profil Instagram (Optionnel)</span></button><div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle" name="instagram_handle" placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div></div>
             
             <div class="form-group" style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 10px; border-radius: 8px;">
@@ -211,6 +226,38 @@
         </div>
     </div>
 </div>
+
+<!-- Modale pour l'événement -->
+<div id="eventModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="close-button">×</span>
+        <h2 class="text-xl font-bold mb-4">Ajouter un événement</h2>
+        
+        <div class="form-group">
+            <label for="event_description">Description de l'événement</label>
+            <textarea id="event_description" name="event_description" placeholder="Décrivez l'événement, le festival, le marché..." class="w-full p-2 border rounded"></textarea>
+            <button type="button" id="generateEventAIBtn" class="search-btn" style="margin-top: 10px; width: auto; background-color: #60A5FA; color: white;">✨ IA Génération</button>
+            <div id="eventAILoading" style="display:none; margin-top: 10px; text-align: center;">
+                <div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                <p style="font-size: 14px; color: #666;">Génération en cours...</p>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Photos de l'événement</label>
+            <div id="event-drop-zone">
+                <p>Glissez-déposez des images ici, ou cliquez pour sélectionner.</p>
+                <input type="file" id="event_image_input" multiple accept="image/*" class="hidden">
+            </div>
+            <div id="event-image-previews"></div>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-3">
+            <button type="button" class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Fermer</button>
+            <button type="button" id="saveEventBtn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -220,6 +267,7 @@
     let generatedData = null;
     const userMarginPercentage = {{ user_margin | default(80) }};
     let allClients = [];
+    let eventData = { images: [], description: '' };
 
     function initializeApp() {
         const formatDate = (d) => {
@@ -345,6 +393,10 @@
         if (!data.date_start || !data.date_end) return alert("Veuillez sélectionner une période de séjour.");
         
         data.is_ultra_budget = document.getElementById('is_ultra_budget').checked;
+
+        // Ajouter les données de l'événement
+        data.event_description = eventData.description;
+        data.event_images = eventData.images; // Array of base64 strings
 
         document.getElementById('loading').style.display = 'block';
         document.getElementById('result').style.display = 'none';
@@ -679,5 +731,158 @@
         });
     }
 
+    // --- Initialisation de la modale Événement ---
+    function initializeEventModal() {
+        const eventModal = document.getElementById('eventModal');
+        const openEventModalBtn = document.getElementById('openEventModalBtn');
+        const saveEventBtn = document.getElementById('saveEventBtn');
+        const eventDropZone = document.getElementById('event-drop-zone');
+        const eventImageInput = document.getElementById('event_image_input');
+        const eventImagePreviews = document.getElementById('event-image-previews');
+        const eventDescriptionInput = document.getElementById('event_description');
+
+        // --- Logique pour la génération IA de l'événement ---
+        document.getElementById('generateEventAIBtn').addEventListener('click', async () => {
+            console.log('🎯 Bouton IA Génération cliqué !');
+            
+            // Récupérer l'élément au moment du clic pour s'assurer d'avoir la bonne référence
+            const descriptionInput = document.getElementById('event_description');
+            const currentEventDescription = descriptionInput.value;
+            const destination = document.getElementById('destination').value;
+            
+            console.log('📝 Description:', currentEventDescription);
+            console.log('📍 Destination:', destination);
+            
+            if (!currentEventDescription && !destination) {
+                alert("Veuillez entrer une description d'événement ou une destination pour la génération IA.");
+                return;
+            }
+
+            const aiLoading = document.getElementById('eventAILoading');
+            aiLoading.style.display = 'block';
+            document.getElementById('generateEventAIBtn').disabled = true;
+
+            try {
+                console.log('🚀 Envoi de la requête fetch...');
+                const response = await fetch('/api/generate-event-content', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: currentEventDescription, destination: destination })
+                });
+
+                console.log('📡 Réponse reçue:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Erreur serveur:', errorText);
+                    throw new Error(`Erreur serveur ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ Résultat IA reçu:', result);
+                
+                if (result.success) {
+                    console.log('🔄 Mise à jour de la description...');
+                    // Récupérer à nouveau l'élément pour être sûr
+                    const targetInput = document.getElementById('event_description');
+                    targetInput.value = result.new_description;
+                    
+                    console.log('✅ Description mise à jour:', targetInput.value);
+                    
+                    // Mettre à jour les images
+                    console.log('📸 Ajout de', result.image_urls.length, 'images');
+                    eventData.images = [];
+                    for (const imageUrl of result.image_urls) {
+                        eventData.images.push(imageUrl);
+                    }
+                    renderEventImagePreviews();
+                    
+                    alert('✅ Description générée avec succès !');
+                } else {
+                    console.error('❌ Échec:', result.error);
+                    alert('Échec de la génération IA: ' + result.error);
+                }
+            } catch (error) {
+                console.error('❌ Erreur complète:', error);
+                alert('Une erreur est survenue lors de la génération IA: ' + error.message);
+            } finally {
+                aiLoading.style.display = 'none';
+                document.getElementById('generateEventAIBtn').disabled = false;
+            }
+        });
+
+        openEventModalBtn.addEventListener('click', () => eventModal.classList.add('is-open'));
+        eventModal.querySelector('.close-button').addEventListener('click', () => eventModal.classList.remove('is-open'));
+
+        saveEventBtn.addEventListener('click', () => {
+            eventData.description = eventDescriptionInput.value;
+            eventModal.classList.remove('is-open');
+            if (eventData.images.length > 0 || eventData.description) {
+                openEventModalBtn.style.backgroundColor = '#d1fae5';
+                openEventModalBtn.style.borderColor = '#10b981';
+            } else {
+                openEventModalBtn.style.backgroundColor = '#f0f0f0';
+                openEventModalBtn.style.borderColor = '#ccc';
+            }
+        });
+
+        eventDropZone.addEventListener('click', () => eventImageInput.click());
+        eventImageInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            eventDropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            eventDropZone.addEventListener(eventName, () => eventDropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            eventDropZone.addEventListener(eventName, () => eventDropZone.classList.remove('dragover'), false);
+        });
+
+        eventDropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+
+        function handleFiles(files) {
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const base64String = e.target.result;
+                        eventData.images.push(base64String);
+                        renderEventImagePreviews();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+
+        function renderEventImagePreviews() {
+            eventImagePreviews.innerHTML = '';
+            eventData.images.forEach((base64, index) => {
+                const previewContainer = document.createElement('div');
+                previewContainer.className = 'preview-image-container';
+                previewContainer.innerHTML = `
+                    <img src="${base64}" class="preview-image">
+                    <button class="remove-image-btn" data-index="${index}">×</button>
+                `;
+                previewContainer.querySelector('.remove-image-btn').addEventListener('click', (e) => {
+                    eventData.images.splice(parseInt(e.target.dataset.index), 1);
+                    renderEventImagePreviews();
+                });
+                eventImagePreviews.appendChild(previewContainer);
+            });
+        }
+    }
+
+    // Initialiser la modale événement quand le DOM est prêt
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeEventModal);
+    } else {
+        initializeEventModal();
+    }
 </script>
 {% endblock %}

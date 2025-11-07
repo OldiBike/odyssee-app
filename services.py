@@ -288,6 +288,96 @@ class RealAPIGatherer:
             print(f"❌ Erreur API Gemini: {e}")
             return {"attractions": [], "restaurants": []}
 
+    def generate_event_details_with_ai(self, event_description, destination):
+        """
+        Génère une description d'événement enrichie et trouve des images pertinentes
+        en utilisant Gemini et Google Places API.
+        """
+        if not self.google_api_key:
+            return event_description, [] # Fallback if API key is missing
+
+        # 1. Refine description using Gemini
+        new_description = event_description
+        try:
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
+            
+            # Si pas de description fournie, utiliser la destination
+            base_text = event_description if event_description else f"événement à {destination}"
+            
+            prompt = f"""Tu es un rédacteur marketing spécialisé dans le tourisme. 
+            
+Ta mission : Transformer cette courte mention d'événement en une description captivante et vendeuse.
+
+Événement d'origine : "{base_text}"
+Destination : {destination}
+
+Consignes STRICTES :
+1. Crée une NOUVELLE description complètement différente et plus détaillée
+2. Ajoute des adjectifs évocateurs (magique, authentique, inoubliable, enchanteur...)
+3. Mentionne ce qu'on peut y voir, faire ou ressentir
+4. Ajoute 2-3 émojis pertinents
+5. Entre 40 et 60 mots
+6. Style enthousiaste qui donne envie
+
+IMPORTANT : Ne répète PAS simplement le texte d'origine. Enrichis-le vraiment !
+
+Exemple de transformation :
+AVANT : "Marché de Noël de Sofia"
+APRÈS : "✨ Plongez dans l'atmosphère féerique du marché de Noël de Sofia ! Dégustez les spécialités bulgares traditionnelles, admirez l'artisanat local et laissez-vous envoûter par les illuminations scintillantes. Une expérience authentique et chaleureuse au cœur de la capitale bulgare ! 🎄"
+
+Maintenant à toi, écris UNIQUEMENT la nouvelle description (sans guillemets, sans astérisques) :"""
+            
+            response = model.generate_content(prompt)
+            raw_text = response.text
+            print(f"📝 Prompt envoyé à Gemini:")
+            print(f"   Base text: {base_text}")
+            print(f"   Destination: {destination}")
+            print(f"✅ Gemini raw response: {raw_text}")
+            
+            # Nettoyage plus agressif de la réponse
+            new_description = raw_text.strip()
+            new_description = new_description.replace('*', '').replace('**', '')
+            new_description = new_description.replace('"', '').replace("'", "'")
+            new_description = new_description.replace('```', '')
+            new_description = new_description.strip()
+            
+            print(f"✅ Gemini cleaned response: {new_description}")
+            print(f"🔍 Comparaison: '{new_description.lower().strip()}' vs '{base_text.lower().strip()}'")
+            
+            # Vérifier si la description a vraiment changé (comparaison plus robuste)
+            if new_description.lower().strip() == base_text.lower().strip() or len(new_description) < len(base_text) + 10:
+                print("⚠️ ATTENTION: Gemini a renvoyé la même description ou une description trop courte, utilisation du fallback")
+                new_description = f"✨ Découvrez {base_text} à {destination} ! Une expérience unique et authentique vous attend. Ne manquez pas cette occasion exceptionnelle de vivre des moments inoubliables ! 🎉"
+                print(f"✅ Fallback appliqué: {new_description}")
+        except Exception as e:
+            print(f"❌ Erreur API Gemini (refine event description): {e}")
+            # Fallback to original description if AI fails
+
+        # 2. Find images using Google Places API
+        image_urls = []
+        # Utiliser la description ORIGINALE pour la recherche, pas la version enrichie
+        search_query = f"{event_description} {destination}" if event_description else f"événement {destination}"
+        try:
+            search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+            search_params = {
+                'query': search_query,
+                'key': self.google_api_key,
+                'fields': 'photos' # Request photos directly
+            }
+            search_response = requests.get(search_url, params=search_params, timeout=15)
+            if search_response.status_code == 200 and (search_data := search_response.json()).get('results'):
+                for result in search_data['results']:
+                    if photos := result.get('photos'):
+                        for p in photos:
+                            if p_ref := p.get('photo_reference'):
+                                image_urls.append(f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={p_ref}&key={self.google_api_key}")
+                                if len(image_urls) >= 5: break # Limit to 5 images
+                    if len(image_urls) >= 5: break
+        except Exception as e:
+            print(f"❌ Erreur API Photos (event generation): {e}")
+
+        return new_description, image_urls[:5] # Ensure max 5 images
+
     def gather_all_real_data(self, hotel_name, destination):
         gemini_data = self.get_real_gemini_attractions_and_restaurants(destination)
         attractions_list = gemini_data.get("attractions", [])
@@ -604,6 +694,34 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     
     story_card_style = "background: linear-gradient(135deg, #FECACA 0%, #F87171 100%);" if is_ultra_budget else "background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);"
 
+    # --- NOUVEAU : Bloc Événement ---
+    event_block_html = ""
+    event_images = data.get('event_images', [])
+    event_description = data.get('event_description', '').strip()
+
+    if event_images and event_description:
+        carousel_items_html = "".join([
+            f'<div class="event-carousel-item"><img src="{img_src}" alt="Photo événement"></div>'
+            for img_src in event_images
+        ])
+
+        event_block_html = f"""
+        <div class="instagram-card p-6">
+            <h3 class="section-title text-xl mb-4">À faire sur place</h3>
+            
+            <div class="event-carousel-container">
+                <div class="event-carousel-wrapper">
+                    {carousel_items_html}
+                </div>
+                <button class="event-carousel-prev">❮</button>
+                <button class="event-carousel-next">❯</button>
+            </div>
+
+            <p class="text-gray-700 mt-4">{event_description.replace(chr(10), "<br>")}</p>
+        </div>
+        """
+    # --- FIN NOUVEAU ---
+
     html_template = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -615,8 +733,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     <style>
         body {{ font-family: 'Poppins', sans-serif; }} .section-title {{ font-family: 'Playfair Display', serif; }}
         .main-container {{ max-width: 600px; margin: auto; padding: 10px; }}
-        .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; }}
-        .story-card, .instagram-card + .instagram-card {{ margin-top: 20px; }}
+        .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; margin-top: 20px; }}
         .story-card {{ {story_card_style} border-radius: 25px; padding: 25px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); margin-top: 0; }}
         .image-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }}
         .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px;}}
@@ -629,6 +746,32 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         .close-photos:hover {{ background: rgba(255,255,255,0.2); }}
         .modal-photo {{ width: 100%; margin-bottom: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }}
         .photo-counter {{ position: fixed; top: 20px; left: 30px; color: white; background: rgba(0,0,0,0.5); padding: 10px 15px; border-radius: 20px; font-weight: bold; z-index: 1001; }}
+
+        /* Styles pour le carrousel d'événement */
+        .event-carousel-container {{ 
+            position: relative; 
+            overflow: hidden; 
+            border-radius: 15px;
+            max-width: 250px;
+            margin: 0 auto;
+        }}
+        .event-carousel-wrapper {{ display: flex; transition: transform 0.5s ease-in-out; }}
+        .event-carousel-item {{ min-width: 100%; box-sizing: border-box; }}
+        .event-carousel-item img {{
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            border-radius: 15px;
+        }}
+        .event-carousel-prev, .event-carousel-next {{
+            cursor: pointer; position: absolute; top: 50%; transform: translateY(-50%);
+            width: auto; padding: 16px; color: white; font-weight: bold; font-size: 20px;
+            background-color: rgba(0,0,0,0.4); border: none; user-select: none;
+            border-radius: 0 3px 3px 0;
+        }}
+        .event-carousel-next {{ right: 0; border-radius: 3px 0 0 3px; }}
+        .event-carousel-prev:hover, .event-carousel-next:hover {{ background-color: rgba(0,0,0,0.7); }}
         
         /* Tablette (640px - 1023px) */
         @media (min-width: 640px) and (max-width: 1023px) {{
@@ -640,6 +783,28 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             .main-container {{ max-width: 1200px; padding: 30px; }}
             .image-grid {{ grid-template-columns: repeat(3, 1fr); gap: 20px; }}
             .image-item img {{ height: 250px; }}
+            
+            /* Transformer le carousel en grille sur PC */
+            .event-carousel-container {{ 
+                max-width: 100%;
+                overflow: visible;
+            }}
+            .event-carousel-wrapper {{ 
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 20px;
+                transform: none !important;
+            }}
+            .event-carousel-item {{ 
+                min-width: auto;
+            }}
+            .event-carousel-item img {{ 
+                height: 250px;
+            }}
+            .event-carousel-prev, .event-carousel-next {{
+                display: none;
+            }}
+            
             .reviews-grid {{ grid-template-columns: repeat(2, 1fr); gap: 20px; }}
             .story-card {{ padding: 40px; }}
             .instagram-card {{ padding: 30px !important; }}
@@ -672,6 +837,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             </div>
         </div>
         {pricing_block_html}
+        {event_block_html}
         <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>
         <div id="photosModal" class="modal-photos"><span class="close-photos" id="closePhotos">×</span><div class="photo-counter" id="photoCounter">Photo 1 sur {total_photos}</div><div class="modal-photos-content">{modal_all_photos}</div></div>
         {video_html_block}
@@ -743,6 +909,24 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
                 }}).catch(function(err) {{
                     console.error('Erreur lors de la copie:', err);
                 }});
+            }});
+        }}
+
+        // Gestion du carrousel d'événement
+        const eventCarousel = document.querySelector('.event-carousel-wrapper');
+        if (eventCarousel) {{
+            let currentIndex = 0;
+            const items = document.querySelectorAll('.event-carousel-item');
+            const totalItems = items.length;
+            
+            document.querySelector('.event-carousel-next').addEventListener('click', () => {{
+                currentIndex = (currentIndex + 1) % totalItems;
+                eventCarousel.style.transform = `translateX(-${{currentIndex * 100}}%)`;
+            }});
+
+            document.querySelector('.event-carousel-prev').addEventListener('click', () => {{
+                currentIndex = (currentIndex - 1 + totalItems) % totalItems;
+                eventCarousel.style.transform = `translateX(-${{currentIndex * 100}}%)`;
             }});
         }}
     }});

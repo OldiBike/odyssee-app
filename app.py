@@ -234,6 +234,26 @@ def create_app(config_class=Config):
             traceback.print_exc()
             return jsonify({'success': False, 'error': str(e)}), 500
 
+    @app.route('/api/generate-event-content', methods=['POST'])
+    @login_required
+    def generate_event_content():
+        """Génère une description d'événement et trouve des images via l'IA."""
+        try:
+            data = request.get_json()
+            description = data.get('description', '')
+            destination = data.get('destination', '')
+
+            if not description and not destination:
+                return jsonify({'success': False, 'error': "Veuillez fournir une description ou une destination pour la génération IA."}), 400
+
+            gatherer = RealAPIGatherer()
+            new_description, image_urls = gatherer.generate_event_details_with_ai(description, destination)
+
+            return jsonify({'success': True, 'new_description': new_description, 'image_urls': image_urls})
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     @app.route('/api/image-proxy')
     def image_proxy():
         """Proxy pour contourner les problèmes de CORS avec les images externes."""

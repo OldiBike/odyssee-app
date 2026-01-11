@@ -20,42 +20,67 @@ class PublicationService:
         print(f"   API URL: {self.api_url}")
         print(f"   API Key: {self.api_key[:10]}... (tronquée pour sécurité)")
 
-    def _upload_via_api(self, filename, content_bytes, directory):
+    def _upload_via_api(self, filename, content_bytes, directory, max_retries=3):
         """Méthode unifiée pour uploader des fichiers via l'API de publication."""
-        try:
-            print(f"📤 Upload via API: {filename} vers {directory}/")
-            
-            content_base64 = base64.b64encode(content_bytes).decode('utf-8')
-            
-            payload = {
-                'filename': filename,
-                'content': content_base64,
-                'directory': directory
-            }
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Api-Key': self.api_key 
-            }
-            
-            response = requests.post(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=30
-            )
-            
-            if response.status_code == 200 and response.json().get('success'):
-                result = response.json()
-                print(f"✅ Upload réussi: {result.get('url', '')}")
-                return True
-            else:
-                print(f"❌ Erreur API (HTTP {response.status_code}): {response.text}")
-                return False
+        import time
+        
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    wait_time = 2 ** attempt  # Backoff exponentiel: 2s, 4s, 8s
+                    print(f"⏳ Tentative {attempt + 1}/{max_retries} après {wait_time}s de pause...")
+                    time.sleep(wait_time)
+                else:
+                    print(f"📤 Upload via API: {filename} vers {directory}/")
                 
-        except Exception as e:
-            print(f"❌ Erreur critique lors de l'upload: {e}")
-            return False
+                content_base64 = base64.b64encode(content_bytes).decode('utf-8')
+                size_kb = len(content_bytes) / 1024
+                print(f"   Taille: {size_kb:.2f} KB")
+                
+                payload = {
+                    'filename': filename,
+                    'content': content_base64,
+                    'directory': directory
+                }
+                
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': self.api_key 
+                }
+                
+                response = requests.post(
+                    self.api_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=60  # Augmenté à 60s pour les gros fichiers
+                )
+                
+                if response.status_code == 200 and response.json().get('success'):
+                    result = response.json()
+                    print(f"✅ Upload réussi: {result.get('url', '')}")
+                    return True
+                elif response.status_code == 508:
+                    # Erreur 508 = Ressources insuffisantes, on peut réessayer
+                    print(f"⚠️ Serveur surchargé (HTTP 508), tentative {attempt + 1}/{max_retries}")
+                    if attempt == max_retries - 1:
+                        print(f"❌ Échec après {max_retries} tentatives: Serveur toujours surchargé")
+                        return False
+                    continue  # Réessayer
+                else:
+                    print(f"❌ Erreur API (HTTP {response.status_code}): {response.text[:200]}")
+                    return False
+                    
+            except requests.exceptions.Timeout:
+                print(f"⚠️ Timeout lors de l'upload (tentative {attempt + 1}/{max_retries})")
+                if attempt == max_retries - 1:
+                    print(f"❌ Échec après {max_retries} tentatives: Timeout")
+                    return False
+                continue  # Réessayer
+            except Exception as e:
+                print(f"❌ Erreur critique lors de l'upload: {e}")
+                return False
+        
+        return False
 
     def upload_document(self, filename, file_content_bytes, trip_id):
         """Téléverse un document (PDF, etc.) dans un sous-dossier spécifique au voyage."""
@@ -87,41 +112,93 @@ class PublicationService:
 
     def publish_public_offer(self, trip):
         """Publie une offre dans le dossier public /offres/."""
-        full_trip_data = json.loads(trip.full_data_json)
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0),
-            creator_pseudo=trip.user.pseudo  # CORRECTION: On passe le pseudo du créateur
-        )
-        base_filename = self._generate_base_filename(full_trip_data)
-        filename = f"{base_filename}.html"
-        if self._upload_via_api(filename, html_content.encode('utf-8'), 'offres'):
-            return filename
-        return None
+        try:
+            print(f"📤 Publication publique du trip {trip.id}")
+            print(f"   Hotel: {trip.hotel_name}")
+            print(f"   User ID: {trip.user_id}")
+            
+            # Vérifier que le user existe
+            creator_pseudo = None
+            if trip.user:
+                creator_pseudo = trip.user.pseudo
+                print(f"   Creator pseudo: {creator_pseudo}")
+            else:
+                print(f"⚠️ ATTENTION: User {trip.user_id} introuvable pour trip {trip.id}, publication sans pseudo")
+            
+            full_trip_data = json.loads(trip.full_data_json)
+            
+            # Validation des données requises
+            if 'form_data' not in full_trip_data:
+                raise ValueError(f"Données manquantes: 'form_data' absent dans full_data_json")
+            if 'api_data' not in full_trip_data:
+                raise ValueError(f"Données manquantes: 'api_data' absent dans full_data_json")
+            
+            print(f"   Génération du HTML...")
+            html_content = generate_travel_page_html(
+                full_trip_data['form_data'],
+                full_trip_data['api_data'],
+                full_trip_data.get('savings', 0),
+                full_trip_data.get('comparison_total', 0),
+                creator_pseudo=creator_pseudo
+            )
+            base_filename = self._generate_base_filename(full_trip_data)
+            filename = f"{base_filename}.html"
+            
+            print(f"   Filename généré: {filename}")
+            
+            if self._upload_via_api(filename, html_content.encode('utf-8'), 'offres'):
+                print(f"✅ Publication publique réussie: {filename}")
+                return filename
+            else:
+                print(f"❌ Échec de l'upload API pour {filename}")
+                return None
+        except Exception as e:
+            print(f"❌ ERREUR dans publish_public_offer: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def publish_client_offer(self, trip):
         """Publie une offre privée dans le dossier /clients/."""
-        full_trip_data = json.loads(trip.full_data_json)
-        base_filename = self._generate_base_filename(full_trip_data)
-        
-        raw_name = f"{trip.client.first_name} {trip.client.last_name}"
-        slug = unidecode.unidecode(raw_name).lower()
-        slug = re.sub(r"[\s']+", '_', slug)
-        client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
-        filename = f"{base_filename}_{client_name_slug}.html"
-        
-        html_content = generate_travel_page_html(
-            full_trip_data['form_data'],
-            full_trip_data['api_data'],
-            full_trip_data.get('savings', 0),
-            full_trip_data.get('comparison_total', 0),
-            creator_pseudo=trip.user.pseudo  # CORRECTION: On passe le pseudo du créateur
-        )
-        if self._upload_via_api(filename, html_content.encode('utf-8'), 'clients'):
-            return filename
-        return None
+        try:
+            print(f"📤 Publication client du trip {trip.id}")
+            
+            # Vérifier que le user existe
+            creator_pseudo = None
+            if trip.user:
+                creator_pseudo = trip.user.pseudo
+                print(f"   Creator pseudo: {creator_pseudo}")
+            else:
+                print(f"⚠️ ATTENTION: User {trip.user_id} introuvable pour trip {trip.id}")
+            
+            full_trip_data = json.loads(trip.full_data_json)
+            base_filename = self._generate_base_filename(full_trip_data)
+            
+            raw_name = f"{trip.client.first_name} {trip.client.last_name}"
+            slug = unidecode.unidecode(raw_name).lower()
+            slug = re.sub(r"[\s']+", '_', slug)
+            client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
+            filename = f"{base_filename}_{client_name_slug}.html"
+            
+            html_content = generate_travel_page_html(
+                full_trip_data['form_data'],
+                full_trip_data['api_data'],
+                full_trip_data.get('savings', 0),
+                full_trip_data.get('comparison_total', 0),
+                creator_pseudo=creator_pseudo
+            )
+            
+            if self._upload_via_api(filename, html_content.encode('utf-8'), 'clients'):
+                print(f"✅ Publication client réussie: {filename}")
+                return filename
+            else:
+                print(f"❌ Échec de l'upload API pour {filename}")
+                return None
+        except Exception as e:
+            print(f"❌ ERREUR dans publish_client_offer: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def unpublish(self, filename, is_client_offer=False):
         """Supprime un fichier publié via l'API."""
@@ -537,7 +614,93 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>'
 
     pricing_block_html = ''
-    if is_ultra_budget:
+    pricing_mode = data.get('pricing_mode', 'classic')
+    
+    if pricing_mode == 'pack':
+        # Mode Pack Combiné: affichage du tableau comparatif
+        pack_options = data.get('pack_options', {})
+        vp_opts = pack_options.get('vp', {})
+        comp_opts = pack_options.get('comp', {})
+        
+        # Labels pour l'affichage
+        pension_labels = {
+            'logement': 'Logement seul',
+            'breakfast': 'Petit-déjeuner',
+            'half': 'Demi-pension', 
+            'full': 'Pension complète',
+            'allin': 'All-Inclusive'
+        }
+        transfer_labels = {
+            'none': 'Non inclus',
+            'shared': 'Partagé',
+            'private': 'Privé'
+        }
+        
+        def get_baggage_text(val):
+            if val == '0' or not val:
+                return 'Non inclus'
+            elif val == '1':
+                return '1 bagage (20kg)'
+            else:
+                return f'{val} bagages (20kg)'
+        
+        vp_baggage = get_baggage_text(vp_opts.get('baggage', '0'))
+        vp_transfer = transfer_labels.get(vp_opts.get('transfer', 'none'), 'Non inclus')
+        vp_pension = pension_labels.get(vp_opts.get('pension', 'logement'), 'Logement seul')
+        vp_custom = vp_opts.get('custom', '')
+        
+        comp_baggage = get_baggage_text(comp_opts.get('baggage', '0'))
+        comp_transfer = transfer_labels.get(comp_opts.get('transfer', 'none'), 'Non inclus')
+        comp_pension = pension_labels.get(comp_opts.get('pension', 'logement'), 'Logement seul')
+        comp_custom = comp_opts.get('custom', '')
+        
+        competitor_price = int(data.get('pack_competitor_price') or 0)
+        
+        vp_custom_html = f'<li class="flex items-center gap-2"><span class="text-green-600">✓</span> 🎁 {vp_custom}</li>' if vp_custom else ''
+        comp_custom_html = f'<li class="flex items-center gap-2 text-gray-400"><span>—</span> {comp_custom}</li>' if comp_custom else ''
+        
+        pricing_block_html = f'''
+        <div class="instagram-card p-6">
+            <h3 class="section-title text-xl mb-4">🔍 Comparer en un coup d'œil</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <!-- Colonne Concurrent (Ailleurs) -->
+                <div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 16px;">
+                    <h4 style="font-weight: bold; color: #dc2626; margin-bottom: 12px; text-align: center;">🏢 Ailleurs</h4>
+                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px; space-y: 8px;">
+                        <li class="flex items-center gap-2 mb-2"><span>✈️</span> Vol + Hôtel</li>
+                        <li class="flex items-center gap-2 mb-2 text-gray-500"><span>🧳</span> {comp_baggage}</li>
+                        <li class="flex items-center gap-2 mb-2 text-gray-500"><span>🚐</span> Transfert {comp_transfer}</li>
+                        <li class="flex items-center gap-2 mb-2 text-gray-500"><span>🍽️</span> {comp_pension}</li>
+                        {comp_custom_html}
+                    </ul>
+                    <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #fecaca;">
+                        <span style="font-size: 24px; font-weight: bold; color: #dc2626;">{competitor_price} €</span>
+                    </div>
+                </div>
+                
+                <!-- Colonne VP (Mon Pack) -->
+                <div style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 16px;">
+                    <h4 style="font-weight: bold; color: #059669; margin-bottom: 12px; text-align: center;">🌟 Voyages Privilèges</h4>
+                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px; space-y: 8px;">
+                        <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> ✈️ Vol + Hôtel</li>
+                        <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🧳 {vp_baggage}</li>
+                        <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🚐 Transfert {vp_transfer}</li>
+                        <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🍽️ {vp_pension}</li>
+                        {vp_custom_html}
+                    </ul>
+                    <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #a7f3d0;">
+                        <span style="font-size: 24px; font-weight: bold; color: #059669;">{your_price} €</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="economy-highlight" style="margin-top: 16px;">
+                💰 Vous économisez {savings} €
+            </div>
+            {cancellation_html}
+        </div>
+        '''
+    elif is_ultra_budget:
         conditions = []
         if flight_price == 0:
             conditions.append("<li>- Pas de vols inclus</li>")

@@ -3,69 +3,434 @@
 {% block title %}Génération de Voyage{% endblock %}
 
 {% block head_extra %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
-    <style>
-        /* Fusion des styles des deux versions pour une mise en page correcte et complète */
-        .form-container {padding: 40px;}
-        .form-group {margin-bottom: 25px; width: 100%;}
-        label {display: block; margin-bottom: 8px; font-weight: 600; color: #333;}
-        input, select, textarea {width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; box-sizing: border-box;}
-        input[type="checkbox"] { width: auto; }
-        input:focus, select:focus, textarea:focus {outline: none; border-color: #3B82F6;}
-        textarea {font-family: 'Segoe UI', sans-serif; resize: vertical; min-height: 80px;}
-        #date_range, #cancellation_date {cursor: pointer; background-color: white;}
-        .input-with-button {display: flex; align-items: center; gap: 10px;}
-        .search-btn {padding: 8px 12px; font-size: 14px; font-weight: 600; background-color: #e0e0e0; border: 1px solid #ccc; border-radius: 8px; cursor: pointer;}
-        .form-row {display: flex; gap: 20px;}
-        .generate-btn {background: linear-gradient(45deg, #3B82F6, #60A5FA); color: white; border: none; padding: 15px 40px; border-radius: 25px; font-size: 18px; font-weight: 600; cursor: pointer; width: 100%;}
-        .loading {display: none; text-align: center; padding: 30px;}
-        .loading-spinner {border: 4px solid #f3f3f3; border-top: 4px solid #3B82F6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px;}
-        @keyframes spin {0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);}}
-        .result {display: none; padding: 30px; background: #f8f9fa; border-top: 1px solid #e1e5e9;}
-        .success {color: #28a745; font-size: 18px; font-weight: 600; text-align: center;}
-        .error {color: #dc3545; font-size: 18px; font-weight: 600;}
-        .button-container {margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; align-items: center;}
-        .action-btn, .download-btn, .view-btn, .edit-btn, .html-code-btn, .reset-btn {color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; text-decoration: none; cursor: pointer;}
-        .download-btn {background: #28a745;}
-        .view-btn {background: #3B82F6;}
-        .edit-btn {background: #ffc107; color: #333;}
-        .html-code-btn {background: #6c757d;}
-        .reset-btn { background: #9ca3af; padding: 8px 12px; font-size: 20px; line-height: 1; }
-        .video-edit-form { margin-top: 20px; display: flex; gap: 10px; align-items: center; padding: 15px; background-color: #e9ecef; border-radius: 10px;}
-        .stats {display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 20px;}
-        .stat-item {background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
-        .stat-number {font-size: 24px; font-weight: bold; color: #3B82F6;}
-        .stat-label {color: #666; font-size: 14px;}
-        .pac-container {z-index: 10000 !important;}
-        h3.section-divider {text-align: center; border-bottom: 2px solid #e1e5e9; line-height: 0.1em; margin: 35px 0 25px;}
-        h3.section-divider span { background:#fff; padding:0 10px; color: #aaa; font-size: 0.9em; text-transform: uppercase;}
-        .modal { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
-        .modal.is-open { display: flex; }
-        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
-        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .html-textarea { width: 100%; height: 400px; border: 1px solid #ccc; padding: 10px; font-family: monospace; white-space: pre; overflow: auto; resize: vertical; border-radius: 5px; }
-        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; max-height: 500px; overflow-y: auto; }
-        .photo-item { position: relative; cursor: pointer; border: 3px solid transparent; border-radius: 8px; overflow: hidden; transition: all 0.3s; }
-        .photo-item:hover { border-color: #3B82F6; transform: scale(1.05); }
-        .photo-item.selected { border-color: #28a745; box-shadow: 0 0 15px rgba(40, 167, 69, 0.5); }
-        .photo-item img { width: 100%; height: 150px; object-fit: cover; display: block; }
-        .photo-item .check-mark { position: absolute; top: 10px; right: 10px; background: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: none; align-items: center; justify-content: center; font-weight: bold; }
-        .photo-item.selected .check-mark { display: flex; }
-        .cost-calculator { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; background-color: #f8fafc; padding: 10px; border-radius: 10px; margin-top: -10px; margin-bottom: 25px; }
-        .cost-calculator div { text-align: center; }
-        .cost-calculator p { margin: 0; color: #4b5563; font-weight: 500; font-size: 12px; }
-        .cost-calculator .cost-value { font-size: 18px; font-weight: bold; color: #1e293b; }
-        @media (max-width: 768px) {.form-row {flex-direction: column; gap: 0;} .form-container {padding: 20px;}}
-    </style>
-    <style>
-        /* Styles pour la modale Événement */
-        #event-drop-zone { border: 2px dashed #ccc; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: background-color 0.2s; }
-        #event-drop-zone.dragover { background-color: #e9f5ff; border-color: #3B82F6; }
-        #event-image-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px; }
-        .preview-image-container { position: relative; }
-        .preview-image { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; }
-        .remove-image-btn { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; border: none; cursor: pointer; font-size: 12px; line-height: 20px; text-align: center; }
-    </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css" />
+<style>
+    /* Fusion des styles des deux versions pour une mise en page correcte et complète */
+    .form-container {
+        padding: 40px;
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+        width: 100%;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    input,
+    select,
+    textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    input[type="checkbox"] {
+        width: auto;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: #3B82F6;
+    }
+
+    textarea {
+        font-family: 'Segoe UI', sans-serif;
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    #date_range,
+    #cancellation_date {
+        cursor: pointer;
+        background-color: white;
+    }
+
+    .input-with-button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .search-btn {
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 600;
+        background-color: #e0e0e0;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 20px;
+    }
+
+    .generate-btn {
+        background: linear-gradient(45deg, #3B82F6, #60A5FA);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 25px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 30px;
+    }
+
+    .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3B82F6;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .result {
+        display: none;
+        padding: 30px;
+        background: #f8f9fa;
+        border-top: 1px solid #e1e5e9;
+    }
+
+    .success {
+        color: #28a745;
+        font-size: 18px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .error {
+        color: #dc3545;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .button-container {
+        margin-top: 20px;
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .action-btn,
+    .download-btn,
+    .view-btn,
+    .edit-btn,
+    .html-code-btn,
+    .reset-btn {
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .download-btn {
+        background: #28a745;
+    }
+
+    .view-btn {
+        background: #3B82F6;
+    }
+
+    .edit-btn {
+        background: #ffc107;
+        color: #333;
+    }
+
+    .html-code-btn {
+        background: #6c757d;
+    }
+
+    .reset-btn {
+        background: #9ca3af;
+        padding: 8px 12px;
+        font-size: 20px;
+        line-height: 1;
+    }
+
+    .video-edit-form {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 15px;
+        background-color: #e9ecef;
+        border-radius: 10px;
+    }
+
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .stat-item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3B82F6;
+    }
+
+    .stat-label {
+        color: #666;
+        font-size: 14px;
+    }
+
+    .pac-container {
+        z-index: 10000 !important;
+    }
+
+    h3.section-divider {
+        text-align: center;
+        border-bottom: 2px solid #e1e5e9;
+        line-height: 0.1em;
+        margin: 35px 0 25px;
+    }
+
+    h3.section-divider span {
+        background: #fff;
+        padding: 0 10px;
+        color: #aaa;
+        font-size: 0.9em;
+        text-transform: uppercase;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal.is-open {
+        display: flex;
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 700px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        position: relative;
+    }
+
+    .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .html-textarea {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        font-family: monospace;
+        white-space: pre;
+        overflow: auto;
+        resize: vertical;
+        border-radius: 5px;
+    }
+
+    .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .photo-item {
+        position: relative;
+        cursor: pointer;
+        border: 3px solid transparent;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.3s;
+    }
+
+    .photo-item:hover {
+        border-color: #3B82F6;
+        transform: scale(1.05);
+    }
+
+    .photo-item.selected {
+        border-color: #28a745;
+        box-shadow: 0 0 15px rgba(40, 167, 69, 0.5);
+    }
+
+    .photo-item img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .photo-item .check-mark {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #28a745;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .photo-item.selected .check-mark {
+        display: flex;
+    }
+
+    .cost-calculator {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 10px;
+        background-color: #f8fafc;
+        padding: 10px;
+        border-radius: 10px;
+        margin-top: -10px;
+        margin-bottom: 25px;
+    }
+
+    .cost-calculator div {
+        text-align: center;
+    }
+
+    .cost-calculator p {
+        margin: 0;
+        color: #4b5563;
+        font-weight: 500;
+        font-size: 12px;
+    }
+
+    .cost-calculator .cost-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #1e293b;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .form-container {
+            padding: 20px;
+        }
+    }
+</style>
+<style>
+    /* Styles pour la modale Événement */
+    #event-drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    #event-drop-zone.dragover {
+        background-color: #e9f5ff;
+        border-color: #3B82F6;
+    }
+
+    #event-image-previews {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .preview-image-container {
+        position: relative;
+    }
+
+    .preview-image {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .remove-image-btn {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: red;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 20px;
+        text-align: center;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -74,58 +439,158 @@
         <form id="voyageForm">
             <h3 class="section-divider"><span>Détails du Séjour</span></h3>
             <div class="form-row">
-                <div class="form-group"><label for="hotel_name">🏨 Nom de l'hôtel</label><input type="text" id="hotel_name" name="hotel_name" required placeholder="Saisir un nom d'hôtel..."></div>
-                <div class="form-group"><label for="destination">📍 Destination</label><input type="text" id="destination" name="destination" required placeholder="Saisir une destination..."></div>
+                <div class="form-group"><label for="hotel_name">🏨 Nom de l'hôtel</label><input type="text"
+                        id="hotel_name" name="hotel_name" required placeholder="Saisir un nom d'hôtel..."></div>
+                <div class="form-group"><label for="destination">📍 Destination</label><input type="text"
+                        id="destination" name="destination" required placeholder="Saisir une destination..."></div>
             </div>
             <div class="form-row">
-                <div class="form-group" style="width: 100%;"><label for="date_range">🗓️ Période du séjour</label><input type="text" id="date_range" readonly placeholder="Cliquez pour choisir les dates"><input type="hidden" id="date_start" name="date_start"><input type="hidden" id="date_end" name="date_end"></div>
+                <div class="form-group" style="width: 100%;"><label for="date_range">🗓️ Période du séjour</label><input
+                        type="text" id="date_range" readonly placeholder="Cliquez pour choisir les dates"><input
+                        type="hidden" id="date_start" name="date_start"><input type="hidden" id="date_end"
+                        name="date_end"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label for="stars">⭐ Catégorie de l'hôtel</label><select id="stars" name="stars"><option value="2">2⭐</option><option value="3">3⭐</option><option value="4" selected>4⭐</option><option value="5">5⭐</option></select></div>
+                <div class="form-group"><label for="stars">⭐ Catégorie de l'hôtel</label><select id="stars"
+                        name="stars">
+                        <option value="2">2⭐</option>
+                        <option value="3">3⭐</option>
+                        <option value="4" selected>4⭐</option>
+                        <option value="5">5⭐</option>
+                    </select></div>
                 <div class="form-group">
                     <label for="num_people">👥 Nombre de personnes</label>
                     <input type="number" id="num_people" name="num_people" value="2" min="1">
-                    <button type="button" id="toggleChildrenBtn" style="margin-top: 8px; padding: 6px 12px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <button type="button" id="toggleChildrenBtn"
+                        style="margin-top: 8px; padding: 6px 12px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                         <span style="font-size: 16px;">➕</span> Ajouter des enfants
                     </button>
                     <div id="children_wrapper" style="display:none; margin-top: 10px;">
                         <label for="num_children">👶 Nombre d'enfants</label>
-                        <input type="number" id="num_children" name="num_children" value="0" min="0" placeholder="Nombre d'enfants">
+                        <input type="number" id="num_children" name="num_children" value="0" min="0"
+                            placeholder="Nombre d'enfants">
                     </div>
                 </div>
             </div>
 
             <h3 class="section-divider"><span>Détails du Vol & Transferts</span></h3>
             <div class="form-row">
-                <div class="form-group"><label for="departure_city">✈️ Aéroport de départ</label><input type="text" id="departure_city" name="departure_city" placeholder="Saisir un aéroport..."><label for="arrival_time" style="margin-top: 10px;">Heure d'atterrissage</label><input type="time" id="arrival_time" name="arrival_time" value="12:00"></div>
-                <div class="form-group"><label for="arrival_airport">🛬 Aéroport d'arrivée</label><input type="text" id="arrival_airport" name="arrival_airport" placeholder="Saisir un aéroport..."><label for="departure_time" style="margin-top: 10px;">Heure de décollage</label><input type="time" id="departure_time" name="departure_time" value="09:00"></div>
+                <div class="form-group"><label for="departure_city">✈️ Aéroport de départ</label><input type="text"
+                        id="departure_city" name="departure_city" placeholder="Saisir un aéroport..."><label
+                        for="arrival_time" style="margin-top: 10px;">Heure d'atterrissage</label><input type="time"
+                        id="arrival_time" name="arrival_time" value="12:00"></div>
+                <div class="form-group"><label for="arrival_airport">🛬 Aéroport d'arrivée</label><input type="text"
+                        id="arrival_airport" name="arrival_airport" placeholder="Saisir un aéroport..."><label
+                        for="departure_time" style="margin-top: 10px;">Heure de décollage</label><input type="time"
+                        id="departure_time" name="departure_time" value="09:00"></div>
             </div>
             <div class="form-row">
-                 <div class="form-group"><label for="baggage_type">🧳 Bagages</label><select id="baggage_type" name="baggage_type"><option>Pas de bagages</option><option selected>bagages 10 kilos</option><option>Bagage 20 kilos</option><option>bagages 10 kilos + 1x 20 kilos</option></select></div>
+                <div class="form-group"><label for="baggage_type">🧳 Bagages</label><select id="baggage_type"
+                        name="baggage_type">
+                        <option>Pas de bagages</option>
+                        <option selected>bagages 10 kilos</option>
+                        <option>Bagage 20 kilos</option>
+                        <option>bagages 10 kilos + 1x 20 kilos</option>
+                    </select></div>
             </div>
-            <div class="form-row">
-                <div class="form-group"><label for="flight_price">💰 Prix du vol (€)</label><div class="input-with-button"><input type="number" id="flight_price" name="flight_price" value="0" class="cost-input"><button type="button" id="searchFlightsBtn" class="search-btn" title="Rechercher sur Google Flights">🔎</button></div></div>
-                <div class="form-group"><label for="transfer_cost">🚐 Coût des Transferts (€)</label><input type="number" id="transfer_cost" name="transfer_cost" value="0" class="cost-input"></div>
-            </div>
-            <div class="form-row">
-                <div class="form-group"><label for="car_rental_cost">🚗 Voiture de location (€)</label><input type="number" id="car_rental_cost" name="car_rental_cost" value="0" class="cost-input"></div>
+
+            <!-- Champs visibles uniquement en Mode Classique -->
+            <div id="classic-only-fields">
+                <div class="form-row">
+                    <div class="form-group"><label for="flight_price">💰 Prix du vol (€)</label>
+                        <div class="input-with-button"><input type="number" id="flight_price" name="flight_price"
+                                value="0" class="cost-input"><button type="button" id="searchFlightsBtn"
+                                class="search-btn" title="Rechercher sur Google Flights">🔎</button></div>
+                    </div>
+                    <div class="form-group"><label for="transfer_cost">🚐 Coût des Transferts (€)</label><input
+                            type="number" id="transfer_cost" name="transfer_cost" value="0" class="cost-input"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label for="car_rental_cost">🚗 Voiture de location (€)</label><input
+                            type="number" id="car_rental_cost" name="car_rental_cost" value="0" class="cost-input">
+                    </div>
+                </div>
             </div>
 
             <h3 class="section-divider"><span>Détails du Prix</span></h3>
-            <div class="form-row">
-                <div class="form-group"><label for="hotel_b2b_price">💰 Tarif Hôtel B2B (€)</label><input type="number" id="hotel_b2b_price" name="hotel_b2b_price" required placeholder="ex: 2000" class="cost-input"></div>
-                <div class="form-group"><label for="hotel_b2c_price">💳 Tarif Hôtel B2C (€)</label><div class="input-with-button"><input type="number" id="hotel_b2c_price" name="hotel_b2c_price" required placeholder="ex: 2800" class="cost-input"><button type="button" id="searchBookingBtn" class="search-btn" title="Rechercher sur Booking.com">🔎</button></div></div>
-            </div>
-             <div class="form-group"><label for="pack_price">📦 Prix du pack (€)</label><input type="number" id="pack_price" name="pack_price" required placeholder="ex: 2400" class="cost-input"></div>
 
-             <div class="cost-calculator">
-                <div><p>Coût B2B</p><span id="total-b2b-cost" class="cost-value">0 €</span></div>
-                <div><p>Coût B2C</p><span id="total-b2c-cost" class="cost-value">0 €</span></div>
-                <div><p>Écart B2C/B2B</p><span id="b2c-b2b-gap" class="cost-value">0 €</span></div>
-                <div><p>Économie Client</p><span id="client-saving" class="cost-value" style="color: #10b981;">0 €</span></div>
-                <div><p>Marge Finale</p><span id="final-margin" class="cost-value" style="color: #2563eb;">0 €</span></div>
-                <div><p>Marge Vendeur</p><span id="seller-margin" class="cost-value" style="color: #2563eb;">0 €</span></div>
-                <div><p>Marge VP</p><span id="vp-margin" class="cost-value" style="color: #2563eb;">0 €</span></div>
+            <!-- Toggle Mode Classique / Pack -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px; background: #f1f5f9; padding: 10px; border-radius: 10px;">
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 15px; border-radius: 8px; transition: all 0.2s;"
+                        id="label-mode-classic">
+                        <input type="radio" name="pricing_mode" value="classic" checked
+                            style="width: 18px; height: 18px;">
+                        <span style="font-weight: 600;">📊 Mode Classique</span>
+                    </label>
+                    <label
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 15px; border-radius: 8px; transition: all 0.2s;"
+                        id="label-mode-pack">
+                        <input type="radio" name="pricing_mode" value="pack" style="width: 18px; height: 18px;">
+                        <span style="font-weight: 600;">📦 Mode Pack Combiné</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Champs Mode Classique -->
+            <div id="classic-mode-fields">
+                <div class="form-row">
+                    <div class="form-group"><label for="hotel_b2b_price">💰 Tarif Hôtel B2B (€)</label><input
+                            type="number" id="hotel_b2b_price" name="hotel_b2b_price" placeholder="ex: 2000"
+                            class="cost-input"></div>
+                    <div class="form-group"><label for="hotel_b2c_price">💳 Tarif Hôtel B2C (€)</label>
+                        <div class="input-with-button"><input type="number" id="hotel_b2c_price" name="hotel_b2c_price"
+                                placeholder="ex: 2800" class="cost-input"><button type="button" id="searchBookingBtn"
+                                class="search-btn" title="Rechercher sur Booking.com">🔎</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Champs Mode Pack -->
+            <div id="pack-mode-fields" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group"><label for="pack_b2b_price">💰 Prix Pack VP (Coût B2B) (€)</label><input
+                            type="number" id="pack_b2b_price" name="pack_b2b_price" placeholder="ex: 1800"
+                            class="cost-input"></div>
+                    <div class="form-group"><label for="pack_competitor_price">🏢 Prix Pack Ailleurs (€)</label><input
+                            type="number" id="pack_competitor_price" name="pack_competitor_price" placeholder="ex: 2400"
+                            class="cost-input"></div>
+                </div>
+                <div class="form-group">
+                    <button type="button" id="openPackOptionsBtn" class="search-btn"
+                        style="width: auto; background-color: #3B82F6; color: white; display: inline-flex; align-items: center; gap: 8px;">
+                        ⚙️ Configurer les services inclus
+                    </button>
+                    <span id="pack-options-summary" style="margin-left: 10px; font-size: 14px; color: #666;"></span>
+                </div>
+            </div>
+
+            <div class="form-group"><label for="pack_price">📦 Prix du pack (€)</label><input type="number"
+                    id="pack_price" name="pack_price" required placeholder="ex: 2400" class="cost-input"></div>
+
+            <div class="cost-calculator">
+                <div>
+                    <p>Coût B2B</p><span id="total-b2b-cost" class="cost-value">0 €</span>
+                </div>
+                <div>
+                    <p>Coût B2C</p><span id="total-b2c-cost" class="cost-value">0 €</span>
+                </div>
+                <div>
+                    <p>Écart B2C/B2B</p><span id="b2c-b2b-gap" class="cost-value">0 €</span>
+                </div>
+                <div>
+                    <p>Économie Client</p><span id="client-saving" class="cost-value" style="color: #10b981;">0 €</span>
+                </div>
+                <div>
+                    <p>Marge Finale</p><span id="final-margin" class="cost-value" style="color: #2563eb;">0 €</span>
+                </div>
+                <div>
+                    <p>Marge Vendeur</p><span id="seller-margin" class="cost-value" style="color: #2563eb;">0 €</span>
+                </div>
+                <div>
+                    <p>Marge VP</p><span id="vp-margin" class="cost-value" style="color: #2563eb;">0 €</span>
+                </div>
             </div>
 
             <div class="form-group">
@@ -135,27 +600,55 @@
                         <label for="has_cancellation" style="margin-bottom: 0;">Annulation gratuite</label>
                     </div>
                     <div id="cancellation_date_wrapper" style="display: none; flex-grow: 1;">
-                        <input type="text" id="cancellation_date" name="cancellation_date" readonly placeholder="Jusqu'au...">
+                        <input type="text" id="cancellation_date" name="cancellation_date" readonly
+                            placeholder="Jusqu'au...">
                     </div>
                 </div>
             </div>
 
-            <div class="form-group"><label>🍽️ Surcoût Pension</label><div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0" class="cost-input"><select id="surcharge_type" name="surcharge_type"><option>Logement seul</option><option>Petit déjeuner</option><option>Demi pension</option><option selected>Pension complète</option><option>All-In</option></select></div></div>
+            <div class="form-group"><label>🍽️ Surcoût Pension</label>
+                <div class="input-with-button"><input type="number" id="surcharge_cost" name="surcharge_cost" value="0"
+                        class="cost-input"><select id="surcharge_type" name="surcharge_type">
+                        <option>Logement seul</option>
+                        <option>Petit déjeuner</option>
+                        <option>Demi pension</option>
+                        <option selected>Pension complète</option>
+                        <option>All-In</option>
+                    </select></div>
+            </div>
 
             <h3 class="section-divider"><span>Services & Client</span></h3>
-            <div class="form-group"><label for="exclusive_services">🎁 Services Exclusifs Inclus</label><textarea id="exclusive_services" name="exclusive_services" placeholder="ex: Accès au lounge VIP de l'aéroport&#10;Une bouteille de champagne en chambre&#10;Check-out tardif jusqu'à 14h"></textarea></div>
-            
+            <div class="form-group"><label for="exclusive_services">🎁 Services Exclusifs Inclus</label><textarea
+                    id="exclusive_services" name="exclusive_services"
+                    placeholder="ex: Accès au lounge VIP de l'aéroport&#10;Une bouteille de champagne en chambre&#10;Check-out tardif jusqu'à 14h"></textarea>
+            </div>
+
             <div class="form-group">
-                <button type="button" id="openEventModalBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;">
+                <button type="button" id="openEventModalBtn" class="search-btn"
+                    style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;">
                     🎉 Ajouter un événement (Optionnel)
                 </button>
             </div>
 
-            <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn" style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.486-.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg><span>Ajouter un profil Instagram (Optionnel)</span></button><div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle" name="instagram_handle" placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div></div>
-            
-            <div class="form-group" style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 10px; border-radius: 8px;">
-                <label for="is_ultra_budget" style="display: flex; align-items: center; gap: 10px; margin: 0; color: #b91c1c; font-weight: bold;">
-                    <input type="checkbox" id="is_ultra_budget" name="is_ultra_budget" value="true" style="width: 20px; height: 20px;">
+            <div class="form-group"><button type="button" id="toggleInstagramBtn" class="search-btn"
+                    style="width: auto; background-color: #f0f0f0; display: inline-flex; align-items: center; gap: 8px;"><svg
+                        xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                        viewBox="0 0 16 16">
+                        <path
+                            d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.703.01 5.555 0 5.827 0 8s.01 2.444.048 3.297c.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.297-.048c.852-.04 1.433-.174 1.942-.372.526-.205.972-.478 1.417-.923.445-.444.718-.891.923-1.417.198-.51.333-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.444-.048-3.297c-.04-.852-.174-1.433-.372-1.942a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.09-.333-1.942-.372C10.445.01 10.173 0 8 0zm0 1.442c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.282.24.705.275 1.486.039.843.047 1.096.047 3.232s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.486a2.5 2.5 0 0 1-.598.92 2.5 2.5 0 0 1-.92.598c-.282.11-.705.24-1.486.275-.843.038-1.096.047-3.232.047s-2.389-.008-3.232-.047c-.78-.035-1.203-.166-1.486-.275a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.598-.92c-.11-.282-.24-.705-.275-1.486-.038-.843-.046-1.096-.046-3.232s.008-2.389.046-3.232c.035.78.166-1.204.275-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.486-.275.843-.039 1.096-.046 3.232-.046zM8 4.865a3.135 3.135 0 1 0 0 6.27 3.135 3.135 0 0 0 0-6.27zm0 5.143a2.008 2.008 0 1 1 0-4.016 2.008 2.008 0 0 1 0 4.016zm6.406-4.848a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" />
+                    </svg><span>Ajouter un profil Instagram (Optionnel)</span></button>
+                <div id="instagram_wrapper" style="display:none; margin-top: 15px;"><label for="instagram_handle">👤 Nom
+                        d'utilisateur ou URL du profil Instagram</label><input type="text" id="instagram_handle"
+                        name="instagram_handle"
+                        placeholder="ex: hotel_marbella ou https://instagram.com/hotel_marbella"></div>
+            </div>
+
+            <div class="form-group"
+                style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 10px; border-radius: 8px;">
+                <label for="is_ultra_budget"
+                    style="display: flex; align-items: center; gap: 10px; margin: 0; color: #b91c1c; font-weight: bold;">
+                    <input type="checkbox" id="is_ultra_budget" name="is_ultra_budget" value="true"
+                        style="width: 20px; height: 20px;">
                     ⚠️ Marquer comme "Ultra Budget"
                 </label>
             </div>
@@ -163,7 +656,10 @@
             <button type="submit" id="generateBtn" class="generate-btn">🚀 Générer</button>
         </form>
     </div>
-    <div class="loading" id="loading"><div class="loading-spinner"></div><h3>🔄 Appels API sécurisés...</h3></div>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <h3>🔄 Appels API sécurisés...</h3>
+    </div>
     <div class="result" id="result"></div>
 </div>
 
@@ -181,10 +677,12 @@
     <div class="modal-content" style="max-width: 900px;">
         <span class="close-button">×</span>
         <h2>Choisir l'image principale</h2>
-        <p style="color: #666; margin-bottom: 10px;">Cliquez sur l'image que vous souhaitez utiliser comme photo principale dans le bloc de tête</p>
+        <p style="color: #666; margin-bottom: 10px;">Cliquez sur l'image que vous souhaitez utiliser comme photo
+            principale dans le bloc de tête</p>
         <div id="photoGridContainer" class="photo-grid"></div>
         <div style="margin-top: 20px; text-align: center;">
-            <button id="confirmImageChangeBtn" class="action-btn" style="background: #28a745;">✓ Confirmer la sélection</button>
+            <button id="confirmImageChangeBtn" class="action-btn" style="background: #28a745;">✓ Confirmer la
+                sélection</button>
         </div>
     </div>
 </div>
@@ -193,23 +691,38 @@
     <div class="modal-content" style="max-width: 500px;">
         <span class="close-button">×</span>
         <h2 class="text-xl font-bold mb-4">Assigner le voyage à un client</h2>
-        
+
         <div class="border-b border-gray-200 mb-4">
             <nav class="flex space-x-4">
-                <button id="tab-new-client" class="px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600">Nouveau Client</button>
-                <button id="tab-existing-client" class="px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500">Client Existant</button>
+                <button id="tab-new-client"
+                    class="px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600">Nouveau
+                    Client</button>
+                <button id="tab-existing-client"
+                    class="px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500">Client
+                    Existant</button>
             </nav>
         </div>
 
         <div id="new-client-form">
             <form id="client-form-new" class="space-y-4">
-                <div><label for="client_first_name" class="block text-sm font-medium text-slate-700">Prénom</label><input type="text" id="client_first_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
-                <div><label for="client_last_name" class="block text-sm font-medium text-slate-700">Nom</label><input type="text" id="client_last_name" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
-                <div><label for="client_email" class="block text-sm font-medium text-slate-700">Email</label><input type="email" id="client_email" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
-                <div><label for="client_phone" class="block text-sm font-medium text-slate-700">Téléphone</label><input type="tel" id="client_phone" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
-                 <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
-                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer et Assigner</button>
+                <div><label for="client_first_name"
+                        class="block text-sm font-medium text-slate-700">Prénom</label><input type="text"
+                        id="client_first_name" required
+                        class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_last_name" class="block text-sm font-medium text-slate-700">Nom</label><input
+                        type="text" id="client_last_name" required
+                        class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_email" class="block text-sm font-medium text-slate-700">Email</label><input
+                        type="email" id="client_email" required
+                        class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div><label for="client_phone" class="block text-sm font-medium text-slate-700">Téléphone</label><input
+                        type="tel" id="client_phone"
+                        class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"></div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button"
+                        class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer et
+                        Assigner</button>
                 </div>
             </form>
         </div>
@@ -217,11 +730,13 @@
         <div id="existing-client-form" style="display: none;">
             <div class="space-y-4">
                 <div>
-                    <label for="client-search" class="block text-sm font-medium text-slate-700">Rechercher un client</label>
-                    <input type="text" id="client-search" placeholder="Nom, prénom ou email..." class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border">
+                    <label for="client-search" class="block text-sm font-medium text-slate-700">Rechercher un
+                        client</label>
+                    <input type="text" id="client-search" placeholder="Nom, prénom ou email..."
+                        class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border">
                 </div>
                 <div id="client-list" class="max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
-                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -232,11 +747,14 @@
     <div class="modal-content" style="max-width: 600px;">
         <span class="close-button">×</span>
         <h2 class="text-xl font-bold mb-4">Ajouter un événement</h2>
-        
+
         <div class="form-group">
             <label for="event_description">Description de l'événement</label>
-            <textarea id="event_description" name="event_description" placeholder="Décrivez l'événement, le festival, le marché..." class="w-full p-2 border rounded"></textarea>
-            <button type="button" id="generateEventAIBtn" class="search-btn" style="margin-top: 10px; width: auto; background-color: #60A5FA; color: white;">✨ IA Génération</button>
+            <textarea id="event_description" name="event_description"
+                placeholder="Décrivez l'événement, le festival, le marché..."
+                class="w-full p-2 border rounded"></textarea>
+            <button type="button" id="generateEventAIBtn" class="search-btn"
+                style="margin-top: 10px; width: auto; background-color: #60A5FA; color: white;">✨ IA Génération</button>
             <div id="eventAILoading" style="display:none; margin-top: 10px; text-align: center;">
                 <div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
                 <p style="font-size: 14px; color: #666;">Génération en cours...</p>
@@ -253,8 +771,117 @@
         </div>
 
         <div class="mt-6 flex justify-end space-x-3">
-            <button type="button" class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Fermer</button>
-            <button type="button" id="saveEventBtn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer</button>
+            <button type="button"
+                class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Fermer</button>
+            <button type="button" id="saveEventBtn"
+                class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modale pour configurer les options du Pack -->
+<div id="packOptionsModal" class="modal">
+    <div class="modal-content" style="max-width: 750px;">
+        <span class="close-button">×</span>
+        <h2 class="text-xl font-bold mb-4">⚙️ Configuration des services inclus</h2>
+        <p style="color: #666; margin-bottom: 20px;">Configurez les services inclus dans chaque pack pour un
+            comparatif précis.</p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Colonne VP -->
+            <div style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 15px;">
+                <h3 style="font-weight: bold; color: #059669; margin-bottom: 15px; text-align: center;">🌟 Mon Pack
+                    VP</h3>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 14px;">🧳 Bagages en soute</label>
+                    <select id="vp_baggage" name="vp_baggage"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                        <option value="0">Aucun</option>
+                        <option value="1">1 bagage (20kg)</option>
+                        <option value="2">2 bagages (20kg)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 14px;">🚐 Transfert</label>
+                    <select id="vp_transfer" name="vp_transfer"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                        <option value="none">Aucun</option>
+                        <option value="shared">Partagé</option>
+                        <option value="private">Privé</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 14px;">🍽️ Pension</label>
+                    <select id="vp_pension" name="vp_pension"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                        <option value="logement">Logement seul</option>
+                        <option value="breakfast">Petit-déjeuner</option>
+                        <option value="half">Demi-pension</option>
+                        <option value="full">Pension complète</option>
+                        <option value="allin">All-Inclusive</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 14px;">🎁 Autre service (optionnel)</label>
+                    <input type="text" id="vp_custom" name="vp_custom" placeholder="ex: Champagne offert"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                </div>
+            </div>
+
+            <!-- Colonne Concurrent -->
+            <div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 15px;">
+                <h3 style="font-weight: bold; color: #dc2626; margin-bottom: 15px; text-align: center;">🏢 Pack
+                    Ailleurs</h3>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 14px;">🧳 Bagages en soute</label>
+                    <select id="comp_baggage" name="comp_baggage"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                        <option value="0">Aucun</option>
+                        <option value="1">1 bagage (20kg)</option>
+                        <option value="2">2 bagages (20kg)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 14px;">🚐 Transfert</label>
+                    <select id="comp_transfer" name="comp_transfer"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                        <option value="none">Aucun</option>
+                        <option value="shared">Partagé</option>
+                        <option value="private">Privé</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 14px;">🍽️ Pension</label>
+                    <select id="comp_pension" name="comp_pension"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                        <option value="logement">Logement seul</option>
+                        <option value="breakfast">Petit-déjeuner</option>
+                        <option value="half">Demi-pension</option>
+                        <option value="full">Pension complète</option>
+                        <option value="allin">All-Inclusive</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 14px;">🎁 Autre service (optionnel)</label>
+                    <input type="text" id="comp_custom" name="comp_custom" placeholder="ex: Aucun extra"
+                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-3">
+            <button type="button"
+                class="close-button bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg">Annuler</button>
+            <button type="button" id="savePackOptionsBtn"
+                class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">✓ Enregistrer</button>
         </div>
     </div>
 </div>
@@ -262,12 +889,17 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
-<script async src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=places&callback=initializeApp"></script>
+<script async
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=places&callback=initializeApp"></script>
 <script>
     let generatedData = null;
-    const userMarginPercentage = {{ user_margin | default(80) }};
+    const userMarginPercentage = {{ user_margin | default (80) }};
     let allClients = [];
     let eventData = { images: [], description: '' };
+    let packOptions = {
+        vp: { baggage: '0', transfer: 'none', pension: 'logement', custom: '' },
+        comp: { baggage: '0', transfer: 'none', pension: 'logement', custom: '' }
+    };
 
     function initializeApp() {
         const formatDate = (d) => {
@@ -293,15 +925,15 @@
             singleMode: true, lang: 'fr-FR', format: 'DD MMMM YYYY'
         });
 
-        document.getElementById('has_cancellation').addEventListener('change', function() {
+        document.getElementById('has_cancellation').addEventListener('change', function () {
             document.getElementById('cancellation_date_wrapper').style.display = this.checked ? 'block' : 'none';
         });
 
-        document.getElementById('toggleInstagramBtn').addEventListener('click', function() {
+        document.getElementById('toggleInstagramBtn').addEventListener('click', function () {
             document.getElementById('instagram_wrapper').style.display = document.getElementById('instagram_wrapper').style.display === 'block' ? 'none' : 'block';
         });
 
-        document.getElementById('toggleChildrenBtn').addEventListener('click', function() {
+        document.getElementById('toggleChildrenBtn').addEventListener('click', function () {
             const wrapper = document.getElementById('children_wrapper');
             if (wrapper.style.display === 'block') {
                 wrapper.style.display = 'none';
@@ -310,6 +942,58 @@
                 wrapper.style.display = 'block';
                 this.innerHTML = '<span style="font-size: 16px;">➖</span> Retirer les enfants';
             }
+        });
+
+        // Mode toggle handlers
+        document.querySelectorAll('input[name="pricing_mode"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                const isPackMode = this.value === 'pack';
+                document.getElementById('classic-mode-fields').style.display = isPackMode ? 'none' : 'block';
+                document.getElementById('classic-only-fields').style.display = isPackMode ? 'none' : 'block';
+                document.getElementById('pack-mode-fields').style.display = isPackMode ? 'block' : 'none';
+
+                // Update label styles
+                document.getElementById('label-mode-classic').style.backgroundColor = isPackMode ? 'transparent' : '#dbeafe';
+                document.getElementById('label-mode-pack').style.backgroundColor = isPackMode ? '#dbeafe' : 'transparent';
+
+                updateCostTotals();
+            });
+        });
+
+        // Pack options modal handlers
+        document.getElementById('openPackOptionsBtn').addEventListener('click', function () {
+            // Pre-fill modal with current values
+            document.getElementById('vp_baggage').value = packOptions.vp.baggage;
+            document.getElementById('vp_transfer').value = packOptions.vp.transfer;
+            document.getElementById('vp_pension').value = packOptions.vp.pension;
+            document.getElementById('vp_custom').value = packOptions.vp.custom;
+            document.getElementById('comp_baggage').value = packOptions.comp.baggage;
+            document.getElementById('comp_transfer').value = packOptions.comp.transfer;
+            document.getElementById('comp_pension').value = packOptions.comp.pension;
+            document.getElementById('comp_custom').value = packOptions.comp.custom;
+
+            document.getElementById('packOptionsModal').classList.add('is-open');
+        });
+
+        document.getElementById('savePackOptionsBtn').addEventListener('click', function () {
+            packOptions = {
+                vp: {
+                    baggage: document.getElementById('vp_baggage').value,
+                    transfer: document.getElementById('vp_transfer').value,
+                    pension: document.getElementById('vp_pension').value,
+                    custom: document.getElementById('vp_custom').value
+                },
+                comp: {
+                    baggage: document.getElementById('comp_baggage').value,
+                    transfer: document.getElementById('comp_transfer').value,
+                    pension: document.getElementById('comp_pension').value,
+                    custom: document.getElementById('comp_custom').value
+                }
+            };
+
+            // Update summary display
+            updatePackOptionsSummary();
+            document.getElementById('packOptionsModal').classList.remove('is-open');
         });
 
         const hotelInput = document.getElementById('hotel_name');
@@ -321,7 +1005,7 @@
         new google.maps.places.Autocomplete(destinationInput);
         new google.maps.places.Autocomplete(departureInput, { types: ['airport'] });
         new google.maps.places.Autocomplete(arrivalInput, { types: ['airport'] });
-        
+
         hotelAutocomplete.setFields(['name', 'address_components']);
         hotelAutocomplete.addListener('place_changed', () => {
             const place = hotelAutocomplete.getPlace();
@@ -361,22 +1045,50 @@
         updateCostTotals();
     }
 
+    function updatePackOptionsSummary() {
+        const pensionLabels = { logement: 'Logement seul', breakfast: 'Petit-déj', half: 'Demi-pension', full: 'Pension complète', allin: 'All-In' };
+        const transferLabels = { none: 'Sans transfert', shared: 'Transfert partagé', private: 'Transfert privé' };
+
+        const vpDetails = [];
+        if (packOptions.vp.baggage !== '0') vpDetails.push(`${packOptions.vp.baggage} bag.`);
+        if (packOptions.vp.transfer !== 'none') vpDetails.push(transferLabels[packOptions.vp.transfer]);
+        vpDetails.push(pensionLabels[packOptions.vp.pension]);
+        if (packOptions.vp.custom) vpDetails.push(packOptions.vp.custom);
+
+        document.getElementById('pack-options-summary').textContent = vpDetails.length > 0
+            ? '✓ ' + vpDetails.join(' • ')
+            : '';
+    }
+
     function updateCostTotals() {
-        const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
-        const hotelB2B = getVal('hotel_b2b_price');
-        const hotelB2C = getVal('hotel_b2c_price');
-        const flight = getVal('flight_price');
-        const transfer = getVal('transfer_cost');
-        const car = getVal('car_rental_cost');
-        const surcharge = getVal('surcharge_cost');
+        const getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
+        const pricingMode = document.querySelector('input[name="pricing_mode"]:checked')?.value || 'classic';
+
+        let totalB2B, totalB2C;
         const packPrice = getVal('pack_price');
-        const totalB2B = hotelB2B + flight + transfer + car + surcharge;
-        const totalB2C = hotelB2C + flight + transfer + car + surcharge;
+
+        if (pricingMode === 'pack') {
+            // Mode Pack: simplified calculation
+            totalB2B = getVal('pack_b2b_price');
+            totalB2C = getVal('pack_competitor_price');
+        } else {
+            // Mode Classique: detailed calculation
+            const hotelB2B = getVal('hotel_b2b_price');
+            const hotelB2C = getVal('hotel_b2c_price');
+            const flight = getVal('flight_price');
+            const transfer = getVal('transfer_cost');
+            const car = getVal('car_rental_cost');
+            const surcharge = getVal('surcharge_cost');
+            totalB2B = hotelB2B + flight + transfer + car + surcharge;
+            totalB2C = hotelB2C + flight + transfer + car + surcharge;
+        }
+
         const gap = totalB2C - totalB2B;
         const saving = totalB2C - packPrice;
         const finalMargin = packPrice - totalB2B;
         const sellerMargin = Math.round(finalMargin * (userMarginPercentage / 100));
         const vpMargin = finalMargin - sellerMargin;
+
         document.getElementById('total-b2b-cost').textContent = `${totalB2B} €`;
         document.getElementById('total-b2c-cost').textContent = `${totalB2C} €`;
         document.getElementById('b2c-b2b-gap').textContent = `${gap} €`;
@@ -386,35 +1098,38 @@
         document.getElementById('vp-margin').textContent = `${vpMargin} €`;
     }
 
-    document.getElementById('voyageForm').addEventListener('submit', function(e) {
+    document.getElementById('voyageForm').addEventListener('submit', function (e) {
         e.preventDefault();
         const formData = new FormData(this);
         const data = Object.fromEntries(formData);
         if (!data.date_start || !data.date_end) return alert("Veuillez sélectionner une période de séjour.");
-        
+
         data.is_ultra_budget = document.getElementById('is_ultra_budget').checked;
 
         // Ajouter les données de l'événement
         data.event_description = eventData.description;
         data.event_images = eventData.images; // Array of base64 strings
 
+        // Ajouter les options du pack (mode pack combiné)
+        data.pack_options = packOptions;
+
         document.getElementById('loading').style.display = 'block';
         document.getElementById('result').style.display = 'none';
 
         fetch('/api/generate-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-        .then(response => {
-            if (response.status === 429) { return response.json().then(err => { throw new Error(err.error) }); }
-            if (!response.ok) { return response.text().then(text => { throw new Error('Erreur serveur: ' + text) }); }
-            return response.json();
-        })
-        .then(data => {
-            document.getElementById('loading').style.display = 'none';
-            const resultDiv = document.getElementById('result');
-            resultDiv.style.display = 'block';
+            .then(response => {
+                if (response.status === 429) { return response.json().then(err => { throw new Error(err.error) }); }
+                if (!response.ok) { return response.text().then(text => { throw new Error('Erreur serveur: ' + text) }); }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
 
-            if (data.success) {
-                generatedData = data;
-                resultDiv.innerHTML = `
+                if (data.success) {
+                    generatedData = data;
+                    resultDiv.innerHTML = `
                     <div class="success">✅ Page générée !</div>
                     <div class="stats">
                         <div class="stat-item"><div class="stat-number">${data.api_data.photos.length}</div><div class="stat-label">Photos</div></div>
@@ -441,16 +1156,16 @@
                             <button id="saveCustomBtn" class="action-btn" style="background: #fd7e14;">Créer pour un Client</button>
                         </div>
                     </div>`;
-                attachResultListeners();
-            } else {
-                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${data.error}</div>`;
-            }
-        })
-        .catch(error => {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('result').style.display = 'block';
-            document.getElementById('result').innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
-        });
+                    attachResultListeners();
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Erreur: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            });
     });
 
     function attachResultListeners() {
@@ -494,7 +1209,7 @@
             }
         });
 
-        document.getElementById('changeImageBtn').addEventListener('click', function() {
+        document.getElementById('changeImageBtn').addEventListener('click', function () {
             const hotelPhotos = generatedData?.api_data?.photos || [];
             const eventPhotos = eventData?.images || [];
             const allPhotos = [...hotelPhotos, ...eventPhotos];
@@ -503,39 +1218,39 @@
                 alert("Aucune photo (hôtel ou événement) n'est disponible pour la sélection.");
                 return;
             }
-            
+
             const photoGrid = document.getElementById('photoGridContainer');
-            
+
             // La première photo de l'hôtel est sélectionnée par défaut
             const mainPhotoUrl = hotelPhotos.length > 0 ? hotelPhotos[0] : (eventPhotos.length > 0 ? eventPhotos[0] : '');
 
-            photoGrid.innerHTML = allPhotos.map(function(photoUrl, index) {
+            photoGrid.innerHTML = allPhotos.map(function (photoUrl, index) {
                 return '<div class="photo-item ' + (photoUrl === mainPhotoUrl ? 'selected' : '') + '" data-url="' + photoUrl + '">' +
                     '<img src="' + photoUrl + '" alt="Photo ' + (index + 1) + '" loading="lazy">' +
                     '<div class="check-mark">✓</div>' +
                     '</div>';
             }).join('');
-            
+
             // Gestion de la sélection des photos
             photoGrid.querySelectorAll('.photo-item').forEach(item => {
-                item.addEventListener('click', function() {
+                item.addEventListener('click', function () {
                     photoGrid.querySelectorAll('.photo-item').forEach(i => i.classList.remove('selected'));
                     this.classList.add('selected');
                 });
             });
-            
+
             document.getElementById('changeImageModal').classList.add('is-open');
         });
-        
-        document.getElementById('confirmImageChangeBtn').addEventListener('click', function() {
+
+        document.getElementById('confirmImageChangeBtn').addEventListener('click', function () {
             const selectedItem = document.querySelector('.photo-item.selected');
             if (!selectedItem) {
                 alert("Veuillez sélectionner une photo.");
                 return;
             }
-            
+
             const selectedUrl = selectedItem.dataset.url;
-            
+
             // On s'assure que api_data.photos existe
             if (!generatedData.api_data.photos) {
                 generatedData.api_data.photos = [];
@@ -549,9 +1264,9 @@
 
             // On ajoute l'URL sélectionnée au début de la liste des photos de l'hôtel
             const newPhotosArray = [selectedUrl, ...generatedData.api_data.photos];
-            
+
             generatedData.api_data.photos = newPhotosArray;
-            
+
             document.getElementById('changeImageModal').classList.remove('is-open');
             document.getElementById('editConfirmation').textContent = '✅ Image principale mise à jour. Prévisualisez pour voir le changement.';
         });
@@ -587,7 +1302,7 @@
                 document.getElementById('editVideoBtn').style.display = 'inline-block';
             });
         });
-        
+
         document.getElementById('saveProposedBtn').addEventListener('click', () => {
             if (!generatedData) return;
             saveTripData({ ...generatedData, status: 'proposed' });
@@ -656,8 +1371,8 @@
             // Dans le cas d'une assignation, on ne change pas le bouton car l'action se passe dans la modale
             btn = document.querySelector('#client-form-new button[type="submit"]');
         }
-        if(!btn) return;
-        
+        if (!btn) return;
+
         const originalText = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Sauvegarde...';
@@ -679,22 +1394,22 @@
             alert('Une erreur réseau est survenue lors de la sauvegarde.');
             console.error(error);
         } finally {
-             if (btn) {
+            if (btn) {
                 btn.disabled = false;
                 btn.textContent = originalText;
-             }
+            }
         }
     }
 
     // Gestion de la modale client
-    document.getElementById('tab-new-client').addEventListener('click', function() {
+    document.getElementById('tab-new-client').addEventListener('click', function () {
         document.getElementById('new-client-form').style.display = 'block';
         document.getElementById('existing-client-form').style.display = 'none';
         this.className = 'px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600';
         document.getElementById('tab-existing-client').className = 'px-3 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500';
     });
 
-    document.getElementById('tab-existing-client').addEventListener('click', function() {
+    document.getElementById('tab-existing-client').addEventListener('click', function () {
         document.getElementById('new-client-form').style.display = 'none';
         document.getElementById('existing-client-form').style.display = 'block';
         this.className = 'px-3 py-2 font-medium text-sm border-b-2 border-blue-500 text-blue-600';
@@ -710,10 +1425,10 @@
             console.error("Erreur lors du chargement des clients:", error);
         }
     }
-    
+
     document.getElementById('client-search').addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
-        const filteredClients = allClients.filter(client => 
+        const filteredClients = allClients.filter(client =>
             client.full_name.toLowerCase().includes(searchTerm) ||
             client.email.toLowerCase().includes(searchTerm)
         );
@@ -732,12 +1447,12 @@
             clientDiv.className = 'p-2 hover:bg-slate-100 rounded cursor-pointer';
             clientDiv.textContent = `${client.full_name} (${client.email})`;
             clientDiv.onclick = () => {
-                const payload = { 
-                    ...generatedData, 
-                    status: 'assigned', 
+                const payload = {
+                    ...generatedData,
+                    status: 'assigned',
                     form_data: {
                         ...generatedData.form_data,
-                        client_id: client.id 
+                        client_id: client.id
                     }
                 };
                 saveTripData(payload);
@@ -760,15 +1475,15 @@
         // --- Logique pour la génération IA de l'événement ---
         document.getElementById('generateEventAIBtn').addEventListener('click', async () => {
             console.log('🎯 Bouton IA Génération cliqué !');
-            
+
             // Récupérer l'élément au moment du clic pour s'assurer d'avoir la bonne référence
             const descriptionInput = document.getElementById('event_description');
             const currentEventDescription = descriptionInput.value;
             const destination = document.getElementById('destination').value;
-            
+
             console.log('📝 Description:', currentEventDescription);
             console.log('📍 Destination:', destination);
-            
+
             if (!currentEventDescription && !destination) {
                 alert("Veuillez entrer une description d'événement ou une destination pour la génération IA.");
                 return;
@@ -796,15 +1511,15 @@
 
                 const result = await response.json();
                 console.log('✅ Résultat IA reçu:', result);
-                
+
                 if (result.success) {
                     console.log('🔄 Mise à jour de la description...');
                     // Récupérer à nouveau l'élément pour être sûr
                     const targetInput = document.getElementById('event_description');
                     targetInput.value = result.new_description;
-                    
+
                     console.log('✅ Description mise à jour:', targetInput.value);
-                    
+
                     // Mettre à jour les images
                     console.log('📸 Ajout de', result.image_urls.length, 'images');
                     eventData.images = [];
@@ -812,7 +1527,7 @@
                         eventData.images.push(imageUrl);
                     }
                     renderEventImagePreviews();
-                    
+
                     alert('✅ Description générée avec succès !');
                 } else {
                     console.error('❌ Échec:', result.error);

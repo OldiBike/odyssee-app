@@ -185,23 +185,38 @@ def create_app(config_class=Config):
             gatherer = RealAPIGatherer()
             data = request.get_json()
             
-            required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'hotel_b2b_price', 'hotel_b2c_price', 'pack_price']
+            # Déterminer le mode de tarification
+            pricing_mode = data.get('pricing_mode', 'classic')
+            
+            # Validation des champs selon le mode
+            if pricing_mode == 'pack':
+                required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'pack_b2b_price', 'pack_competitor_price', 'pack_price']
+            else:
+                required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'hotel_b2b_price', 'hotel_b2c_price', 'pack_price']
+            
             if not all(field in data and data[field] for field in required_fields):
                 raise ValueError('Tous les champs requis ne sont pas remplis.')
 
             real_data = gatherer.gather_all_real_data(data['hotel_name'], data['destination'])
             
-            hotel_b2b_price = int(data.get('hotel_b2b_price') or 0)
-            hotel_b2c_price = int(data.get('hotel_b2c_price') or 0)
             pack_price = int(data.get('pack_price') or 0)
-            flight_price = int(data.get('flight_price') or 0)
-            transfer_cost = int(data.get('transfer_cost') or 0)
-            surcharge_cost = int(data.get('surcharge_cost') or 0)
-            car_rental_cost = int(data.get('car_rental_cost') or 0)
+            
+            if pricing_mode == 'pack':
+                # Mode Pack: utiliser les prix du pack
+                total_cost_b2b = int(data.get('pack_b2b_price') or 0)
+                comparison_total = int(data.get('pack_competitor_price') or 0)
+            else:
+                # Mode Classique: calcul détaillé
+                hotel_b2b_price = int(data.get('hotel_b2b_price') or 0)
+                hotel_b2c_price = int(data.get('hotel_b2c_price') or 0)
+                flight_price = int(data.get('flight_price') or 0)
+                transfer_cost = int(data.get('transfer_cost') or 0)
+                surcharge_cost = int(data.get('surcharge_cost') or 0)
+                car_rental_cost = int(data.get('car_rental_cost') or 0)
+                total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+                comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
 
-            total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
             margin = pack_price - total_cost_b2b
-            comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
             savings = comparison_total - pack_price
 
             return jsonify({'success': True, 'form_data': data, 'api_data': real_data, 'margin': margin, 'savings': savings, 'comparison_total': comparison_total})
@@ -550,14 +565,27 @@ def create_app(config_class=Config):
         
         try:
             if should_publish and not trip.is_published:
+                print(f"🔄 Tentative de publication du trip {trip_id}")
+                print(f"   Hotel: {trip.hotel_name}")
+                print(f"   User ID: {trip.user_id}")
+                
+                # Vérifier que le user existe
+                if not trip.user:
+                    print(f"❌ ERREUR: User {trip.user_id} n'existe pas pour le trip {trip_id}")
+                    return jsonify({'success': False, 'message': 'Utilisateur associé introuvable.'}), 500
+                
+                print(f"   User pseudo: {trip.user.pseudo}")
+                
                 filename = publication_service.publish_public_offer(trip)
                 if filename:
                     trip.is_published = True
                     trip.published_filename = filename
                     db.session.commit()
                     public_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/offres/{filename}"
+                    print(f"✅ Publication réussie: {public_url}")
                     return jsonify({'success': True, 'message': 'Voyage publié !', 'url': public_url})
                 else:
+                    print(f"❌ Échec de la publication (filename=None)")
                     return jsonify({'success': False, 'message': 'Échec de la publication.'}), 500
             elif not should_publish and trip.is_published:
                 if publication_service.unpublish(trip.published_filename):
@@ -571,6 +599,8 @@ def create_app(config_class=Config):
                 return jsonify({'success': True, 'message': 'Aucun changement nécessaire.'})
         except Exception as e:
             db.session.rollback()
+            print(f"❌ ERREUR lors de la publication du trip {trip_id}: {e}")
+            traceback.print_exc()
             return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/trip/<int:trip_id>/send-whatsapp', methods=['POST'])

@@ -1190,6 +1190,22 @@ def create_app(config_class=Config):
                     num_people = int(form_data.get('num_people', 2))
                     num_children = int(form_data.get('num_children', 0))
                     
+                    # Recalculer savings en fonction du mode de tarification
+                    pack_price = int(form_data.get('pack_price') or 0)
+                    pricing_mode = form_data.get('pricing_mode', 'classic')
+                    
+                    if pricing_mode == 'pack':
+                        comparison_total = int(form_data.get('pack_competitor_price') or 0)
+                    else:
+                        hotel_b2c_price = int(form_data.get('hotel_b2c_price') or 0)
+                        flight_price = int(form_data.get('flight_price') or 0)
+                        transfer_cost = int(form_data.get('transfer_cost') or 0)
+                        surcharge_cost = int(form_data.get('surcharge_cost') or 0)
+                        car_rental_cost = int(form_data.get('car_rental_cost') or 0)
+                        comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+                    
+                    savings = comparison_total - pack_price
+                    
                     trips_data.append({
                         'id': trip.id,
                         'hotel_name': trip.hotel_name,
@@ -1198,7 +1214,7 @@ def create_app(config_class=Config):
                         'num_people': num_people,
                         'num_children': num_children,
                         'duration': duration,
-                        'savings': full_data.get('savings', 0),
+                        'savings': savings,
                         'is_ultra_budget': trip.is_ultra_budget,
                         'image_url': image_url,
                         'offer_url': offer_url

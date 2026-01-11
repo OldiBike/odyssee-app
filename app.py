@@ -519,16 +519,24 @@ def create_app(config_class=Config):
             full_data['form_data'].update(new_form_data)
             
             pack_price = int(new_form_data.get('pack_price') or 0)
-            hotel_b2b_price = int(new_form_data.get('hotel_b2b_price') or 0)
-            hotel_b2c_price = int(new_form_data.get('hotel_b2c_price') or 0)
-            flight_price = int(new_form_data.get('flight_price') or 0)
-            transfer_cost = int(new_form_data.get('transfer_cost') or 0)
-            surcharge_cost = int(new_form_data.get('surcharge_cost') or 0)
-            car_rental_cost = int(new_form_data.get('car_rental_cost') or 0)
+            pricing_mode = new_form_data.get('pricing_mode', 'classic')
+            
+            if pricing_mode == 'pack':
+                # Mode Pack: utiliser les prix du pack
+                total_cost_b2b = int(new_form_data.get('pack_b2b_price') or 0)
+                comparison_total = int(new_form_data.get('pack_competitor_price') or 0)
+            else:
+                # Mode Classique: calcul détaillé
+                hotel_b2b_price = int(new_form_data.get('hotel_b2b_price') or 0)
+                hotel_b2c_price = int(new_form_data.get('hotel_b2c_price') or 0)
+                flight_price = int(new_form_data.get('flight_price') or 0)
+                transfer_cost = int(new_form_data.get('transfer_cost') or 0)
+                surcharge_cost = int(new_form_data.get('surcharge_cost') or 0)
+                car_rental_cost = int(new_form_data.get('car_rental_cost') or 0)
+                total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+                comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
 
-            total_cost_b2b = hotel_b2b_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
             margin = pack_price - total_cost_b2b
-            comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
             savings = comparison_total - pack_price
 
             full_data['margin'] = margin

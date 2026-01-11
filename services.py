@@ -133,12 +133,29 @@ class PublicationService:
             if 'api_data' not in full_trip_data:
                 raise ValueError(f"Données manquantes: 'api_data' absent dans full_data_json")
             
+            # Recalculer savings en fonction du mode de tarification
+            form_data = full_trip_data['form_data']
+            pack_price = int(form_data.get('pack_price') or 0)
+            pricing_mode = form_data.get('pricing_mode', 'classic')
+            
+            if pricing_mode == 'pack':
+                comparison_total = int(form_data.get('pack_competitor_price') or 0)
+            else:
+                hotel_b2c_price = int(form_data.get('hotel_b2c_price') or 0)
+                flight_price = int(form_data.get('flight_price') or 0)
+                transfer_cost = int(form_data.get('transfer_cost') or 0)
+                surcharge_cost = int(form_data.get('surcharge_cost') or 0)
+                car_rental_cost = int(form_data.get('car_rental_cost') or 0)
+                comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+            
+            savings = comparison_total - pack_price
+            
             print(f"   Génération du HTML...")
             html_content = generate_travel_page_html(
                 full_trip_data['form_data'],
                 full_trip_data['api_data'],
-                full_trip_data.get('savings', 0),
-                full_trip_data.get('comparison_total', 0),
+                savings,
+                comparison_total,
                 creator_pseudo=creator_pseudo
             )
             base_filename = self._generate_base_filename(full_trip_data)
@@ -174,6 +191,23 @@ class PublicationService:
             full_trip_data = json.loads(trip.full_data_json)
             base_filename = self._generate_base_filename(full_trip_data)
             
+            # Recalculer savings en fonction du mode de tarification
+            form_data = full_trip_data['form_data']
+            pack_price = int(form_data.get('pack_price') or 0)
+            pricing_mode = form_data.get('pricing_mode', 'classic')
+            
+            if pricing_mode == 'pack':
+                comparison_total = int(form_data.get('pack_competitor_price') or 0)
+            else:
+                hotel_b2c_price = int(form_data.get('hotel_b2c_price') or 0)
+                flight_price = int(form_data.get('flight_price') or 0)
+                transfer_cost = int(form_data.get('transfer_cost') or 0)
+                surcharge_cost = int(form_data.get('surcharge_cost') or 0)
+                car_rental_cost = int(form_data.get('car_rental_cost') or 0)
+                comparison_total = hotel_b2c_price + flight_price + transfer_cost + surcharge_cost + car_rental_cost
+            
+            savings = comparison_total - pack_price
+            
             raw_name = f"{trip.client.first_name} {trip.client.last_name}"
             slug = unidecode.unidecode(raw_name).lower()
             slug = re.sub(r"[\s']+", '_', slug)
@@ -183,8 +217,8 @@ class PublicationService:
             html_content = generate_travel_page_html(
                 full_trip_data['form_data'],
                 full_trip_data['api_data'],
-                full_trip_data.get('savings', 0),
-                full_trip_data.get('comparison_total', 0),
+                savings,
+                comparison_total,
                 creator_pseudo=creator_pseudo
             )
             

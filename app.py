@@ -187,12 +187,19 @@ def create_app(config_class=Config):
             
             # Déterminer le mode de tarification
             pricing_mode = data.get('pricing_mode', 'classic')
+            hide_comparison = data.get('hide_comparison', False)
             
             # Validation des champs selon le mode
             if pricing_mode == 'pack':
-                required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'pack_b2b_price', 'pack_competitor_price', 'pack_price']
+                if hide_comparison:
+                    required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'pack_b2b_price', 'pack_price']
+                else:
+                    required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'pack_b2b_price', 'pack_competitor_price', 'pack_price']
             else:
-                required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'hotel_b2b_price', 'hotel_b2c_price', 'pack_price']
+                if hide_comparison:
+                    required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'hotel_b2b_price', 'pack_price']
+                else:
+                    required_fields = ['hotel_name', 'destination', 'date_start', 'date_end', 'hotel_b2b_price', 'hotel_b2c_price', 'pack_price']
             
             if not all(field in data and data[field] for field in required_fields):
                 raise ValueError('Tous les champs requis ne sont pas remplis.')

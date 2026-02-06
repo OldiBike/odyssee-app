@@ -566,24 +566,53 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     is_ultra_budget = data.get('is_ultra_budget', False)
     cancellation_html = ""
     flight_price = int(data.get('flight_price') or 0)
-    # Définition des détails du vol avec les heures (déplacée ici pour éviter UnboundLocalError)
-    # Note: Les heures sont maintenant inversées dans le formulaire pour la saisie
-    # departure_time est l'heure de décollage (saisie sous aéroport d'arrivée)
-    # arrival_time est l'heure d'atterrissage (saisie sous aéroport de départ)
-    departure_time_input = data.get('departure_time', '') # C'est l'heure de décollage
-    arrival_time_input = data.get('arrival_time', '')     # C'est l'heure d'atterrissage
-
-    # Texte de la route du vol (sans les heures)
-    flight_route_text = f'Vol {data.get("departure_city", "").split(",")[0]} ↔ {data.get("arrival_airport", data["destination"]).split(",")[0]}'
-
-    # Phrase descriptive des heures
+    
+    # Récupérer les détails des vols
+    departure_city = data.get('departure_city', '').split(',')[0] if data.get('departure_city') else ''
+    arrival_airport = data.get('arrival_airport', '').split(',')[0] if data.get('arrival_airport') else data.get('destination', '').split(',')[0]
+    
+    # Vol Aller
+    outbound_departure = data.get('outbound_departure_time', '09:00')
+    outbound_arrival = data.get('outbound_arrival_time', '12:00')
+    outbound_has_layover = data.get('outbound_has_layover') == 'on'
+    outbound_layover_airport = data.get('outbound_layover_airport', '').split(',')[0] if data.get('outbound_layover_airport') else ''
+    outbound_layover_duration = data.get('outbound_layover_duration', '')
+    outbound_leg1_dep = data.get('outbound_leg1_departure', '')
+    outbound_leg1_arr = data.get('outbound_leg1_arrival', '')
+    outbound_leg2_dep = data.get('outbound_leg2_departure', '')
+    outbound_leg2_arr = data.get('outbound_leg2_arrival', '')
+    
+    # Vol Retour
+    return_departure = data.get('return_departure_time', '14:00')
+    return_arrival = data.get('return_arrival_time', '18:00')
+    return_has_layover = data.get('return_has_layover') == 'on'
+    return_layover_airport = data.get('return_layover_airport', '').split(',')[0] if data.get('return_layover_airport') else ''
+    return_layover_duration = data.get('return_layover_duration', '')
+    return_leg1_dep = data.get('return_leg1_departure', '')
+    return_leg1_arr = data.get('return_leg1_arrival', '')
+    return_leg2_dep = data.get('return_leg2_departure', '')
+    return_leg2_arr = data.get('return_leg2_arrival', '')
+    
+    # Générer le bloc Vos Vols
+    flights_block_html = ''
+    if departure_city and arrival_airport:
+        # Vol Aller
+        if outbound_has_layover and outbound_layover_airport:
+            outbound_html = f'''<div style="margin-bottom: 15px;"><div style="font-weight: 600; color: #0369a1; margin-bottom: 8px;">📍 ALLER - {date_start}</div><div style="font-size: 14px; color: #475569;"><div style="margin-bottom: 5px;"><strong>{departure_city}</strong> → <strong>{outbound_layover_airport}</strong></div><div style="color: #64748b; font-size: 12px;">{outbound_leg1_dep} → {outbound_leg1_arr}</div><div style="background: #f1f5f9; padding: 5px 10px; margin: 5px 0; border-radius: 4px; font-size: 12px;">⏱️ Escale {outbound_layover_duration} à {outbound_layover_airport}</div><div style="margin-bottom: 5px;"><strong>{outbound_layover_airport}</strong> → <strong>{arrival_airport}</strong></div><div style="color: #64748b; font-size: 12px;">{outbound_leg2_dep} → {outbound_leg2_arr}</div></div></div>'''
+        else:
+            outbound_html = f'''<div style="margin-bottom: 15px;"><div style="font-weight: 600; color: #0369a1; margin-bottom: 8px;">📍 ALLER - {date_start}</div><div style="display: flex; align-items: center; gap: 10px;"><span style="font-weight: 600;">{departure_city}</span><span style="color: #64748b;">→</span><span style="font-weight: 600;">{arrival_airport}</span></div><div style="color: #64748b; font-size: 13px;">{outbound_departure} → {outbound_arrival}</div></div>'''
+        
+        # Vol Retour
+        if return_has_layover and return_layover_airport:
+            return_html = f'''<div><div style="font-weight: 600; color: #b45309; margin-bottom: 8px;">📍 RETOUR - {date_end}</div><div style="font-size: 14px; color: #475569;"><div style="margin-bottom: 5px;"><strong>{arrival_airport}</strong> → <strong>{return_layover_airport}</strong></div><div style="color: #64748b; font-size: 12px;">{return_leg1_dep} → {return_leg1_arr}</div><div style="background: #fef3c7; padding: 5px 10px; margin: 5px 0; border-radius: 4px; font-size: 12px;">⏱️ Escale {return_layover_duration} à {return_layover_airport}</div><div style="margin-bottom: 5px;"><strong>{return_layover_airport}</strong> → <strong>{departure_city}</strong></div><div style="color: #64748b; font-size: 12px;">{return_leg2_dep} → {return_leg2_arr}</div></div></div>'''
+        else:
+            return_html = f'''<div><div style="font-weight: 600; color: #b45309; margin-bottom: 8px;">📍 RETOUR - {date_end}</div><div style="display: flex; align-items: center; gap: 10px;"><span style="font-weight: 600;">{arrival_airport}</span><span style="color: #64748b;">→</span><span style="font-weight: 600;">{departure_city}</span></div><div style="color: #64748b; font-size: 13px;">{return_departure} → {return_arrival}</div></div>'''
+        
+        flights_block_html = f'<div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">✈️ Vos Vols</h3>{outbound_html}<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 15px 0;">{return_html}</div>'
+    
+    # Texte de la route du vol (pour backward compatibility)
+    flight_route_text = f'Vol {departure_city} ↔ {arrival_airport}' if departure_city and arrival_airport else ''
     flight_times_description = ""
-    if arrival_time_input and departure_time_input:
-        flight_times_description = f" (Vous atterrissez à {arrival_time_input} et vous décollez à {departure_time_input})"
-    elif arrival_time_input:
-        flight_times_description = f" (Vous atterrissez à {arrival_time_input})"
-    elif departure_time_input:
-        flight_times_description = f" (Vous décollez à {departure_time_input})"
     if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
         if flight_price > 0:
             cancellation_html = f"""
@@ -649,12 +678,12 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
 
     pricing_block_html = ''
     pricing_mode = data.get('pricing_mode', 'classic')
+    hide_comparison = data.get('hide_comparison', False)
     
     if pricing_mode == 'pack':
-        # Mode Pack Combiné: affichage du tableau comparatif
+        # Mode Pack Combiné
         pack_options = data.get('pack_options', {})
         vp_opts = pack_options.get('vp', {})
-        comp_opts = pack_options.get('comp', {})
         
         # Labels pour l'affichage
         pension_labels = {
@@ -682,58 +711,89 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         vp_transfer = transfer_labels.get(vp_opts.get('transfer', 'none'), 'Non inclus')
         vp_pension = pension_labels.get(vp_opts.get('pension', 'logement'), 'Logement seul')
         vp_custom = vp_opts.get('custom', '')
-        
-        comp_baggage = get_baggage_text(comp_opts.get('baggage', '0'))
-        comp_transfer = transfer_labels.get(comp_opts.get('transfer', 'none'), 'Non inclus')
-        comp_pension = pension_labels.get(comp_opts.get('pension', 'logement'), 'Logement seul')
-        comp_custom = comp_opts.get('custom', '')
-        
-        competitor_price = int(data.get('pack_competitor_price') or 0)
-        
         vp_custom_html = f'<li class="flex items-center gap-2"><span class="text-green-600">✓</span> 🎁 {vp_custom}</li>' if vp_custom else ''
-        comp_custom_html = f'<li class="flex items-center gap-2 text-gray-400"><span>—</span> {comp_custom}</li>' if comp_custom else ''
         
-        pricing_block_html = f'''
-        <div class="instagram-card p-6">
-            <h3 class="section-title text-xl mb-4">🔍 Comparer en un coup d'œil</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <!-- Colonne Concurrent (Ailleurs) -->
-                <div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 16px;">
-                    <h4 style="font-weight: bold; color: #dc2626; margin-bottom: 12px; text-align: center;">🏢 Ailleurs</h4>
-                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px; space-y: 8px;">
-                        <li class="flex items-center gap-2 mb-2"><span>✈️</span> Vol + Hôtel</li>
-                        <li class="flex items-center gap-2 mb-2 text-gray-500"><span>🧳</span> {comp_baggage}</li>
-                        <li class="flex items-center gap-2 mb-2 text-gray-500"><span>🚐</span> Transfert {comp_transfer}</li>
-                        <li class="flex items-center gap-2 mb-2 text-gray-500"><span>🍽️</span> {comp_pension}</li>
-                        {comp_custom_html}
-                    </ul>
-                    <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #fecaca;">
-                        <span style="font-size: 24px; font-weight: bold; color: #dc2626;">{competitor_price} €</span>
-                    </div>
-                </div>
-                
-                <!-- Colonne VP (Mon Pack) -->
+        # HTML conditionnel pour VP
+        vp_baggage_html = f'<li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🧳 {vp_baggage}</li>' if vp_baggage != 'Non inclus' else ''
+        vp_transfer_html = f'<li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🚐 Transfert {vp_transfer}</li>' if vp_transfer != 'Non inclus' else ''
+        
+        if hide_comparison:
+            # Mode Solo Pack: affichage simplifié
+            pricing_block_html = f'''
+            <div class="instagram-card p-6">
+                <h3 class="section-title text-xl mb-4">📦 Notre Pack</h3>
                 <div style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 16px;">
                     <h4 style="font-weight: bold; color: #059669; margin-bottom: 12px; text-align: center;">🌟 Voyages Privilèges</h4>
-                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px; space-y: 8px;">
+                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px;">
                         <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> ✈️ Vol + Hôtel</li>
-                        <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🧳 {vp_baggage}</li>
-                        <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🚐 Transfert {vp_transfer}</li>
+                        {vp_baggage_html}
+                        {vp_transfer_html}
                         <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🍽️ {vp_pension}</li>
                         {vp_custom_html}
                     </ul>
                     <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #a7f3d0;">
                         <span style="font-size: 24px; font-weight: bold; color: #059669;">{your_price} €</span>
+                        <p class="text-sm font-light mt-1">{price_for_text}</p>
                     </div>
                 </div>
+                {cancellation_html}
             </div>
+            '''
+        else:
+            # Mode Pack avec comparaison
+            comp_opts = pack_options.get('comp', {})
+            comp_baggage = get_baggage_text(comp_opts.get('baggage', '0'))
+            comp_transfer = transfer_labels.get(comp_opts.get('transfer', 'none'), 'Non inclus')
+            comp_pension = pension_labels.get(comp_opts.get('pension', 'logement'), 'Logement seul')
+            comp_custom = comp_opts.get('custom', '')
+            competitor_price = int(data.get('pack_competitor_price') or 0)
+            comp_custom_html = f'<li class="flex items-center gap-2 text-gray-400"><span>—</span> {comp_custom}</li>' if comp_custom else ''
             
-            <div class="economy-highlight" style="margin-top: 16px;">
-                💰 Vous économisez {savings} €
+            # HTML conditionnel pour Concurrent
+            comp_baggage_html = f'<li class="flex items-center gap-2 mb-2 text-gray-500"><span>🧳</span> {comp_baggage}</li>' if comp_baggage != 'Non inclus' else ''
+            comp_transfer_html = f'<li class="flex items-center gap-2 mb-2 text-gray-500"><span>🚐</span> Transfert {comp_transfer}</li>' if comp_transfer != 'Non inclus' else ''
+            
+            pricing_block_html = f'''
+            <div class="instagram-card p-6">
+                <h3 class="section-title text-xl mb-4">🔍 Comparer en un coup d'œil</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <!-- Colonne Concurrent (Ailleurs) -->
+                    <div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 16px;">
+                        <h4 style="font-weight: bold; color: #dc2626; margin-bottom: 12px; text-align: center;">🏢 Ailleurs</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px;">
+                            <li class="flex items-center gap-2 mb-2"><span>✈️</span> Vol + Hôtel</li>
+                            {comp_baggage_html}
+                            {comp_transfer_html}
+                            <li class="flex items-center gap-2 mb-2 text-gray-500"><span>🍽️</span> {comp_pension}</li>
+                            {comp_custom_html}
+                        </ul>
+                        <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #fecaca;">
+                            <span style="font-size: 24px; font-weight: bold; color: #dc2626;">{competitor_price} €</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Colonne VP (Mon Pack) -->
+                    <div style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 16px;">
+                        <h4 style="font-weight: bold; color: #059669; margin-bottom: 12px; text-align: center;">🌟 Voyages Privilèges</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px;">
+                            <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> ✈️ Vol + Hôtel</li>
+                            {vp_baggage_html}
+                            {vp_transfer_html}
+                            <li class="flex items-center gap-2 mb-2"><span class="text-green-600">✓</span> 🍽️ {vp_pension}</li>
+                            {vp_custom_html}
+                        </ul>
+                        <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #a7f3d0;">
+                            <span style="font-size: 24px; font-weight: bold; color: #059669;">{your_price} €</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="economy-highlight" style="margin-top: 16px;">
+                    💰 Vous économisez {savings} €
+                </div>
+                {cancellation_html}
             </div>
-            {cancellation_html}
-        </div>
-        '''
+            '''
     elif is_ultra_budget:
         conditions = []
         if flight_price == 0:
@@ -770,8 +830,23 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         </div>
         """
     else:
+        # Mode Classique
+        if hide_comparison:
+            # Mode Solo Classique: affichage simplifié sans comparaison
+            pricing_block_html = f"""
+            <div class="instagram-card p-6">
+                <h3 class="section-title text-xl mb-4">💰 Notre Offre</h3>
+                {exclusive_services_html}
+                <div class="p-4 rounded-lg bg-green-600 text-white mt-4">
+                    <h4 class="font-bold text-center mb-2">Prix de votre séjour</h4>
+                    <div class="text-center text-2xl font-bold">{your_price} €</div>
+                    <p class="text-sm font-light mt-1 text-center">{price_for_text}</p>
+                    {cancellation_html}
+                </div>
+            </div>
+            """
         # Vérifier si l'économie est inférieure à 45€
-        if savings < 45:
+        elif savings < 45:
             # Si économie < 45€ et qu'il y a des services additionnels, afficher un bloc simplifié
             if data.get('exclusive_services', '').strip():
                 pricing_block_html = f"""
@@ -1049,14 +1124,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             {f'<p class="text-sm mt-2">Note Google: {real_data["hotel_rating"]}/5 ({real_data["total_reviews"]} avis)</p>' if real_data.get("hotel_rating", 0) > 0 else ""}
             <div class="mt-4">{instagram_button_html}</div>
         </div>
-        <div class="instagram-card p-6">
-            <h3 class="section-title text-xl mb-4">Inclus dans votre séjour</h3>
-            <div class="space-y-5">{flight_inclusion_html}{transfer_inclusion_html}{car_rental_inclusion_html}
-                <div class="flex items-center"><div class="feature-icon bg-purple-500"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel {stars} {display_hotel_name}</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>
-                {pension_html}
-                {baggage_inclusion_html}
-            </div>
-        </div>
+        {flights_block_html}
+        {'<div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Inclus dans votre séjour</h3><div class="space-y-5">' + flight_inclusion_html + transfer_inclusion_html + car_rental_inclusion_html + '<div class="flex items-center"><div class="feature-icon bg-purple-500"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel ' + stars + ' ' + display_hotel_name + '</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>' + pension_html + baggage_inclusion_html + '</div></div>' if pricing_mode != 'pack' else ''}
         {pricing_block_html}
         {event_block_html}
         <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>

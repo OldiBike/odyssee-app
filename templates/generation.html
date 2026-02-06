@@ -474,16 +474,122 @@
             </div>
 
             <h3 class="section-divider"><span>Détails du Vol & Transferts</span></h3>
-            <div class="form-row">
-                <div class="form-group"><label for="departure_city">✈️ Aéroport de départ</label><input type="text"
-                        id="departure_city" name="departure_city" placeholder="Saisir un aéroport..."><label
-                        for="arrival_time" style="margin-top: 10px;">Heure d'atterrissage</label><input type="time"
-                        id="arrival_time" name="arrival_time" value="12:00"></div>
-                <div class="form-group"><label for="arrival_airport">🛬 Aéroport d'arrivée</label><input type="text"
-                        id="arrival_airport" name="arrival_airport" placeholder="Saisir un aéroport..."><label
-                        for="departure_time" style="margin-top: 10px;">Heure de décollage</label><input type="time"
-                        id="departure_time" name="departure_time" value="09:00"></div>
+
+            <!-- Vol Aller -->
+            <div
+                style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #0ea5e9;">
+                <h4 style="margin: 0 0 15px 0; color: #0369a1;">✈️ Vol Aller</h4>
+                <div class="form-row">
+                    <div class="form-group"><label for="departure_city">🛫 Aéroport de départ</label>
+                        <input type="text" id="departure_city" name="departure_city" placeholder="Ex: Bruxelles...">
+                    </div>
+                    <div class="form-group"><label for="arrival_airport">🛬 Aéroport d'arrivée</label>
+                        <input type="text" id="arrival_airport" name="arrival_airport" placeholder="Ex: Agadir...">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label for="outbound_departure_time">Heure départ</label>
+                        <input type="time" id="outbound_departure_time" name="outbound_departure_time" value="09:00">
+                    </div>
+                    <div class="form-group"><label for="outbound_arrival_time">Heure arrivée</label>
+                        <input type="time" id="outbound_arrival_time" name="outbound_arrival_time" value="12:00">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="outbound_has_layover" name="outbound_has_layover"
+                            style="width: 18px; height: 18px;">
+                        <span>🔄 Vol avec escale</span>
+                    </label>
+                </div>
+                <div id="outbound_layover_fields"
+                    style="display: none; background: #e0f2fe; padding: 12px; border-radius: 8px; margin-top: 10px;">
+                    <div class="form-row">
+                        <div class="form-group"><label for="outbound_layover_airport">Aéroport d'escale</label>
+                            <input type="text" id="outbound_layover_airport" name="outbound_layover_airport"
+                                placeholder="Ex: Paris CDG...">
+                        </div>
+                        <div class="form-group"><label for="outbound_layover_duration">Durée escale</label>
+                            <input type="text" id="outbound_layover_duration" name="outbound_layover_duration"
+                                placeholder="Ex: 2h30">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Vol 1: Départ → Escale</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="time" id="outbound_leg1_departure" name="outbound_leg1_departure"
+                                    value="06:00">
+                                <span style="align-self: center;">→</span>
+                                <input type="time" id="outbound_leg1_arrival" name="outbound_leg1_arrival"
+                                    value="08:00">
+                            </div>
+                        </div>
+                        <div class="form-group"><label>Vol 2: Escale → Arrivée</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="time" id="outbound_leg2_departure" name="outbound_leg2_departure"
+                                    value="10:30">
+                                <span style="align-self: center;">→</span>
+                                <input type="time" id="outbound_leg2_arrival" name="outbound_leg2_arrival"
+                                    value="12:00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Vol Retour -->
+            <div
+                style="background: #fef3c7; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #f59e0b;">
+                <h4 style="margin: 0 0 15px 0; color: #b45309;">🔙 Vol Retour</h4>
+                <div class="form-row">
+                    <div class="form-group"><label for="return_departure_time">Heure départ</label>
+                        <input type="time" id="return_departure_time" name="return_departure_time" value="14:00">
+                    </div>
+                    <div class="form-group"><label for="return_arrival_time">Heure arrivée</label>
+                        <input type="time" id="return_arrival_time" name="return_arrival_time" value="18:00">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="return_has_layover" name="return_has_layover"
+                            style="width: 18px; height: 18px;">
+                        <span>🔄 Vol avec escale</span>
+                    </label>
+                </div>
+                <div id="return_layover_fields"
+                    style="display: none; background: #fde68a; padding: 12px; border-radius: 8px; margin-top: 10px;">
+                    <div class="form-row">
+                        <div class="form-group"><label for="return_layover_airport">Aéroport d'escale</label>
+                            <input type="text" id="return_layover_airport" name="return_layover_airport"
+                                placeholder="Ex: Paris CDG...">
+                        </div>
+                        <div class="form-group"><label for="return_layover_duration">Durée escale</label>
+                            <input type="text" id="return_layover_duration" name="return_layover_duration"
+                                placeholder="Ex: 2h30">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Vol 1: Départ → Escale</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="time" id="return_leg1_departure" name="return_leg1_departure"
+                                    value="14:00">
+                                <span style="align-self: center;">→</span>
+                                <input type="time" id="return_leg1_arrival" name="return_leg1_arrival" value="16:00">
+                            </div>
+                        </div>
+                        <div class="form-group"><label>Vol 2: Escale → Arrivée</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="time" id="return_leg2_departure" name="return_leg2_departure"
+                                    value="17:30">
+                                <span style="align-self: center;">→</span>
+                                <input type="time" id="return_leg2_arrival" name="return_leg2_arrival" value="19:00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bagages -->
             <div class="form-row">
                 <div class="form-group"><label for="baggage_type">🧳 Bagages</label><select id="baggage_type"
                         name="baggage_type">
@@ -531,6 +637,18 @@
                         <span style="font-weight: 600;">📦 Mode Pack Combiné</span>
                     </label>
                 </div>
+            </div>
+
+            <!-- Mode Solo Toggle -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label
+                    style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: #f8fafc; padding: 12px; border-radius: 8px; border: 2px solid #e2e8f0;">
+                    <input type="checkbox" id="hide_comparison" name="hide_comparison"
+                        style="width: 20px; height: 20px;">
+                    <span style="font-weight: 600;">🎯 Mode Solo (sans comparaison de prix)</span>
+                </label>
+                <p style="font-size: 13px; color: #666; margin-top: 5px; margin-left: 30px;">Génère une fiche simple
+                    avec uniquement vos conditions</p>
             </div>
 
             <!-- Champs Mode Classique -->
@@ -960,6 +1078,35 @@
             });
         });
 
+        // Solo mode handler - hide competitor price fields when checked
+        document.getElementById('hide_comparison').addEventListener('change', function () {
+            const isPackMode = document.querySelector('input[name="pricing_mode"]:checked')?.value === 'pack';
+            const hideComp = this.checked;
+
+            if (hideComp) {
+                if (!isPackMode) {
+                    const b2cField = document.getElementById('hotel_b2c_price')?.closest('.form-group');
+                    if (b2cField) b2cField.style.display = 'none';
+                } else {
+                    const compField = document.getElementById('pack_competitor_price')?.closest('.form-group');
+                    if (compField) compField.style.display = 'none';
+                }
+            } else {
+                const b2cField = document.getElementById('hotel_b2c_price')?.closest('.form-group');
+                const compField = document.getElementById('pack_competitor_price')?.closest('.form-group');
+                if (b2cField) b2cField.style.display = '';
+                if (compField) compField.style.display = '';
+            }
+        });
+
+        // Layover toggle handlers
+        document.getElementById('outbound_has_layover').addEventListener('change', function () {
+            document.getElementById('outbound_layover_fields').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('return_has_layover').addEventListener('change', function () {
+            document.getElementById('return_layover_fields').style.display = this.checked ? 'block' : 'none';
+        });
+
         // Pack options modal handlers
         document.getElementById('openPackOptionsBtn').addEventListener('click', function () {
             // Pre-fill modal with current values
@@ -1005,6 +1152,12 @@
         new google.maps.places.Autocomplete(destinationInput);
         new google.maps.places.Autocomplete(departureInput, { types: ['airport'] });
         new google.maps.places.Autocomplete(arrivalInput, { types: ['airport'] });
+
+        // Autocomplete for layover airports
+        const outboundLayoverInput = document.getElementById('outbound_layover_airport');
+        const returnLayoverInput = document.getElementById('return_layover_airport');
+        if (outboundLayoverInput) new google.maps.places.Autocomplete(outboundLayoverInput, { types: ['airport'] });
+        if (returnLayoverInput) new google.maps.places.Autocomplete(returnLayoverInput, { types: ['airport'] });
 
         hotelAutocomplete.setFields(['name', 'address_components']);
         hotelAutocomplete.addListener('place_changed', () => {

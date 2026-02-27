@@ -1032,7 +1032,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; margin-top: 20px; }}
         .story-card {{ {story_card_style} border-radius: 25px; padding: 25px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); margin-top: 0; }}
         .image-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }}
-        .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px;}}
+        .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px; cursor: pointer; }}
         .reviews-grid {{ display: grid; grid-template-columns: 1fr; gap: 16px; }}
         .economy-highlight {{ background: linear-gradient(45deg, #ffd700, #ffb347); color: #333; padding: 15px; border-radius: 15px; text-align: center; margin-top: 20px; font-weight: bold;}}
         .feature-icon {{ width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }}
@@ -1144,6 +1144,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         const photoCounter = document.getElementById('photoCounter');
         const modalPhotos = document.querySelectorAll('.modal-photo');
         if (voirPlusBtn) {{ voirPlusBtn.addEventListener('click', function() {{ if (modal) modal.style.display = 'block'; document.body.style.overflow = 'hidden'; }}); }}
+        document.querySelectorAll('.image-item img').forEach(function(img) {{ img.addEventListener('click', function() {{ if (modal) modal.style.display = 'block'; document.body.style.overflow = 'hidden'; }}); }});
         function closeModal() {{ if (modal) modal.style.display = 'none'; document.body.style.overflow = 'auto'; }}
         if (closeBtn) {{ closeBtn.addEventListener('click', closeModal); }}
         if (modal) {{ modal.addEventListener('click', function(e) {{ if (e.target === modal) {{ closeModal(); }} }}); }}
@@ -1226,3 +1227,557 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     return html_template
     baggage_option = data.get('baggage_type', 'bagages 10 kilos')
     baggage_inclusion_html = ''
+
+
+# ============================================================
+# GUIDE ITINÉRAIRE INTERACTIF
+# ============================================================
+
+class GuideService:
+    """Génère des guides itinéraires interactifs (HTML standalone avec Leaflet.js)."""
+
+    DAY_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f97316']
+
+    def __init__(self):
+        self.google_api_key = os.environ.get('GOOGLE_API_KEY')
+        if self.google_api_key:
+            genai.configure(api_key=self.google_api_key)
+
+    def get_hotel_coordinates(self, place_id):
+        """Récupère lat/lng et nom depuis un place_id Google."""
+        url = "https://maps.googleapis.com/maps/api/place/details/json"
+        params = {
+            'place_id': place_id,
+            'fields': 'geometry,name,formatted_address',
+            'key': self.google_api_key
+        }
+        try:
+            response = requests.get(url, params=params, timeout=15)
+            result = response.json().get('result', {})
+            location = result.get('geometry', {}).get('location', {})
+            return {
+                'lat': location.get('lat'),
+                'lng': location.get('lng'),
+                'name': result.get('name', ''),
+                'address': result.get('formatted_address', '')
+            }
+        except Exception as e:
+            print(f"Erreur get_hotel_coordinates: {e}")
+            return None
+
+    def discover_pois(self, lat, lng, radius=15000):
+        """Découvre les POI autour de l'hôtel via Google Places Nearby Search."""
+        categories = ['tourist_attraction', 'restaurant', 'museum', 'park']
+        all_pois = []
+        seen_place_ids = set()
+        print(f"\n🔍 [GUIDE] discover_pois: lat={lat}, lng={lng}, radius={radius}")
+
+        for category in categories:
+            url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+            params = {
+                'location': f'{lat},{lng}',
+                'radius': radius,
+                'type': category,
+                'key': self.google_api_key,
+                'language': 'fr'
+            }
+            try:
+                response = requests.get(url, params=params, timeout=15)
+                resp_json = response.json()
+                results = resp_json.get('results', [])
+                print(f"   📍 {category}: {len(results)} résultats (status: {resp_json.get('status', '?')})")
+
+                for place in results:
+                    pid = place.get('place_id')
+                    rating = place.get('rating', 0)
+                    if pid in seen_place_ids or rating < 4.0:
+                        continue
+                    seen_place_ids.add(pid)
+
+                    photo_url = None
+                    if place.get('photos'):
+                        ref = place['photos'][0].get('photo_reference')
+                        if ref:
+                            photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={ref}&key={self.google_api_key}"
+
+                    loc = place.get('geometry', {}).get('location', {})
+                    all_pois.append({
+                        'place_id': pid,
+                        'name': place.get('name', ''),
+                        'address': place.get('vicinity', ''),
+                        'lat': loc.get('lat'),
+                        'lng': loc.get('lng'),
+                        'rating': rating,
+                        'user_ratings_total': place.get('user_ratings_total', 0),
+                        'types': place.get('types', []),
+                        'photo_url': photo_url
+                    })
+            except Exception as e:
+                print(f"Erreur discover_pois ({category}): {e}")
+
+        all_pois.sort(key=lambda x: (-x['rating'], -x.get('user_ratings_total', 0)))
+        print(f"   ✅ Total POIs retenus (rating>=4): {len(all_pois)}, envoi des top {min(30, len(all_pois))}")
+        for p in all_pois[:5]:
+            print(f"      - {p['name']} (★{p['rating']}, {p.get('user_ratings_total',0)} avis)")
+        return all_pois[:30]
+
+    def organize_pois_with_gemini(self, pois, hotel_coords, num_days, date_start, flight_arrival=None, flight_departure=None, airport_info=None):
+        """Utilise Gemini AI pour organiser les POI en itinéraire jour par jour."""
+        import re as _re
+        model = genai.GenerativeModel('models/gemini-2.5-flash')
+
+        # Index photo par nom pour ré-association après réponse Gemini
+        photo_map = {}
+        for p in pois:
+            if p.get('photo_url'):
+                photo_map[p['name'].lower().strip()] = p['photo_url']
+
+        # Limiter à 20 POIs pour Gemini (les 30 restent dispo pour remplacement)
+        pois_for_gemini = pois[:20]
+
+        airport_text = ""
+        if airport_info:
+            airport_text = f'Aéroport: lat={airport_info["lat"]}, lng={airport_info["lng"]}, name="{airport_info["name"]}"'
+        else:
+            airport_text = "Aéroport: non renseigné"
+
+        def build_prompt(poi_list):
+            pois_for_prompt = [
+                {'name': p['name'], 'address': p['address'], 'lat': p['lat'], 'lng': p['lng'], 'rating': p['rating']}
+                for p in poi_list
+            ]
+            pois_text = json.dumps(pois_for_prompt, ensure_ascii=False, indent=2)
+            return f"""Tu es un expert en planification de voyages. Organise ces POIs en un itinéraire de {num_days} jours.
+
+Hôtel: lat={hotel_coords['lat']}, lng={hotel_coords['lng']}, name="{hotel_coords['name']}"
+{airport_text}
+Date de début: {date_start}
+{"Arrivée vol: " + flight_arrival if flight_arrival else "Pas de contrainte d'arrivée"}
+{"Départ vol: " + flight_departure if flight_departure else "Pas de contrainte de départ"}
+
+POIs disponibles:
+{pois_text}
+
+CONSIGNES STRICTES:
+1. Sélectionne 2 à 4 POIs par jour (pas plus).
+2. Organise-les par PROXIMITÉ GÉOGRAPHIQUE pour minimiser les trajets dans une même journée.
+3. Le premier POI de chaque jour part de l'hôtel.
+4. Jour 1: si heure d'arrivée vol renseignée, commence les activités APRÈS l'arrivée + 1h de transfert.
+5. Dernier jour: si heure de départ vol renseignée, le DERNIER POI DOIT ÊTRE "Transfert Aéroport" avec les coordonnées de l'aéroport, prévoir 2h de marge avant le vol. Utilise les vraies coordonnées de l'aéroport pour le champ "pos".
+6. Alterne restaurants et visites logiquement (déjeuner ~12h-13h, dîner ~19h-20h30).
+7. Estime le budget en monnaie locale du pays.
+8. Estime le type de trajet: "walk" si < 20 min à pied, sinon "car".
+9. Donne un conseil pratique pour chaque trajet (tip).
+10. Ajoute un label "⚠️ RÉSERVER" pour les lieux qui nécessitent une réservation (restaurants gastronomiques, spas, spectacles).
+11. IMPORTANT - COHÉRENCE TEMPORELLE: estime la durée de chaque activité (champ "duration"). L'heure du POI suivant = heure actuelle + durée activité + durée trajet. Exemple: visite à 10:00 dure 1h30 + trajet 15 min → prochain POI à 11:45. Restaurant = 1h à 1h30. Visite/musée = 1h à 2h. Parc/plage = 1h30 à 2h30. Shopping = 1h. Transfert aéroport = 30 min.
+
+Réponds UNIQUEMENT avec un JSON valide (pas de commentaire, pas de markdown):
+[
+  {{
+    "id": "identifiant_slug_unique",
+    "day": 1,
+    "from": "Nom du lieu précédent ou nom de l'hôtel",
+    "time": "HH:MM",
+    "duration": "1h30",
+    "name": "Nom du POI (exact comme dans la liste)",
+    "pos": [lat, lng],
+    "address": "adresse complète",
+    "budget": "estimation (ex: 350 MAD, Gratuit, Shopping)",
+    "travel": "emoji + durée estimée (ex: 🚶 12 min à pied, 🚕 15 min)",
+    "travelType": "walk ou car",
+    "tip": "conseil pratique pour le trajet",
+    "desc": "description courte engageante (max 10 mots)",
+    "label": "⚠️ RÉSERVER si nécessaire, sinon ne pas inclure ce champ"
+  }}
+]"""
+
+        def call_gemini(poi_list, attempt=1):
+            prompt = build_prompt(poi_list)
+            print(f"\n🤖 [GUIDE] Appel Gemini (tentative {attempt}): {num_days} jours, {len(poi_list)} POIs")
+            print(f"   📏 Taille prompt: {len(prompt)} chars")
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            print(f"   📝 Gemini réponse ({len(text)} chars): {text[:300]}...")
+            return text
+
+        # Tentative avec 20 POIs, puis retry avec 12 si timeout
+        for attempt, poi_count in [(1, 20), (2, 12)]:
+            poi_subset = pois_for_gemini[:poi_count]
+            text = ""
+            try:
+                text = call_gemini(poi_subset, attempt)
+
+                # Parsing JSON avec fallback regex
+                organized = None
+                try:
+                    organized = json.loads(text)
+                except json.JSONDecodeError:
+                    print(f"   ⚠️ JSON direct échoué, extraction regex...")
+                    cleaned = text.replace("```json", "").replace("```", "").strip()
+                    match = _re.search(r'\[[\s\S]*\]', cleaned)
+                    if match:
+                        organized = json.loads(match.group())
+                    else:
+                        print(f"   ❌ Aucun JSON array trouvé")
+                        print(f"   📝 Texte: {text[:500]}")
+                        continue
+
+                if not isinstance(organized, list) or len(organized) == 0:
+                    print(f"   ❌ Résultat vide ou invalide")
+                    continue
+
+                print(f"   ✅ Gemini a organisé {len(organized)} POIs")
+
+                # Ré-associer les photos depuis les POI originaux
+                for poi in organized:
+                    poi_name_lower = poi.get('name', '').lower().strip()
+                    if poi_name_lower in photo_map:
+                        poi['img'] = photo_map[poi_name_lower]
+                    else:
+                        matched = False
+                        for orig_name, photo_url in photo_map.items():
+                            if orig_name in poi_name_lower or poi_name_lower in orig_name:
+                                poi['img'] = photo_url
+                                matched = True
+                                break
+                        if not matched:
+                            poi['img'] = ''
+
+                for p in organized[:3]:
+                    print(f"      - Jour {p.get('day')}: {p.get('name')} à {p.get('time')} (img: {'✅' if p.get('img') else '❌'})")
+                return organized
+
+            except Exception as e:
+                print(f"   ❌ Erreur Gemini (tentative {attempt}): {type(e).__name__}: {e}")
+                if attempt == 2:
+                    import traceback
+                    traceback.print_exc()
+
+        print("   ❌ Toutes les tentatives ont échoué")
+        return []
+
+    def calculate_distances(self, organized_pois, hotel_coords):
+        """Calcule les temps de trajet réels via Google Distance Matrix API."""
+        print(f"\n🚗 [GUIDE] calculate_distances: {len(organized_pois)} POIs à traiter")
+        if not organized_pois:
+            print("   ⚠️ Aucun POI, skip Distance Matrix")
+            return organized_pois
+        days = {}
+        for poi in organized_pois:
+            d = poi['day']
+            if d not in days:
+                days[d] = []
+            days[d].append(poi)
+
+        for day_num, day_pois in days.items():
+            for i, poi in enumerate(day_pois):
+                if i == 0:
+                    origin = f"{hotel_coords['lat']},{hotel_coords['lng']}"
+                else:
+                    prev = day_pois[i - 1]
+                    origin = f"{prev['pos'][0]},{prev['pos'][1]}"
+                dest = f"{poi['pos'][0]},{poi['pos'][1]}"
+
+                mode = 'walking' if poi.get('travelType') == 'walk' else 'driving'
+                url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+                params = {
+                    'origins': origin,
+                    'destinations': dest,
+                    'mode': mode,
+                    'key': self.google_api_key,
+                    'language': 'fr'
+                }
+
+                try:
+                    resp = requests.get(url, params=params, timeout=10)
+                    data = resp.json()
+                    element = data['rows'][0]['elements'][0]
+                    if element['status'] == 'OK':
+                        duration_text = element['duration']['text']
+                        emoji = '🚶' if poi.get('travelType') == 'walk' else '🚕'
+                        poi['travel'] = f"{emoji} {duration_text}"
+                except Exception as e:
+                    print(f"Distance Matrix error ({poi.get('name', '?')}): {e}")
+
+        return organized_pois
+
+    def get_top_unused_pois(self, all_pois, used_pois, limit=3):
+        """Retourne les meilleurs POI non utilisés (note > 4.5) pour la section 'À faire aussi'."""
+        used_names = {p.get('name', '').lower() for p in used_pois}
+        unused = [p for p in all_pois if p['name'].lower() not in used_names and p['rating'] >= 4.5]
+        unused.sort(key=lambda x: (-x['rating'], -x.get('user_ratings_total', 0)))
+        return unused[:limit]
+
+    def generate_guide_html(self, city, hotel_name, hotel_lat, hotel_lng,
+                            date_start, date_end, num_days, poi_data,
+                            flight_arrival=None, flight_departure=None,
+                            extra_pois=None):
+        """Génère le HTML standalone du guide (structure identique à Marrakech.html)."""
+        from datetime import timedelta
+
+        day_names_fr = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.']
+        start = datetime.strptime(date_start, '%Y-%m-%d')
+        year = start.year
+
+        # Calculer les noms de jours et onglets
+        day_tabs = []
+        day_labels = []
+        for i in range(num_days):
+            d = start + timedelta(days=i)
+            color = self.DAY_COLORS[i % len(self.DAY_COLORS)]
+            day_name = day_names_fr[d.weekday()]
+            day_num = d.day
+            day_tabs.append({'day': i + 1, 'label': f"{day_name} {day_num}", 'color': color})
+            day_labels.append(f"{day_name} {day_num}")
+
+        # Assigner les couleurs aux POI
+        for poi in poi_data:
+            poi['color'] = self.DAY_COLORS[(poi['day'] - 1) % len(self.DAY_COLORS)]
+
+        # Générer les onglets HTML
+        color_tw_map = {
+            '#ef4444': 'red',
+            '#3b82f6': 'blue',
+            '#22c55e': 'green',
+            '#f97316': 'orange',
+        }
+        tabs_html = ''
+        for tab in day_tabs:
+            tw = color_tw_map.get(tab['color'], 'stone')
+            tabs_html += f'        <a href="#day{tab["day"]}" class="flex-shrink-0 px-4 py-1.5 bg-{tw}-50 text-{tw}-600 rounded-full text-[10px] font-bold uppercase border border-{tw}-100">{tab["label"]}</a>\n'
+
+        # Checklist depuis les POI avec label
+        checklist_items = [
+            f'{poi["name"]} ({poi.get("time", "")})'
+            for poi in poi_data if poi.get('label')
+        ]
+        checklist_html = ''
+        for item in checklist_items:
+            checklist_html += f'                <div class="checkbox-row"><input type="checkbox" class="custom-cb"><span class="text-[11px] font-light">{item}</span></div>\n'
+
+        # Section "À faire aussi"
+        extra_pois_html = ''
+        if extra_pois:
+            extra_cards = ''
+            for ep in extra_pois[:3]:
+                img_url = ep.get('photo_url', '')
+                extra_cards += f'''
+            <div class="bg-white rounded-2xl overflow-hidden border border-stone-100 shadow-sm">
+                <div class="h-32 bg-stone-100">{"<img src=&quot;" + img_url + "&quot; class=&quot;w-full h-full object-cover&quot; alt=&quot;" + ep['name'] + "&quot;>" if img_url else ""}</div>
+                <div class="p-3">
+                    <h4 class="font-bold text-sm">{ep['name']}</h4>
+                    <p class="text-[10px] text-stone-500 mt-1">{ep.get('address', '')}</p>
+                    <div class="flex items-center gap-1 mt-2">
+                        <span class="text-[10px] font-bold text-amber-600">★ {ep['rating']}</span>
+                        <span class="text-[9px] text-stone-400">({ep.get('user_ratings_total', 0)} avis)</span>
+                    </div>
+                </div>
+            </div>'''
+            extra_pois_html = f'''
+        <div class="mt-8 mb-4 px-4">
+            <h2 class="text-xl font-bold text-stone-800 mb-4 border-l-4 border-amber-400 pl-3">À faire aussi</h2>
+            <div class="grid grid-cols-1 gap-3">
+                {extra_cards}
+            </div>
+        </div>'''
+
+        poi_json = json.dumps(poi_data, ensure_ascii=False)
+        day_labels_json = json.dumps(day_labels, ensure_ascii=False)
+
+        html = f'''<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{city} {year} - Guide Interactif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {{ --ocre: #D4A373; --terracotta: #C1666B; --majorelle: #4A7C9E; --gold: #D4AF37; }}
+        body {{ font-family: 'Inter', sans-serif; background-color: #fdfbf7; color: #1a1a1a; scroll-behavior: smooth; }}
+        h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif; }}
+        #interactive-map {{ height: 350px; width: 100%; z-index: 10; border-radius: 1.5rem; }}
+        .day-section {{ padding: 25px 16px; border-bottom: 1px solid #eee; }}
+        .item-card {{ background: white; border-radius: 1.25rem; overflow: hidden; border: 1px solid #f0f0f0; margin-bottom: 12px; display: flex; flex-direction: column; transition: transform 0.2s; }}
+        .item-main {{ display: flex; min-height: 110px; }}
+        .item-img {{ width: 110px; flex-shrink: 0; background-color: #f3f3f3; }}
+        .item-img img {{ width: 100%; height: 100%; object-fit: cover; }}
+        .item-content {{ padding: 12px; flex-grow: 1; display: flex; flex-direction: column; }}
+        .item-actions {{ display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid #f9f9f9; padding: 8px 12px; gap: 6px; background: #fafafa; }}
+        .action-btn {{ display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 9px; font-weight: 600; color: #666; padding: 6px 10px; border-radius: 8px; background: white; border: 1px solid #eee; }}
+        .sticky-header {{ position: sticky; top: 0; z-index: 50; background: rgba(253, 251, 247, 0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #eee; }}
+        .no-scrollbar::-webkit-scrollbar {{ display: none; }}
+        #poi-modal, #transfer-modal {{ display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }}
+        .modal-content {{ background: white; border-radius: 1.5rem; width: 100%; max-width: 320px; padding: 24px; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }}
+        .custom-cb {{ width: 18px; height: 18px; accent-color: var(--gold); cursor: pointer; }}
+        .creator-logo {{ max-width: 100px; height: auto; }}
+        .logo-wrapper {{ background: white; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: inline-block; margin-top: 8px; }}
+    </style>
+</head>
+<body class="antialiased text-sm">
+
+    <div id="poi-modal" onclick="closeModal('poi-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button onclick="closeModal('poi-modal')" class="absolute top-4 right-4 text-stone-400"><i data-lucide="x" size="20"></i></button>
+            <div id="modal-icon" class="w-12 h-12 rounded-full mb-4 flex items-center justify-center"></div>
+            <h3 id="modal-title" class="text-xl font-bold mb-2"></h3>
+            <p id="modal-address" class="text-stone-500 text-xs mb-6 leading-relaxed"></p>
+            <a id="modal-link" href="#" target="_blank" class="w-full bg-stone-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                <i data-lucide="map-pin" size="16"></i> Ouvrir Google Maps
+            </a>
+        </div>
+    </div>
+
+    <div id="transfer-modal" onclick="closeModal('transfer-modal')">
+        <div class="modal-content text-center" onclick="event.stopPropagation()">
+            <button onclick="closeModal('transfer-modal')" class="absolute top-4 right-4 text-stone-400"><i data-lucide="x" size="20"></i></button>
+            <div class="w-16 h-16 bg-stone-100 rounded-full mx-auto mb-4 flex items-center justify-center text-stone-600">
+                <i id="transfer-icon" data-lucide="arrow-right-left" size="32"></i>
+            </div>
+            <h3 class="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">L'Enchaînement</h3>
+            <div class="flex flex-col gap-1 mb-4">
+                <p id="transfer-from" class="text-[10px] font-bold text-stone-400"></p>
+                <i data-lucide="chevron-down" size="14" class="mx-auto text-gold"></i>
+                <p id="transfer-to" class="text-sm font-bold text-stone-800"></p>
+            </div>
+            <div class="bg-stone-50 p-4 rounded-xl">
+                <p id="transfer-text" class="text-gold font-bold text-sm mb-1"></p>
+                <p id="transfer-tip" class="text-[10px] text-stone-500 italic leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <header class="sticky-header px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo" style="height:28px;">
+            <h1 class="text-lg font-bold text-stone-800 italic">{city} <span class="text-terracotta">{year}</span></h1>
+        </div>
+        <div class="flex gap-4 text-stone-500">
+            <a href="#interactive-map" class="bg-stone-100 p-2 rounded-full"><i data-lucide="map" size="18"></i></a>
+            <a href="#info" class="bg-stone-100 p-2 rounded-full"><i data-lucide="info" size="18"></i></a>
+        </div>
+    </header>
+
+    <section class="p-4" id="map-container">
+        <div id="interactive-map" class="shadow-xl border border-white"></div>
+    </section>
+
+    <div class="flex overflow-x-auto no-scrollbar gap-2 px-4 py-2 bg-white sticky top-[53px] z-40 border-b">
+{tabs_html}    </div>
+
+    <main id="schedule-container"></main>
+
+{extra_pois_html}
+
+    <section id="info" class="bg-stone-900 text-white px-6 py-10 pb-16 rounded-t-[2.5rem] text-center border-t border-white/5 mt-8">
+        <h2 class="text-gold text-lg font-bold mb-6 italic">Mémo Voyage</h2>
+        <div class="text-left mb-10 bg-white/5 p-5 rounded-2xl border border-white/10 shadow-inner">
+            <h3 class="text-gold text-xs font-bold mb-4 uppercase tracking-[0.2em] border-b border-white/10 pb-2">Checklist Réservations</h3>
+            <div class="space-y-1">
+{checklist_html}            </div>
+        </div>
+        <div class="pt-8 flex flex-col items-center">
+            <div class="logo-wrapper"><img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo" class="creator-logo"></div>
+        </div>
+    </section>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const hotelPos = [{hotel_lat}, {hotel_lng}];
+        const hotelName = {json.dumps(hotel_name, ensure_ascii=False)};
+        const poiData = {poi_json};
+        const dayNames = {day_labels_json};
+        const numDays = {num_days};
+
+        const map = L.map('interactive-map', {{ zoomControl: false }}).setView(hotelPos, 13);
+        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png').addTo(map);
+
+        L.marker(hotelPos, {{
+            icon: L.divIcon({{
+                className: 'hotel-marker',
+                html: '<div style="background-color: #a855f7; width: 18px; height: 18px; border: 3px solid white; border-radius: 4px; box-shadow: 0 0 10px rgba(168,85,247,0.5);"></div>',
+                iconSize: [18, 18], iconAnchor: [9, 9]
+            }})
+        }}).addTo(map).bindPopup("<b>🏠 " + hotelName + "</b>");
+
+        const markers = {{}};
+        poiData.forEach(p => {{
+            const m = L.marker(p.pos, {{
+                icon: L.divIcon({{
+                    className: 'custom-icon',
+                    html: '<div style="background-color: ' + p.color + '; width: 14px; height: 14px; border: 2px solid white; border-radius: 50%;"></div>',
+                    iconSize: [14, 14], iconAnchor: [7, 7]
+                }})
+            }}).addTo(map).bindPopup('<div style="font-size:11px"><b>' + p.name + '</b><br>' + p.time + '</div>');
+            markers[p.id] = m;
+        }});
+
+        const container = document.getElementById('schedule-container');
+        for (let d = 1; d <= numDays; d++) {{
+            const section = document.createElement('section');
+            section.id = 'day' + d;
+            section.className = 'day-section';
+            section.innerHTML = '<h2 class="text-xl mb-4 border-l-4 border-stone-800 pl-3 font-bold uppercase">' + dayNames[d - 1] + '</h2>';
+            poiData.filter(p => p.day === d).forEach(p => {{
+                section.innerHTML += `
+                    <div class="item-card shadow-sm">
+                        <div class="item-main">
+                            <div class="item-img"><img src="${{p.img}}" alt="${{p.name}}" onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#ccc\\'>📍</div>'"></div>
+                            <div class="item-content">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-sm leading-tight">${{p.name}}</h3>
+                                    <span class="text-[9px] bg-stone-100 px-1.5 py-0.5 rounded font-bold">${{p.time}}</span>
+                                    ${{p.duration ? '<span class="text-[9px] bg-stone-50 px-1.5 py-0.5 rounded text-stone-400">⏱ ' + p.duration + '</span>' : ''}}
+                                </div>
+                                <p class="text-[10px] text-gray-500 mt-1 leading-tight">${{p.desc}}</p>
+                                <p class="mt-auto text-[10px] font-extrabold text-stone-900">${{p.budget}}</p>
+                                ${{p.label ? '<p class="text-[8px] font-bold text-red-600 uppercase mt-1">' + p.label + '</p>' : ''}}
+                            </div>
+                        </div>
+                        <div class="item-actions">
+                            <button onclick="openAddressModal('${{p.id}}')" class="action-btn"><i data-lucide="map-pin" size="12"></i> Adresse</button>
+                            <button onclick="openTransferModal('${{p.id}}')" class="action-btn" style="background:#fffbeb;"><i data-lucide="map" size="12"></i> Trajet</button>
+                            <button onclick="focusOnMap('${{p.id}}')" class="action-btn"><i data-lucide="maximize-2" size="12"></i> Carte</button>
+                        </div>
+                    </div>`;
+            }});
+            container.appendChild(section);
+        }}
+
+        lucide.createIcons();
+
+        function openAddressModal(id) {{
+            const p = poiData.find(x => x.id === id);
+            document.getElementById('modal-title').innerText = p.name;
+            document.getElementById('modal-address').innerText = p.address;
+            document.getElementById('modal-link').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ' ' + p.address);
+            document.getElementById('modal-icon').style.backgroundColor = p.color + '20';
+            document.getElementById('modal-icon').innerHTML = '<i data-lucide="map-pin" style="color:' + p.color + '"></i>';
+            document.getElementById('poi-modal').style.display = 'flex';
+            lucide.createIcons();
+        }}
+
+        function openTransferModal(id) {{
+            const p = poiData.find(x => x.id === id);
+            document.getElementById('transfer-from').innerText = 'Depuis : ' + p.from;
+            document.getElementById('transfer-to').innerText = 'Destination : ' + p.name;
+            document.getElementById('transfer-text').innerText = p.travel;
+            document.getElementById('transfer-tip').innerText = p.tip;
+            document.getElementById('transfer-icon').setAttribute('data-lucide', p.travelType === 'walk' ? 'footprints' : 'car');
+            document.getElementById('transfer-modal').style.display = 'flex';
+            lucide.createIcons();
+        }}
+
+        function closeModal(mId) {{ document.getElementById(mId).style.display = 'none'; }}
+
+        function focusOnMap(id) {{
+            const p = poiData.find(x => x.id === id);
+            document.getElementById('map-container').scrollIntoView({{ behavior: 'smooth' }});
+            setTimeout(() => {{ map.setView(p.pos, 16, {{ animate: true }}); markers[id].openPopup(); }}, 500);
+        }}
+    </script>
+</body>
+</html>'''
+        return html

@@ -171,6 +171,112 @@
 {% endblock %}
 
 {% block content %}
+{% if view_mode == 'guides' %}
+<!-- ============================================================ -->
+<!-- VUE GUIDES ITINÉRAIRES                                        -->
+<!-- ============================================================ -->
+<div>
+    <h1 class="text-3xl font-bold text-slate-800 mb-6">Guides Itinéraires</h1>
+
+    <!-- Formulaire de création -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg mb-6">
+        <div class="flex justify-between items-center mb-4 cursor-pointer" onclick="document.getElementById('guide-form-body').classList.toggle('hidden')">
+            <h2 class="text-lg font-bold text-slate-700">Créer un nouveau guide</h2>
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+        <div id="guide-form-body">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Ville / Destination</label>
+                    <input type="text" id="guide-city" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Ex: Marrakech">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Hôtel / Riad (Google Autocomplete)</label>
+                    <input type="text" id="guide-hotel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Nom de l'hôtel">
+                    <input type="hidden" id="guide-hotel-place-id">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Date début</label>
+                    <input type="date" id="guide-date-start" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Date fin</label>
+                    <input type="date" id="guide-date-end" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Nombre de jours</label>
+                    <input type="number" id="guide-num-days" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" min="1" max="14">
+                </div>
+                <div></div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Aéroport</label>
+                    <input type="text" id="guide-airport" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Aéroport de destination">
+                    <input type="hidden" id="guide-airport-lat">
+                    <input type="hidden" id="guide-airport-lng">
+                    <input type="hidden" id="guide-airport-name">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Heure arrivée vol</label>
+                    <input type="time" id="guide-flight-arrival" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Heure départ vol</label>
+                    <input type="time" id="guide-flight-departure" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div></div>
+            </div>
+            <button onclick="generateGuidePois()" id="btn-generate-pois" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-xl transition">
+                Proposer les POIs
+            </button>
+            <div id="guide-loading" class="hidden mt-4">
+                <div class="bg-slate-900 rounded-xl p-4 font-mono text-xs">
+                    <div class="flex items-center gap-2 mb-2 text-slate-400">
+                        <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        <span id="guide-loading-title">Génération en cours...</span>
+                    </div>
+                    <div id="guide-log" class="space-y-1 text-green-400 max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Éditeur de POIs (caché par défaut) -->
+    <div id="poi-editor-section" class="hidden mb-6">
+        <div class="bg-white p-6 rounded-2xl shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-slate-700">Programme proposé</h2>
+                <div class="flex gap-2">
+                    <button onclick="generateGuidePois()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg text-sm transition">Régénérer</button>
+                    <button onclick="generateFinalGuide()" id="btn-generate-guide" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">Générer le Guide</button>
+                </div>
+            </div>
+            <div id="poi-editor-content"></div>
+
+            <!-- Section "À faire aussi" -->
+            <div id="extra-pois-section" class="hidden mt-6 pt-6 border-t border-slate-200">
+                <h3 class="text-md font-bold text-amber-700 mb-3">À faire aussi (non intégrés au planning)</h3>
+                <div id="extra-pois-content" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bibliothèque de guides -->
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <h2 class="text-lg font-bold text-slate-700 mb-4">Bibliothèque de Guides</h2>
+        <div id="guides-library" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <p id="guides-loading" class="text-slate-400 col-span-full text-center py-8">Chargement...</p>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- ============================================================ -->
+<!-- VUE TRIPS (proposés / assignés / vendus)                      -->
+<!-- ============================================================ -->
 <div>
     <h1 class="text-3xl font-bold text-slate-800 mb-6">
         {% if view_mode == 'proposed' %}Voyages Proposés
@@ -541,6 +647,7 @@
     </div>
 </div>
 
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -1538,7 +1645,449 @@
             }
         });
 
-        fetchTrips();
+        if (viewMode !== 'guides') fetchTrips();
     });
 </script>
+
+{% if view_mode == 'guides' %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=places"></script>
+<script>
+    // ============================================================================
+    // GUIDE ITINÉRAIRE - JAVASCRIPT
+    // ============================================================================
+
+    const DAY_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f97316'];
+    const DAY_COLOR_NAMES = ['red', 'blue', 'green', 'orange'];
+    let guidePoiData = [];
+    let guideExtraPois = [];
+    let guideAllRawPois = [];
+    let guideHotelInfo = null;
+
+    // --- Initialisation ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const hotelInput = document.getElementById('guide-hotel');
+        const cityInput = document.getElementById('guide-city');
+
+        // Autocomplete ville
+        if (cityInput && google.maps.places) {
+            new google.maps.places.Autocomplete(cityInput, { types: ['(cities)'] });
+        }
+
+        // Autocomplete hôtel
+        if (hotelInput && google.maps.places) {
+            const autocomplete = new google.maps.places.Autocomplete(hotelInput, {
+                types: ['establishment']
+            });
+            autocomplete.setFields(['name', 'address_components', 'place_id', 'geometry']);
+            autocomplete.addListener('place_changed', function() {
+                const place = autocomplete.getPlace();
+                if (place.place_id) {
+                    document.getElementById('guide-hotel-place-id').value = place.place_id;
+                }
+                // Extraction automatique de la ville depuis l'hôtel
+                if (place.address_components) {
+                    let city = '', country = '';
+                    for (const component of place.address_components) {
+                        if (component.types.includes('locality')) city = component.long_name;
+                        if (component.types.includes('country')) country = component.long_name;
+                    }
+                    if (city && country) {
+                        cityInput.value = `${city}, ${country}`;
+                    } else if (city) {
+                        cityInput.value = city;
+                    }
+                }
+            });
+        }
+
+        // Autocomplete aéroport
+        const airportInput = document.getElementById('guide-airport');
+        if (airportInput && google.maps.places) {
+            const airportAc = new google.maps.places.Autocomplete(airportInput, {
+                types: ['airport']
+            });
+            airportAc.setFields(['name', 'geometry']);
+            airportAc.addListener('place_changed', function() {
+                const place = airportAc.getPlace();
+                if (place.geometry) {
+                    document.getElementById('guide-airport-lat').value = place.geometry.location.lat();
+                    document.getElementById('guide-airport-lng').value = place.geometry.location.lng();
+                    document.getElementById('guide-airport-name').value = place.name || airportInput.value;
+                }
+            });
+        }
+
+        // Calcul auto du nombre de jours
+        document.getElementById('guide-date-start').addEventListener('change', calcGuideDays);
+        document.getElementById('guide-date-end').addEventListener('change', calcGuideDays);
+
+        // Charger la bibliothèque
+        loadGuides();
+    });
+
+    function calcGuideDays() {
+        const start = document.getElementById('guide-date-start').value;
+        const end = document.getElementById('guide-date-end').value;
+        if (start && end) {
+            const days = Math.round((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
+            if (days > 0) {
+                document.getElementById('guide-num-days').value = days;
+            }
+        }
+    }
+
+    // --- Génération des POIs (SSE streaming) ---
+    async function generateGuidePois() {
+        const placeId = document.getElementById('guide-hotel-place-id').value;
+        const city = document.getElementById('guide-city').value;
+        const dateStart = document.getElementById('guide-date-start').value;
+        const dateEnd = document.getElementById('guide-date-end').value;
+
+        if (!placeId) { alert('Veuillez sélectionner un hôtel depuis les suggestions Google.'); return; }
+        if (!city) { alert('Veuillez entrer une ville.'); return; }
+        if (!dateStart || !dateEnd) { alert('Veuillez remplir les dates.'); return; }
+
+        const btn = document.getElementById('btn-generate-pois');
+        const loading = document.getElementById('guide-loading');
+        const logDiv = document.getElementById('guide-log');
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+        logDiv.innerHTML = '';
+        loading.classList.remove('hidden');
+
+        function addLog(msg, isError) {
+            const line = document.createElement('div');
+            line.textContent = msg;
+            if (isError) line.className = 'text-red-400';
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        try {
+            const response = await fetch('/api/guide/generate-pois', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hotel_place_id: placeId,
+                    city: city,
+                    date_start: dateStart,
+                    date_end: dateEnd,
+                    num_days: document.getElementById('guide-num-days').value || null,
+                    flight_arrival: document.getElementById('guide-flight-arrival').value || null,
+                    flight_departure: document.getElementById('guide-flight-departure').value || null,
+                    airport_name: document.getElementById('guide-airport-name').value || null,
+                    airport_lat: document.getElementById('guide-airport-lat').value || null,
+                    airport_lng: document.getElementById('guide-airport-lng').value || null
+                })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop();
+
+                for (const part of parts) {
+                    const line = part.trim();
+                    if (!line.startsWith('data: ')) continue;
+                    try {
+                        const evt = JSON.parse(line.slice(6));
+                        if (evt.type === 'step') {
+                            addLog(evt.message);
+                        } else if (evt.type === 'done') {
+                            addLog(evt.message);
+                            const data = evt.data;
+                            if (data && data.success) {
+                                guidePoiData = data.pois;
+                                guideExtraPois = data.extra_pois || [];
+                                guideAllRawPois = data.all_pois || [];
+                                guideHotelInfo = data.hotel;
+                                document.getElementById('guide-num-days').value = data.num_days;
+                                setTimeout(() => {
+                                    loading.classList.add('hidden');
+                                    renderPoiEditor();
+                                }, 800);
+                            } else {
+                                addLog('Erreur: données incomplètes', true);
+                            }
+                        } else if (evt.type === 'error') {
+                            addLog(evt.message, true);
+                        }
+                    } catch (parseErr) {
+                        console.warn('SSE parse error:', parseErr, line);
+                    }
+                }
+            }
+        } catch (e) {
+            addLog('Erreur réseau: ' + e.message, true);
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        }
+    }
+
+    // --- Éditeur de POIs ---
+    function renderPoiEditor() {
+        const container = document.getElementById('poi-editor-content');
+        const section = document.getElementById('poi-editor-section');
+        section.classList.remove('hidden');
+
+        const numDays = parseInt(document.getElementById('guide-num-days').value) || 3;
+        let html = '';
+
+        for (let d = 1; d <= numDays; d++) {
+            const colorIdx = (d - 1) % DAY_COLORS.length;
+            const color = DAY_COLORS[colorIdx];
+            const colorName = DAY_COLOR_NAMES[colorIdx];
+            const dayPois = guidePoiData.filter(p => p.day === d);
+
+            html += `<div class="mb-4">
+                <h3 class="font-bold text-sm uppercase mb-2 px-3 py-1.5 rounded-lg inline-block bg-${colorName}-50 text-${colorName}-600 border border-${colorName}-100">Jour ${d}</h3>
+                <div id="day-${d}-pois" class="space-y-2" data-day="${d}">`;
+
+            dayPois.forEach((poi, idx) => {
+                html += renderPoiCard(poi, d, idx);
+            });
+
+            html += `</div></div>`;
+        }
+
+        container.innerHTML = html;
+
+        // Section "À faire aussi"
+        if (guideExtraPois.length > 0) {
+            document.getElementById('extra-pois-section').classList.remove('hidden');
+            let extraHtml = '';
+            guideExtraPois.forEach(ep => {
+                extraHtml += `
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <div class="flex gap-3">
+                        ${ep.photo_url ? `<img src="${ep.photo_url}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">` : '<div class="w-16 h-16 rounded-lg bg-slate-200 flex-shrink-0 flex items-center justify-center text-slate-400">📍</div>'}
+                        <div>
+                            <p class="font-bold text-sm">${ep.name}</p>
+                            <p class="text-[10px] text-slate-500">${ep.address || ''}</p>
+                            <span class="text-[10px] font-bold text-amber-600">★ ${ep.rating}</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('extra-pois-content').innerHTML = extraHtml;
+        } else {
+            document.getElementById('extra-pois-section').classList.add('hidden');
+        }
+
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderPoiCard(poi, day, idx) {
+        const colorIdx = (day - 1) % DAY_COLORS.length;
+        const color = DAY_COLORS[colorIdx];
+        return `
+        <div class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 shadow-sm" data-poi-id="${poi.id}" draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropPoi(event)">
+            <div class="w-2 h-12 rounded-full flex-shrink-0" style="background:${color}"></div>
+            ${poi.img ? `<img src="${poi.img}" class="w-14 h-14 rounded-lg object-cover flex-shrink-0" onerror="this.style.display='none'">` : ''}
+            <div class="flex-grow min-w-0">
+                <div class="flex items-center gap-2">
+                    <input type="time" value="${poi.time || ''}" onchange="updatePoiTime('${poi.id}', this.value)" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs w-20">
+                    <p class="font-bold text-sm truncate">${poi.name}</p>
+                </div>
+                <p class="text-[10px] text-slate-500 truncate">${poi.desc || ''}</p>
+                <p class="text-[10px] text-slate-400">${poi.duration ? '⏱ ' + poi.duration + ' — ' : ''}${poi.travel || ''} — ${poi.budget || ''}</p>
+            </div>
+            <div class="flex flex-col gap-1 flex-shrink-0">
+                <button onclick="replacePoi('${poi.id}')" class="text-blue-400 hover:text-blue-600 p-1" title="Remplacer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+                <button onclick="removePoi('${poi.id}')" class="text-red-400 hover:text-red-600 p-1" title="Supprimer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    function updatePoiTime(poiId, newTime) {
+        const poi = guidePoiData.find(p => p.id === poiId);
+        if (poi) poi.time = newTime;
+    }
+
+    function removePoi(poiId) {
+        guidePoiData = guidePoiData.filter(p => p.id !== poiId);
+        renderPoiEditor();
+    }
+
+    function replacePoi(poiId) {
+        const poi = guidePoiData.find(p => p.id === poiId);
+        if (!poi) return;
+
+        // Noms des POIs déjà utilisés
+        const usedNames = new Set(guidePoiData.map(p => p.name.toLowerCase()));
+
+        // Trouver les POIs disponibles (non utilisés), triés par rating
+        const available = guideAllRawPois.filter(p => !usedNames.has(p.name.toLowerCase()));
+
+        if (available.length === 0) {
+            alert('Aucun POI de remplacement disponible.');
+            return;
+        }
+
+        // Prendre le meilleur POI disponible (déjà trié par rating)
+        const replacement = available[0];
+
+        // Garder le créneau (day, time, from, travel) mais remplacer le POI
+        poi.name = replacement.name;
+        poi.address = replacement.address;
+        poi.pos = [replacement.lat, replacement.lng];
+        poi.img = replacement.photo_url || '';
+        poi.id = replacement.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        poi.desc = '';
+        poi.budget = '';
+
+        renderPoiEditor();
+    }
+
+    // --- Drag & Drop ---
+    let draggedPoiId = null;
+
+    function dragStart(e) {
+        draggedPoiId = e.currentTarget.dataset.poiId;
+        e.currentTarget.style.opacity = '0.4';
+    }
+
+    function dragOver(e) {
+        e.preventDefault();
+    }
+
+    function dropPoi(e) {
+        e.preventDefault();
+        const targetId = e.currentTarget.dataset.poiId;
+        if (!draggedPoiId || draggedPoiId === targetId) return;
+
+        const fromIdx = guidePoiData.findIndex(p => p.id === draggedPoiId);
+        const toIdx = guidePoiData.findIndex(p => p.id === targetId);
+        if (fromIdx === -1 || toIdx === -1) return;
+
+        // Swap day if different
+        const targetDay = guidePoiData[toIdx].day;
+        guidePoiData[fromIdx].day = targetDay;
+
+        // Move in array
+        const [moved] = guidePoiData.splice(fromIdx, 1);
+        guidePoiData.splice(toIdx, 0, moved);
+
+        draggedPoiId = null;
+        renderPoiEditor();
+    }
+
+    // --- Génération finale du guide ---
+    async function generateFinalGuide() {
+        if (guidePoiData.length === 0) { alert('Aucun POI à intégrer.'); return; }
+
+        const btn = document.getElementById('btn-generate-guide');
+        btn.disabled = true;
+        btn.textContent = 'Génération en cours...';
+        btn.classList.add('opacity-50');
+
+        try {
+            const response = await fetch('/api/guide/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    city: document.getElementById('guide-city').value,
+                    hotel_name: guideHotelInfo.name,
+                    hotel_lat: guideHotelInfo.lat,
+                    hotel_lng: guideHotelInfo.lng,
+                    date_start: document.getElementById('guide-date-start').value,
+                    date_end: document.getElementById('guide-date-end').value,
+                    num_days: document.getElementById('guide-num-days').value,
+                    flight_arrival: document.getElementById('guide-flight-arrival').value || null,
+                    flight_departure: document.getElementById('guide-flight-departure').value || null,
+                    pois: guidePoiData,
+                    extra_pois: guideExtraPois
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Guide généré avec succès !\n' + (data.url || ''));
+                document.getElementById('poi-editor-section').classList.add('hidden');
+                guidePoiData = [];
+                guideExtraPois = [];
+                guideAllRawPois = [];
+                loadGuides();
+            } else {
+                alert('Erreur: ' + (data.error || 'Échec de la génération'));
+            }
+        } catch (e) {
+            alert('Erreur réseau: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Générer le Guide';
+            btn.classList.remove('opacity-50');
+        }
+    }
+
+    // --- Bibliothèque de guides ---
+    async function loadGuides() {
+        try {
+            const response = await fetch('/api/guides');
+            const guides = await response.json();
+            renderGuideLibrary(guides);
+        } catch (e) {
+            document.getElementById('guides-library').innerHTML = '<p class="text-red-400 col-span-full text-center py-8">Erreur de chargement</p>';
+        }
+    }
+
+    function renderGuideLibrary(guides) {
+        const container = document.getElementById('guides-library');
+
+        if (guides.length === 0) {
+            container.innerHTML = '<p class="text-slate-400 col-span-full text-center py-8">Aucun guide créé pour le moment.</p>';
+            return;
+        }
+
+        container.innerHTML = guides.map(g => `
+            <div class="border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
+                <div class="h-36 bg-slate-100">
+                    ${g.thumbnail_url ? `<img src="${g.thumbnail_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full text-4xl text-slate-300\\'>🗺️</div>'">` : '<div class="flex items-center justify-center h-full text-4xl text-slate-300">🗺️</div>'}
+                </div>
+                <div class="p-4">
+                    <h3 class="font-bold text-slate-800">${g.city}</h3>
+                    <p class="text-xs text-slate-500 mt-1">${g.hotel_name || ''}</p>
+                    <p class="text-xs text-slate-400 mt-1">${g.date_start} → ${g.date_end} (${g.num_days}j)</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Créé le ${g.created_at}</p>
+                    <div class="flex gap-2 mt-3">
+                        ${g.url ? `<a href="${g.url}" target="_blank" class="flex-1 text-center bg-blue-50 text-blue-600 text-xs font-bold py-1.5 px-3 rounded-lg hover:bg-blue-100 transition">Voir</a>` : ''}
+                        ${g.url ? `<button onclick="copyGuideLink('${g.url}')" class="flex-1 text-center bg-slate-50 text-slate-600 text-xs font-bold py-1.5 px-3 rounded-lg hover:bg-slate-100 transition">Copier le lien</button>` : ''}
+                        <button onclick="deleteGuide(${g.id})" class="bg-red-50 text-red-500 text-xs font-bold py-1.5 px-3 rounded-lg hover:bg-red-100 transition">🗑️</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function copyGuideLink(url) {
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Lien copié !');
+        });
+    }
+
+    async function deleteGuide(guideId) {
+        if (!confirm('Supprimer ce guide ?')) return;
+        try {
+            await fetch(`/api/guide/${guideId}`, { method: 'DELETE' });
+            loadGuides();
+        } catch (e) {
+            alert('Erreur: ' + e.message);
+        }
+    }
+</script>
+{% endif %}
+
 {% endblock %}

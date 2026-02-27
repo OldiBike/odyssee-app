@@ -27,10 +27,12 @@ from weasyprint import HTML
 from sqlalchemy import func, extract, desc, or_
 from collections import defaultdict
 import click
+import re
+import unidecode
 
 from config import Config
-from models import db, Trip, Invoice, User, Client
-from services import RealAPIGatherer, generate_travel_page_html, PublicationService
+from models import db, Trip, Invoice, User, Client, Guide
+from services import RealAPIGatherer, generate_travel_page_html, PublicationService, GuideService
 import stripe
 
 mail = Mail()
@@ -140,10 +142,11 @@ def create_app(config_class=Config):
     @app.route('/dashboard')
     @login_required
     def dashboard():
-        return render_template('dashboard.html', 
-                               view_mode=request.args.get('view', 'proposed'), 
+        return render_template('dashboard.html',
+                               view_mode=request.args.get('view', 'proposed'),
                                site_public_url=app.config.get('SITE_PUBLIC_URL', ''),
-                               current_user_id=session.get('user_id'))
+                               current_user_id=session.get('user_id'),
+                               google_api_key=app.config.get('GOOGLE_API_KEY', ''))
 
     @app.route('/sellers')
     @admin_required
@@ -1271,6 +1274,193 @@ def create_app(config_class=Config):
             top_destinations = {'labels': [d[0] for d in sorted_dests], 'values': [d[1] for d in sorted_dests]}
 
         return jsonify({'monthly_performance': monthly_performance, 'top_sellers': top_sellers, 'top_destinations': top_destinations})
+
+    # ============================================================
+    # GUIDE ITINÉRAIRE INTERACTIF
+    # ============================================================
+
+    @app.route('/api/guide/generate-pois', methods=['POST'])
+    @login_required
+    def generate_guide_pois():
+        data = request.get_json()
+        hotel_place_id = data.get('hotel_place_id')
+        if not hotel_place_id:
+            return jsonify({'success': False, 'error': 'hotel_place_id requis'}), 400
+
+        # Capturer toutes les données avant le générateur (hors request context)
+        date_start = data.get('date_start')
+        date_end = data.get('date_end')
+        num_days_input = data.get('num_days')
+        flight_arrival = data.get('flight_arrival')
+        flight_departure = data.get('flight_departure')
+        airport_name = data.get('airport_name', 'Aéroport')
+        airport_lat = data.get('airport_lat')
+        airport_lng = data.get('airport_lng')
+
+        def sse_event(evt_type, message='', data_payload=None):
+            evt = {'type': evt_type, 'message': message}
+            if data_payload is not None:
+                evt['data'] = data_payload
+            return f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
+
+        def generate():
+            try:
+                guide_service = GuideService()
+
+                yield sse_event('step', '🏨 Géolocalisation de l\'hôtel...')
+                hotel_info = guide_service.get_hotel_coordinates(hotel_place_id)
+                if not hotel_info or not hotel_info.get('lat'):
+                    yield sse_event('error', 'Impossible de géolocaliser l\'hôtel')
+                    return
+                yield sse_event('step', f'✅ Hôtel trouvé : {hotel_info["name"]}')
+
+                yield sse_event('step', '🔍 Recherche des points d\'intérêt à proximité...')
+                raw_pois = guide_service.discover_pois(hotel_info['lat'], hotel_info['lng'])
+                yield sse_event('step', f'✅ {len(raw_pois)} POIs trouvés (rating ≥ 4.0)')
+
+                num_days = num_days_input
+                if not num_days and date_start and date_end:
+                    num_days = (datetime.strptime(date_end, '%Y-%m-%d') - datetime.strptime(date_start, '%Y-%m-%d')).days
+                num_days = int(num_days or 3)
+
+                airport_info = None
+                if airport_lat and airport_lng:
+                    airport_info = {
+                        'name': airport_name,
+                        'lat': float(airport_lat),
+                        'lng': float(airport_lng)
+                    }
+
+                yield sse_event('step', f'🤖 Gemini AI organise {len(raw_pois)} POIs sur {num_days} jours...')
+                organized = guide_service.organize_pois_with_gemini(
+                    raw_pois, hotel_info, num_days, date_start,
+                    flight_arrival, flight_departure,
+                    airport_info=airport_info
+                )
+                yield sse_event('step', f'✅ Gemini a proposé {len(organized)} activités')
+
+                if organized:
+                    yield sse_event('step', '🚗 Calcul des temps de trajet réels...')
+                    organized = guide_service.calculate_distances(organized, hotel_info)
+                    yield sse_event('step', '✅ Distances calculées')
+
+                extra_pois = guide_service.get_top_unused_pois(raw_pois, organized)
+
+                yield sse_event('done', '🎉 Terminé !', {
+                    'success': True,
+                    'hotel': hotel_info,
+                    'pois': organized,
+                    'extra_pois': extra_pois,
+                    'all_pois': raw_pois,
+                    'num_days': num_days
+                })
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                yield sse_event('error', f'Erreur: {str(e)}')
+
+        return Response(generate(), mimetype='text/event-stream', headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        })
+
+    @app.route('/api/guide/generate', methods=['POST'])
+    @login_required
+    def generate_guide():
+        try:
+            guide_service = GuideService()
+            data = request.get_json()
+
+            poi_data = data.get('pois', [])
+            extra_pois = data.get('extra_pois', [])
+            city = data.get('city', '')
+            hotel_name = data.get('hotel_name', '')
+            hotel_lat = float(data.get('hotel_lat', 0))
+            hotel_lng = float(data.get('hotel_lng', 0))
+            date_start = data.get('date_start')
+            date_end = data.get('date_end')
+            num_days = int(data.get('num_days', 3))
+
+            html_content = guide_service.generate_guide_html(
+                city, hotel_name, hotel_lat, hotel_lng,
+                date_start, date_end, num_days, poi_data,
+                data.get('flight_arrival'), data.get('flight_departure'),
+                extra_pois=extra_pois
+            )
+
+            thumbnail = poi_data[0].get('img', '') if poi_data else ''
+
+            guide = Guide(
+                city=city,
+                hotel_name=hotel_name,
+                hotel_lat=hotel_lat,
+                hotel_lng=hotel_lng,
+                date_start=datetime.strptime(date_start, '%Y-%m-%d').date(),
+                date_end=datetime.strptime(date_end, '%Y-%m-%d').date(),
+                num_days=num_days,
+                flight_arrival=data.get('flight_arrival'),
+                flight_departure=data.get('flight_departure'),
+                poi_data_json=json.dumps(poi_data, ensure_ascii=False),
+                thumbnail_url=thumbnail,
+                created_by=g.user.id
+            )
+            db.session.add(guide)
+            db.session.flush()
+
+            city_slug = unidecode.unidecode(city).lower()
+            city_slug = re.sub(r'[^a-z0-9]+', '_', city_slug).strip('_')
+            filename = f"guide_{city_slug}_{date_start}_{date_end}.html"
+
+            if publication_service._upload_via_api(
+                filename, html_content.encode('utf-8'), 'guides'
+            ):
+                guide.published_filename = filename
+
+            db.session.commit()
+
+            public_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/guides/{filename}"
+
+            return jsonify({
+                'success': True,
+                'guide': guide.to_dict(),
+                'url': public_url
+            })
+        except Exception as e:
+            db.session.rollback()
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/guides', methods=['GET'])
+    @login_required
+    def get_guides():
+        guides = Guide.query.order_by(Guide.created_at.desc()).all()
+        guides_list = []
+        for guide_item in guides:
+            d = guide_item.to_dict()
+            if guide_item.published_filename:
+                d['url'] = f"{app.config.get('SITE_PUBLIC_URL', '')}/guides/{guide_item.published_filename}"
+            guides_list.append(d)
+        return jsonify(guides_list)
+
+    @app.route('/api/guide/<int:guide_id>', methods=['DELETE'])
+    @login_required
+    def delete_guide(guide_id):
+        guide_item = Guide.query.get_or_404(guide_id)
+        if g.user.role != 'admin' and guide_item.created_by != g.user.id:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+
+        if guide_item.published_filename:
+            try:
+                payload = {'filename': guide_item.published_filename, 'directory': 'guides'}
+                headers = {'Content-Type': 'application/json', 'X-Api-Key': publication_service.api_key}
+                requests.delete(publication_service.api_url, json=payload, headers=headers, timeout=30)
+            except Exception:
+                pass
+
+        db.session.delete(guide_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Guide supprimé.'})
 
     return app
 

@@ -149,3 +149,38 @@ class Invoice(db.Model):
             'invoice_number': self.invoice_number,
             'created_at': self.created_at.strftime('%d/%m/%Y')
         }
+
+class Guide(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    city = db.Column(db.String(200), nullable=False)
+    hotel_name = db.Column(db.String(300), nullable=False)
+    hotel_lat = db.Column(db.Float, nullable=False)
+    hotel_lng = db.Column(db.Float, nullable=False)
+    date_start = db.Column(db.Date, nullable=False)
+    date_end = db.Column(db.Date, nullable=False)
+    num_days = db.Column(db.Integer, nullable=False)
+    flight_arrival = db.Column(db.String(10), nullable=True)
+    flight_departure = db.Column(db.String(10), nullable=True)
+    poi_data_json = db.Column(db.Text, nullable=False)
+    published_filename = db.Column(db.String(255), nullable=True)
+    thumbnail_url = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    user = db.relationship('User', backref='guides')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'city': self.city,
+            'hotel_name': self.hotel_name,
+            'date_start': self.date_start.strftime('%d/%m/%Y'),
+            'date_end': self.date_end.strftime('%d/%m/%Y'),
+            'num_days': self.num_days,
+            'published_filename': self.published_filename,
+            'thumbnail_url': self.thumbnail_url,
+            'created_at': self.created_at.strftime('%d/%m/%Y'),
+        }
+
+    def __repr__(self):
+        return f'<Guide {self.id}: {self.city}>'

@@ -40,21 +40,22 @@
                         <a href="{{ url_for('dashboard', view='proposed') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view', 'proposed') == 'proposed' %}active{% endif %}">Proposés</a>
                         <a href="{{ url_for('dashboard', view='assigned') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'assigned' %}active{% endif %}">Clients</a>
                         <a href="{{ url_for('dashboard', view='sold') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'sold' %}active{% endif %}">Vendus</a>
+                        <a href="{{ url_for('dashboard', view='guides') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'guides' %}active{% endif %}">Guides</a>
                         <a href="{{ url_for('clients_page') }}" class="nav-link {% if request.endpoint == 'clients_page' %}active{% endif %}">CRM Clients</a>
                         <a href="{{ url_for('sales_report_page') }}" class="nav-link {% if request.endpoint == 'sales_report_page' %}active{% endif %}">Rapport Ventes</a>
                         <a href="{{ url_for('stats_page') }}" class="nav-link {% if request.endpoint == 'stats_page' %}active{% endif %}">Statistiques</a>
-                        
+
                         {% if session.get('role') == 'admin' %}
                         <a href="{{ url_for('sellers_page') }}" class="nav-link {% if request.endpoint == 'sellers_page' %}active{% endif %}">Vendeurs</a>
                         {% endif %}
                     </nav>
-                    
+
                     <div class="text-right flex items-center md:flex">
                         <span class="text-sm text-gray-600 hidden sm:inline">👤 {{ session.get('pseudo', 'Utilisateur') }}</span>
                         <a href="{{ url_for('logout') }}" class="ml-4 text-sm text-red-600 hover:underline">Déconnexion</a>
                     </div>
                 </div>
-                
+
                 <!-- Menu mobile -->
                 <nav id="mobile-menu" class="mobile-menu md:hidden pb-4">
                     <div class="flex flex-col space-y-1">
@@ -62,10 +63,11 @@
                         <a href="{{ url_for('dashboard', view='proposed') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view', 'proposed') == 'proposed' %}active{% endif %}">Proposés</a>
                         <a href="{{ url_for('dashboard', view='assigned') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'assigned' %}active{% endif %}">Clients</a>
                         <a href="{{ url_for('dashboard', view='sold') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'sold' %}active{% endif %}">Vendus</a>
+                        <a href="{{ url_for('dashboard', view='guides') }}" class="nav-link {% if request.endpoint == 'dashboard' and request.args.get('view') == 'guides' %}active{% endif %}">Guides</a>
                         <a href="{{ url_for('clients_page') }}" class="nav-link {% if request.endpoint == 'clients_page' %}active{% endif %}">CRM Clients</a>
                         <a href="{{ url_for('sales_report_page') }}" class="nav-link {% if request.endpoint == 'sales_report_page' %}active{% endif %}">Rapport Ventes</a>
                         <a href="{{ url_for('stats_page') }}" class="nav-link {% if request.endpoint == 'stats_page' %}active{% endif %}">Statistiques</a>
-                        
+
                         {% if session.get('role') == 'admin' %}
                         <a href="{{ url_for('sellers_page') }}" class="nav-link {% if request.endpoint == 'sellers_page' %}active{% endif %}">Vendeurs</a>
                         {% endif %}

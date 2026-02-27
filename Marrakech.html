@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marrakech 2026 - Guide Interactif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --ocre: #D4A373; --terracotta: #C1666B; --majorelle: #4A7C9E; --gold: #D4AF37; }
+        body { font-family: 'Inter', sans-serif; background-color: #fdfbf7; color: #1a1a1a; scroll-behavior: smooth; }
+        h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
+        #interactive-map { height: 350px; width: 100%; z-index: 10; border-radius: 1.5rem; }
+        .day-section { padding: 25px 16px; border-bottom: 1px solid #eee; }
+        .item-card { background: white; border-radius: 1.25rem; overflow: hidden; border: 1px solid #f0f0f0; margin-bottom: 12px; display: flex; flex-direction: column; transition: transform 0.2s; }
+        .item-main { display: flex; min-height: 110px; }
+        .item-img { width: 110px; flex-shrink: 0; background-color: #f3f3f3; }
+        .item-img img { width: 100%; height: 100%; object-fit: cover; }
+        .item-content { padding: 12px; flex-grow: 1; display: flex; flex-direction: column; }
+        .item-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid #f9f9f9; padding: 8px 12px; gap: 6px; background: #fafafa; }
+        .action-btn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 9px; font-weight: 600; color: #666; padding: 6px 10px; border-radius: 8px; background: white; border: 1px solid #eee; }
+        .sticky-header { position: sticky; top: 0; z-index: 50; background: rgba(253, 251, 247, 0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #eee; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        #poi-modal, #transfer-modal { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: white; border-radius: 1.5rem; width: 100%; max-width: 320px; padding: 24px; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .custom-cb { width: 18px; height: 18px; accent-color: var(--gold); cursor: pointer; }
+        .creator-logo { max-width: 100px; height: auto; }
+        .logo-wrapper { background: white; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: inline-block; margin-top: 8px; }
+    </style>
+</head>
+<body class="antialiased text-sm">
+
+    <div id="poi-modal" onclick="closeModal('poi-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button onclick="closeModal('poi-modal')" class="absolute top-4 right-4 text-stone-400"><i data-lucide="x" size="20"></i></button>
+            <div id="modal-icon" class="w-12 h-12 rounded-full mb-4 flex items-center justify-center"></div>
+            <h3 id="modal-title" class="text-xl font-bold mb-2"></h3>
+            <p id="modal-address" class="text-stone-500 text-xs mb-6 leading-relaxed"></p>
+            <a id="modal-link" href="#" target="_blank" class="w-full bg-stone-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                <i data-lucide="map-pin" size="16"></i> Ouvrir Google Maps
+            </a>
+        </div>
+    </div>
+
+    <div id="transfer-modal" onclick="closeModal('transfer-modal')">
+        <div class="modal-content text-center" onclick="event.stopPropagation()">
+            <button onclick="closeModal('transfer-modal')" class="absolute top-4 right-4 text-stone-400"><i data-lucide="x" size="20"></i></button>
+            <div class="w-16 h-16 bg-stone-100 rounded-full mx-auto mb-4 flex items-center justify-center text-stone-600">
+                <i id="transfer-icon" data-lucide="arrow-right-left" size="32"></i>
+            </div>
+            <h3 class="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">L'Enchaînement</h3>
+            <div class="flex flex-col gap-1 mb-4">
+                <p id="transfer-from" class="text-[10px] font-bold text-stone-400"></p>
+                <i data-lucide="chevron-down" size="14" class="mx-auto text-gold"></i>
+                <p id="transfer-to" class="text-sm font-bold text-stone-800"></p>
+            </div>
+            <div class="bg-stone-50 p-4 rounded-xl">
+                <p id="transfer-text" class="text-gold font-bold text-sm mb-1"></p>
+                <p id="transfer-tip" class="text-[10px] text-stone-500 italic leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <header class="sticky-header px-4 py-3 flex justify-between items-center">
+        <h1 class="text-lg font-bold text-stone-800 italic">Marrakech <span class="text-terracotta">2026</span></h1>
+        <div class="flex gap-4 text-stone-500">
+            <a href="#interactive-map" class="bg-stone-100 p-2 rounded-full"><i data-lucide="map" size="18"></i></a>
+            <a href="#info" class="bg-stone-100 p-2 rounded-full"><i data-lucide="info" size="18"></i></a>
+        </div>
+    </header>
+
+    <section class="p-4" id="map-container">
+        <div id="interactive-map" class="shadow-xl border border-white"></div>
+    </section>
+
+    <div class="flex overflow-x-auto no-scrollbar gap-2 px-4 py-2 bg-white sticky top-[53px] z-40 border-b">
+        <a href="#day1" class="flex-shrink-0 px-4 py-1.5 bg-red-50 text-red-600 rounded-full text-[10px] font-bold uppercase border border-red-100">Mer. 14</a>
+        <a href="#day2" class="flex-shrink-0 px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase border border-blue-100">Jeu. 15</a>
+        <a href="#day3" class="flex-shrink-0 px-4 py-1.5 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase border border-green-100">Ven. 16</a>
+        <a href="#day4" class="flex-shrink-0 px-4 py-1.5 bg-orange-50 text-orange-600 rounded-full text-[10px] font-bold uppercase border border-orange-100">Sam. 17</a>
+    </div>
+
+    <main id="schedule-container"></main>
+
+    <section id="info" class="bg-stone-900 text-white px-6 py-10 pb-16 rounded-t-[2.5rem] text-center border-t border-white/5 mt-8">
+        <h2 class="text-gold text-lg font-bold mb-6 italic">Mémo Voyage</h2>
+        <div class="grid grid-cols-2 gap-2 text-[9px] mb-8">
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5"><p class="text-gold opacity-50 mb-1 uppercase font-bold">Budget</p><p class="text-xs">650€ - 950€ / pers.</p></div>
+            <div class="bg-white/5 p-3 rounded-xl border border-white/5"><p class="text-gold opacity-50 mb-1 uppercase font-bold">Change</p><p class="text-xs">1€ ≈ 10.5 MAD</p></div>
+        </div>
+        <div class="text-left mb-10 bg-white/5 p-5 rounded-2xl border border-white/10 shadow-inner">
+            <h3 class="text-gold text-xs font-bold mb-4 uppercase tracking-[0.2em] border-b border-white/10 pb-2">Checklist Réservations</h3>
+            <div class="space-y-1">
+                <div class="checkbox-row"><input type="checkbox" class="custom-cb"><span class="text-[11px] font-light">Atelier Lamsaty (Jeu 10h)</span></div>
+                <div class="checkbox-row"><input type="checkbox" class="custom-cb"><span class="text-[11px] font-light">Dar Dar Rooftop (Sunset Mer)</span></div>
+                <div class="checkbox-row"><input type="checkbox" class="custom-cb"><span class="text-[11px] font-light">Palais Jad Mahal (Show Jeu)</span></div>
+                <div class="checkbox-row"><input type="checkbox" class="custom-cb"><span class="text-[11px] font-light">Navette Anima (Ven 14h30)</span></div>
+            </div>
+        </div>
+        <div class="pt-8 flex flex-col items-center">
+            <div class="logo-wrapper"><img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo" class="creator-logo"></div>
+        </div>
+    </section>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const riadPos = [31.6404, -7.9919]; 
+        const poiData = [
+            // MERCREDI 14
+            { id: "lotus", day: 1, from: "Riad Banatti", time: "12:00", name: "Jardin du Lotus", color: "#ef4444", pos: [31.6318, -7.9945], address: "27 Derb el Ferrane, Dar el Bacha", budget: "350 MAD", travel: "🚶 12 min à pied", travelType: "walk", tip: "Trajet simple depuis le Riad par Dar el Bacha.", img: "https://sspark.genspark.ai/cfimages?u1=No8LIATvHkxHBCozKbk2hTcLU4q9m667YFkuwf7JJ%2BjXmu3WleBfJHOgGUZf4ERmTwxNy3dPhVUlTJjegOTst1fGQxAHtajrvx9tTIwrD%2FwpQHBo&u2=%2BSXSWNtAQ%2FwVIsu1&width=2560", desc: "Déjeuner de bienvenue." },
+            { id: "benyoussef", day: 1, from: "Jardin du Lotus", time: "14:30", name: "Médersa Ben Youssef", color: "#ef4444", pos: [31.6322, -7.9863], address: "Place Ben Youssef", budget: "50 MAD", travel: "🚶 8 min", travelType: "walk", tip: "Marche dans les ruelles commerçantes.", img: "https://sspark.genspark.ai/cfimages?u1=Jno5yMqDfenU3ZCAJPjLuqJqIMZ1YlCVRk0Bg60y4S0SjKnxL8i9%2F8DwIIzN8pBZrv%2BVxmFuHaSfpWEIHLeikVyRuoV%2FZvgHns3yjHuBbGzuYbsXex2Rk5n0VSyqx546SNYoGZUbSA%3D%3D&u2=tb3gGe%2FNnhCnQfW4&width=2560", desc: "Joyau de l'architecture islamique." },
+            { id: "secret", day: 1, from: "Médersa Ben Youssef", time: "16:30", name: "Le Jardin Secret", color: "#ef4444", pos: [31.6308, -7.9904], address: "121 Derb Mouassine", budget: "80 MAD", travel: "🚶 6 min", travelType: "walk", tip: "Situé sur la rue principale de Mouassine.", img: "https://sspark.genspark.ai/cfimages?u1=i23Eh30IZuS0zGccKGxtgpuBBT%2FsY%2BzQqyd6v83q4HeitRctxfrGxCQf2EmyMZIwuPeaVWA3gEoFWu7ikmuLnFkDaKV2KQWCtg63yeMAaBGvPEprasFOgIK92d4pio0%3D&u2=q5KkjyMAQz0Jbds9&width=2560", desc: "Palais et jardins historiques." },
+            { id: "dardar", day: 1, from: "Le Jardin Secret", time: "19:00", name: "Dar Dar Rooftop", color: "#ef4444", pos: [31.6222, -7.9864], address: "4 Riad Zitoun Lakdim", budget: "450 MAD", travel: "🚕 15 min (Retour Riad)", travelType: "car", tip: "Marche jusqu'à la Place Jemaa el-Fna pour un taxi vers Bab Taghzout (Riad).", img: "https://images.unsplash.com/photo-1549944811-f14820dc9505?auto=format&fit=crop&w=800&q=80", desc: "Sunset cocktails.", label: "⚠️ RÉSERVER" },
+
+            // JEUDI 15
+            { id: "majorelle", day: 2, from: "Riad Banatti", time: "08:30", name: "Jardin Majorelle", color: "#3b82f6", pos: [31.6418, -8.0033], address: "Rue Yves Saint Laurent", budget: "150 MAD", travel: "🚕 10 min", travelType: "car", tip: "Taxi depuis Bab Taghzout (2 min du Riad).", img: "https://sspark.genspark.ai/cfimages?u1=B1NWrBz%2FqGzzdjBu7V6RE2rGCMh3SnRyNkqGqfpkUpbDCENbjXeov4LfJCtC8%2B4mVC%2BdzmDkgjI%2Ba74v5kWei6nObDww4xzt0yWj4pkKSUv1Hpwk064R063fkq0a%2BmS1Ydn1ZZj83iEK2w%3D%3D&u2=rJsFLJmrq8zX4jfy&width=2560", desc: "Arriver à l'ouverture." },
+            { id: "lamsaty", day: 2, from: "Jardin Majorelle", time: "10:00", name: "Atelier Lamsaty Poterie", color: "#3b82f6", pos: [31.6258, -7.9890], address: "N. 28 Derb Baissi, Kasbah", budget: "300 MAD", travel: "🚕 15 min", travelType: "car", tip: "Direction quartier de la Kasbah.", img: "https://sspark.genspark.ai/cfimages?u1=cMc75OqdbJjBw0F4MD%2Bselz86%2BwBj9tvY%2F7kiDzerPhTwG%2BRRz0HA%2FzHYfJ2wL6xgs%2FofwHRM88Ws3aG4GaooIeWqg3uWoSP7Wor7j0j64Zi%2BrqZmoI0PKHH40xuiVICsYO%2B0lhJvzQ1CRMqDhzVJCJKkD004ayFUQ%2BP8jM%2F5bKJRqsh%2BMURHXUT6s%2BkGxxZ9oaxrPMjDlL2dPKkf0vVN3jWy%2FUoGKyDOD8%3D&u2=p58s%2FWi3PPIl15vF&width=2560", desc: "Poterie à 10H.", label: "⚠️ RDV 10H" },
+            { id: "azulik", day: 2, from: "Atelier Lamsaty", time: "13:00", name: "Azulik Inla", color: "#3b82f6", pos: [31.5700, -8.0200], address: "Route d'Amezmiz", budget: "500 MAD", travel: "🚕 20 min", travelType: "car", tip: "Taxi impératif (excentré).", img: "https://sspark.genspark.ai/cfimages?u1=Go7qJh7etAhUJcFtzd0%2FxINBj7phPzd5MIdKVUrxbtYovopwSuWwJHCYVcK5P3C3mevUTEX%2BxPtRXII25T37oEAOZnNolO8XJJ9YXtVXsYxL5824ECUR8s3o20BZ&u2=11LToi0B0nq944lr&width=2560", desc: "Déjeuner architecture futuriste." },
+            { id: "semmarine", day: 2, from: "Azulik Inla", time: "16:00", name: "Souk Semmarine", color: "#3b82f6", pos: [31.6285, -7.9875], address: "Souk Semmarine", budget: "Shopping", travel: "🚕 20 min", travelType: "car", tip: "Taxi dépose au Square de la Koutoubia.", img: "https://images.unsplash.com/photo-1597212618440-806262de4fe6?auto=format&fit=crop&w=800&q=80", desc: "L'artère des souks." },
+            { id: "jemaa", day: 2, from: "Souk Semmarine", time: "18:00", name: "Place Jemaa el-Fna", color: "#3b82f6", pos: [31.6258, -7.9894], address: "Place Jemaa el-Fna", budget: "Gratuit", travel: "🚶 5 min", travelType: "walk", tip: "Juste au bout du souk.", img: "https://sspark.genspark.ai/cfimages?u1=OsnDVrLag9Ltzw8XvauQT9QirkfnnSKuCAMhNE%2F%2FQkYC5VR54op0EOWpLVNiVffKLi5mM5hVnZlvHlHoLtUseHg0WOi1uKWDtRbHg7vRWaxD8tagWnoU0la0OqGNpA%3D%3D&u2=BS5r6pyjBI1y9zTL&width=2560", desc: "Ambiance nocturne." },
+            { id: "jadmahal", day: 2, from: "Place Jemaa el-Fna", time: "20:30", name: "Palais Jad Mahal", color: "#3b82f6", pos: [31.6200, -8.0000], address: "Rue Haroun Errachid", budget: "850 MAD", travel: "🚕 15 min (Retour Riad)", travelType: "car", tip: "Taxi depuis l'Hivernage vers Bab Taghzout pour rentrer.", img: "https://sspark.genspark.ai/cfimages?u1=cLBaP4%2Fgow78vj883ouDd3Uh6Q9mii4NvfE3YG%2F189LNTJ8azWsKPKrfAcq%2FibQb1GIqIi6p%2FzUhlGODSqp61QmMWWpOtVdtB3Y%2FLqtuFYysx5ZiUKV51RvvBnWa2cDUN%2FqqN2KcdYjIHYHMW7E%2B89bblA%3D%3D&u2=aPE%2FOh4z0%2FFXrYOp&width=2560", desc: "Dîner et show.", label: "⚠️ RÉSERVER" },
+
+            // VENDREDI 16
+            { id: "marajah", day: 3, from: "Riad Banatti", time: "10:00", name: "Spa Marajah", color: "#22c55e", pos: [31.6350, -8.0080], address: "61 Bis Rue de la Liberté", budget: "700 MAD", travel: "🚕 12 min", travelType: "car", tip: "Taxi depuis Bab Taghzout.", img: "https://sspark.genspark.ai/cfimages?u1=4lvX0xhCLxmVVZW2a4G31B9R3JmG05pO8pWzGt72YFaGLFflfnM0odoh3zEL1gYXWFqxnRV5j884%2B%2FX75Stf%2BFJBfloXxAOX3oueSaQeK5HaJx%2BUTUgaU3cmc3e0cu%2BoZlGi424v3SuQqxiS%2BHqo&u2=Qft62SIZ4FjCAReG&width=2560", desc: "Spa et hammam." },
+            { id: "otto", day: 3, from: "Spa Marajah", time: "12:45", name: "Restaurant Otto", color: "#22c55e", pos: [31.6360, -8.0150], address: "Avenue Mohammed VI", budget: "350 MAD", travel: "🚕 5 min", travelType: "car", tip: "Hivernage.", img: "https://sspark.genspark.ai/cfimages?u1=H8Q7WQJKvXnkdepq3lPxk7d3va7AyUuzeYM3ppBNXGM3Vmo1OQx6%2FA3pOUazmWDT4i71cnwABEVU9DcQrFths8mcEZIhGK1MRzMOPkywo1vlnDf0je9YjGX%2BGMpNWhRb3uMa%2BOYMVfqzBHoDH1ZuB7I%3D&u2=g0FCbQx%2B6eddxO9r&width=2560", desc: "Cuisine italienne." },
+            { id: "anima", day: 3, from: "Restaurant Otto", time: "14:30", name: "Anima Garden", color: "#22c55e", pos: [31.4244, -7.8483], address: "Km 28 Route de l'Ourika", budget: "150 MAD", travel: "🚐 45 min", travelType: "car", tip: "Navette Parking Koutoubia.", img: "https://images.unsplash.com/photo-1541959482660-9f94a165b4f8?auto=format&fit=crop&w=800&q=80", desc: "Jardin sensoriel.", label: "⚠️ NAVETTE 14H30" },
+            { id: "elbadi", day: 3, from: "Anima Garden", time: "18:00", name: "Palais El Badi", color: "#22c55e", pos: [31.6183, -7.9855], address: "Ksibat Nhass", budget: "70 MAD", travel: "🚶 8 min", travelType: "walk", tip: "Depuis la navette.", img: "https://images.unsplash.com/photo-1590603740183-980e7f6920eb?auto=format&fit=crop&w=800&q=80", desc: "Ruines et cigognes." },
+            { id: "kosybar", day: 3, from: "Palais El Badi", time: "20:00", name: "Kosybar", color: "#22c55e", pos: [31.6186, -7.9859], address: "Place des Ferblantiers", budget: "400 MAD", travel: "🚕 15 min (Retour Riad)", travelType: "car", tip: "Taxi depuis les Ferblantiers vers le Riad.", img: "https://sspark.genspark.ai/cfimages?u1=PTA%2FBqqpD0r%2BHI23s7GCOwwV90YI55g4CmKFjRylPcRtgmR9EjHqqNaxdKxfyxdVpjDsLpEvy0crdVBDh%2F%2BAPcD4s9qzz451ZzbQbafbLMx3Ikr1lChniQLGBVc6N1lElgE%3D&u2=MPqiv25YQ5buoi96&width=2560", desc: "Dîner terrasse." },
+
+            // SAMEDI 17
+            { id: "kasbah_souk", day: 4, from: "Riad Banatti", time: "09:30", name: "Souks Kasbah", color: "#f97316", pos: [31.6171, -7.9877], address: "Kasbah", budget: "Shopping", travel: "🚕 15 min", travelType: "car", tip: "Laisse les sacs au Riad.", img: "https://sspark.genspark.ai/cfimages?u1=i4Ij6mFgaesZlIyMPCiN26sN1IGeZKiR81PrTA8pCYv%2BLHIEv14jv4fc3X6nWIT%2Ffz%2Bj9Zd6VOSFBN3XijjCjOb1iLCcnJY8dlxF1FrT%2Bq%2F19Q2AWiijVjMwqlsojhGJmZCMnp4OlfhaBXRSPXYtlUaP7NrOcmnE%2Bhh4pxULputGwGGue%2FVU%2Bg%3D%3D&u2=M8Ny%2FZ7iavzHkCkB&width=2560", desc: "Dernier shopping." },
+            { id: "bahia", day: 4, from: "Souks Kasbah", time: "11:30", name: "Palais de la Bahia", color: "#f97316", pos: [31.6218, -7.9817], address: "Avenue Imam El Ghazali", budget: "70 MAD", travel: "🚶 10 min", travelType: "walk", tip: "Marche vers l'Est.", img: "https://images.unsplash.com/photo-1549293122-3023e9a5975d?auto=format&fit=crop&w=800&q=80", desc: "Joyau architectural." },
+            { id: "mk", day: 4, from: "Palais de la Bahia", time: "13:30", name: "MK Rooftop", color: "#f97316", pos: [31.6234, -7.9942], address: "60 Derb Chorfa", budget: "350 MAD", travel: "🚶 15 min", travelType: "walk", tip: "Remonte vers Dar El Bacha.", img: "https://sspark.genspark.ai/cfimages?u1=YOlbwWb92Tv0bomgr1MQXSvcw1oHKQLFfuiDXdDAlrrCoBAFAMMgKs6z4SV96c4Qph0kZgvQCAgx8TfELGbVlWj%2Fw0d1yK8cEsKnZbkQiHTpbaoUivYEGrQD9wXjtjG5KZrWK20%3D&u2=g6aaZUiwR8gek7K9&width=2560", desc: "Dernier déjeuner." },
+            { id: "airport", day: 4, from: "MK Rooftop", time: "16:00", name: "Transfert Aéroport", color: "#000000", pos: [31.6017, -8.0264], address: "Aéroport Menara", budget: "150 MAD", travel: "🚕 45 min", travelType: "car", tip: "Passage Riad (Bab Taghzout) pour sacs obligatoire.", img: "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=80", desc: "Vol à 19h." }
+        ];
+
+        const map = L.map('interactive-map', { zoomControl: false }).setView(riadPos, 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        L.marker(riadPos, { 
+            icon: L.divIcon({
+                className: 'riad-marker',
+                html: `<div style="background-color: #a855f7; width: 18px; height: 18px; border: 3px solid white; border-radius: 4px; box-shadow: 0 0 10px rgba(168,85,247,0.5);"></div>`,
+                iconSize: [18,18], iconAnchor: [9,9]
+            })
+        }).addTo(map).bindPopup("<b>🏠 Riad Banatti</b>");
+
+        const markers = {};
+        poiData.forEach(p => {
+            const m = L.marker(p.pos, { 
+                icon: L.divIcon({
+                    className: 'custom-icon',
+                    html: `<div style="background-color: ${p.color}; width: 14px; height: 14px; border: 2px solid white; border-radius: 50%;"></div>`,
+                    iconSize: [14, 14], iconAnchor: [7, 7]
+                })
+            }).addTo(map).bindPopup(`<div style="font-size:11px"><b>${p.name}</b><br>${p.time}</div>`);
+            markers[p.id] = m;
+        });
+
+        const container = document.getElementById('schedule-container');
+        const dayNames = ["Mercredi 14", "Jeudi 15", "Vendredi 16", "Samedi 17"];
+        [1,2,3,4].forEach((d, i) => {
+            const section = document.createElement('section');
+            section.id = `day${d}`;
+            section.className = 'day-section';
+            section.innerHTML = `<h2 class="text-xl mb-4 border-l-4 border-stone-800 pl-3 font-bold uppercase">${dayNames[i]}</h2>`;
+            poiData.filter(p => p.day === d).forEach(p => {
+                section.innerHTML += `
+                    <div class="item-card shadow-sm">
+                        <div class="item-main">
+                            <div class="item-img"><img src="${p.img}" alt="${p.name}"></div>
+                            <div class="item-content">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-sm leading-tight">${p.name}</h3>
+                                    <span class="text-[9px] bg-stone-100 px-1.5 py-0.5 rounded font-bold">${p.time}</span>
+                                </div>
+                                <p class="text-[10px] text-gray-500 mt-1 leading-tight">${p.desc}</p>
+                                <p class="mt-auto text-[10px] font-extrabold text-stone-900">${p.budget}</p>
+                                ${p.label ? `<p class="text-[8px] font-bold text-red-600 uppercase mt-1">${p.label}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="item-actions">
+                            <button onclick="openAddressModal('${p.id}')" class="action-btn"><i data-lucide="map-pin" size="12"></i> Adresse</button>
+                            <button onclick="openTransferModal('${p.id}')" class="action-btn" style="background:#fffbeb;"><i data-lucide="map" size="12"></i> Trajet</button>
+                            <button onclick="focusOnMap('${p.id}')" class="action-btn"><i data-lucide="maximize-2" size="12"></i> Carte</button>
+                        </div>
+                    </div>`;
+            });
+            container.appendChild(section);
+        });
+
+        lucide.createIcons();
+
+        function openAddressModal(id) {
+            const p = poiData.find(x => x.id === id);
+            document.getElementById('modal-title').innerText = p.name;
+            document.getElementById('modal-address').innerText = p.address;
+            document.getElementById('modal-link').href = `http://googleusercontent.com/maps.google.com/?q=${encodeURIComponent(p.name + " " + p.address)}`;
+            document.getElementById('modal-icon').style.backgroundColor = p.color + "20";
+            document.getElementById('modal-icon').innerHTML = `<i data-lucide="map-pin" style="color:${p.color}"></i>`;
+            document.getElementById('poi-modal').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function openTransferModal(id) {
+            const p = poiData.find(x => x.id === id);
+            document.getElementById('transfer-from').innerText = "Depuis : " + p.from;
+            document.getElementById('transfer-to').innerText = "Destination : " + p.name;
+            document.getElementById('transfer-text').innerText = p.travel;
+            document.getElementById('transfer-tip').innerText = p.tip;
+            document.getElementById('transfer-icon').setAttribute('data-lucide', p.travelType === 'walk' ? 'footprints' : 'car');
+            document.getElementById('transfer-modal').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function closeModal(mId) { document.getElementById(mId).style.display = 'none'; }
+
+        function focusOnMap(id) {
+            const p = poiData.find(x => x.id === id);
+            document.getElementById('map-container').scrollIntoView({ behavior: 'smooth' });
+            setTimeout(() => { map.setView(p.pos, 16, { animate: true }); markers[id].openPopup(); }, 500);
+        }
+    </script>
+</body>
+</html>

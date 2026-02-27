@@ -532,6 +532,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     hotel_name_full = data.get('hotel_name', '')
     hotel_name_parts = hotel_name_full.split(',')
     display_hotel_name = hotel_name_parts[0].strip()
+    display_hotel_name_js = display_hotel_name.replace("'", "\\'")
     display_address = ', '.join(hotel_name_parts[1:]).strip() if len(hotel_name_parts) > 1 else data.get('destination', '')
 
     # Formater les dates en français
@@ -1163,7 +1164,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
 
         // Gestion du partage sur les réseaux sociaux
         const currentUrl = window.location.href;
-        const shareText = 'Découvrez cette superbe offre de voyage : {display_hotel_name} à partir de {your_price}€ ! ';
+        const shareText = 'Découvrez cette superbe offre de voyage : {display_hotel_name_js} à partir de {your_price}€ ! ';
         
         // Bouton WhatsApp
         const shareWhatsApp = document.getElementById('shareWhatsApp');

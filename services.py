@@ -213,13 +213,16 @@ class PublicationService:
             slug = re.sub(r"[\s']+", '_', slug)
             client_name_slug = re.sub(r'[^a-z0-9_]', '', slug)
             filename = f"{base_filename}_{client_name_slug}.html"
-            
+
+            portal_token = trip.client.portal_token if trip.client else None
+
             html_content = generate_travel_page_html(
                 full_trip_data['form_data'],
                 full_trip_data['api_data'],
                 savings,
                 comparison_total,
-                creator_pseudo=creator_pseudo
+                creator_pseudo=creator_pseudo,
+                portal_token=portal_token
             )
             
             if self._upload_via_api(filename, html_content.encode('utf-8'), 'clients'):
@@ -519,7 +522,7 @@ Maintenant à toi, écris UNIQUEMENT la nouvelle description (sans guillemets, s
             'cultural_attraction_image': cultural_attraction_image
         }
 
-def generate_travel_page_html(data, real_data, savings, comparison_total, creator_pseudo=None):
+def generate_travel_page_html(data, real_data, savings, comparison_total, creator_pseudo=None, portal_token=None):
     """Génère le contenu HTML complet de la page de voyage."""
     
     # Dictionnaire pour traduire les mois en français
@@ -547,7 +550,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     date_end = date_end_en
     for eng, fr in mois_fr.items():
         date_end = date_end.replace(eng, fr)
-    stars = "⭐" * int(data.get('stars') or 0)
+    num_stars = int(data.get('stars') or 0)
+    stars = ''.join(['<i class="fas fa-star" style="color: #D4A853; font-size: 12px; margin: 0 1px;"></i>'] * num_stars)
     num_people = int(data.get('num_people') or 2)
     num_children = int(data.get('num_children') or 0)
     
@@ -722,7 +726,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             # Mode Solo Pack: affichage simplifié
             pricing_block_html = f'''
             <div class="instagram-card p-6">
-                <h3 class="section-title text-xl mb-4">📦 Notre Pack</h3>
+                <h3 class="section-title text-xl mb-4">Notre Pack</h3>
                 <div style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 16px;">
                     <h4 style="font-weight: bold; color: #059669; margin-bottom: 12px; text-align: center;">🌟 Voyages Privilèges</h4>
                     <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px;">
@@ -887,7 +891,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         video_title = real_data['videos'][0]['title']
         video_html_block = f"""<div id="video-section-wrapper" class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Vidéo</h3><div><h4 class="font-semibold mb-2">Visite de l'hôtel</h4><div class="video-container aspect-w-16 aspect-h-9"><iframe src="{embed_url}" title="{video_title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full rounded-lg"></iframe></div></div></div>"""
 
-    reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="mt-2 text-gray-700">"{r["text"]}"</p></div>' for r in real_data.get('reviews', [])])
+    reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="review-text mt-2 text-gray-700">"{r["text"]}"</p><button class="review-toggle text-blue-600 text-sm font-medium mt-1" onclick="this.previousElementSibling.classList.toggle(\'review-expanded\');this.textContent=this.previousElementSibling.classList.contains(\'review-expanded\')?\'Réduire\':\'Lire la suite\';">Lire la suite</button></div>' for r in real_data.get('reviews', [])])
 
     destination_section = ""
     if real_data.get('cultural_attraction_image'):
@@ -915,6 +919,15 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
 
     creator_html = f'<p class="text-sm mt-3">Voyage proposé par <strong>{creator_pseudo}</strong></p>' if creator_pseudo else ""
 
+    if portal_token:
+        app_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+        if app_domain:
+            portal_link = f"https://{app_domain}/espace/{portal_token}"
+        else:
+            portal_link = f"/espace/{portal_token}"
+    else:
+        portal_link = "https://www.voyages-privileges.be"
+
     footer_html = f"""
         <div class="instagram-card p-6 bg-blue-500 text-white text-center">
             <h3 class="text-2xl font-bold mb-2">🌟 Réservez votre évasion !</h3>
@@ -932,8 +945,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         </div>
         
         <div class="instagram-card p-6 text-center">
-            <a href="https://www.voyages-privileges.be" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors" style="display: inline-block;">
-                Toutes nos offres
+            <a href="{portal_link}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors" style="display: inline-block;">
+                {"Voir toutes mes offres" if portal_token else "Toutes nos offres"}
             </a>
         </div>
 
@@ -980,7 +993,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             <p class="text-xs text-gray-500">SRL RIDEA (OldiBike)<br>Numéro de société : 1024.916.054 - RC Exploitation : 99730451</p>
         </div>
     """
-    story_card_style = "background: linear-gradient(135deg, #FECACA 0%, #F87171 100%);" if is_ultra_budget else "background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);"
+    story_card_style = "background: linear-gradient(135deg, #FECACA 0%, #F87171 100%); color: #7F1D1D;" if is_ultra_budget else "background: linear-gradient(135deg, #F5F0E8 0%, #E8DFD0 100%); color: #2D2A26;"
     cancellation_html = ""
     if data.get('has_cancellation') == 'on' and data.get('cancellation_date'):
         if flight_price > 0:
@@ -1028,13 +1041,17 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com?plugins=aspect-ratio"></script>
     <style>
-        body {{ font-family: 'Poppins', sans-serif; }} .section-title {{ font-family: 'Playfair Display', serif; }}
+        body {{ font-family: 'Poppins', sans-serif; }}
+        .section-title {{ font-family: 'Playfair Display', serif; display: inline-block; padding-bottom: 8px; border-bottom: 2px solid #D4A853; }}
         .main-container {{ max-width: 600px; margin: auto; padding: 10px; }}
-        .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; margin-top: 20px; }}
-        .story-card {{ {story_card_style} border-radius: 25px; padding: 25px; color: white; text-align: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3); margin-top: 0; }}
+        .instagram-card {{ background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); overflow: hidden; margin-top: 24px; }}
+        .story-card {{ {story_card_style} border-radius: 25px; padding: 25px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.10); margin-top: 0; }}
         .image-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }}
         .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px; cursor: pointer; }}
         .reviews-grid {{ display: grid; grid-template-columns: 1fr; gap: 16px; }}
+        .review-text {{ display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
+        .review-text.review-expanded {{ display: block; -webkit-line-clamp: unset; overflow: visible; }}
+        .review-toggle {{ background: none; border: none; cursor: pointer; padding: 0; }}
         .economy-highlight {{ background: linear-gradient(45deg, #ffd700, #ffb347); color: #333; padding: 15px; border-radius: 15px; text-align: center; margin-top: 20px; font-weight: bold;}}
         .feature-icon {{ width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }}
         .modal-photos {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; overflow-y: auto; padding: 20px; }}

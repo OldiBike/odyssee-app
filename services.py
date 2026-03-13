@@ -891,7 +891,24 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         video_title = real_data['videos'][0]['title']
         video_html_block = f"""<div id="video-section-wrapper" class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Vidéo</h3><div><h4 class="font-semibold mb-2">Visite de l'hôtel</h4><div class="video-container aspect-w-16 aspect-h-9"><iframe src="{embed_url}" title="{video_title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full rounded-lg"></iframe></div></div></div>"""
 
-    reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="review-text mt-2 text-gray-700">"{r["text"]}"</p><button class="review-toggle text-sm font-medium mt-1" style="color: #8B6914;" onclick="this.previousElementSibling.classList.toggle(\'review-expanded\');this.textContent=this.previousElementSibling.classList.contains(\'review-expanded\')?\'Réduire\':\'Lire la suite\';">Lire la suite</button></div>' for r in real_data.get('reviews', [])])
+    reviews_html_list = []
+    for r in real_data.get('reviews', []):
+        date_str = r.get("date", "").lower()
+        # Exclure les avis d'il y a 1 an ou plus
+        if "an" in date_str or "ans" in date_str or "year" in date_str:
+            continue
+            
+        review_text = r.get("text", "").strip()
+        text_html = ""
+        # Si le texte fait au moins 5 mots
+        if len(review_text.split()) >= 5:
+            text_html = f'<p class="review-text mt-2 text-gray-700">"{review_text}"</p><button class="review-toggle text-sm font-medium mt-1" style="color: #8B6914;" onclick="this.previousElementSibling.classList.toggle(\'review-expanded\');this.textContent=this.previousElementSibling.classList.contains(\'review-expanded\')?\'Réduire\':\'Lire la suite\';">Lire la suite</button>'
+        elif review_text: # Si c'est juste un mot magnifique ou superbe, sans bouton lire la suite
+            text_html = f'<p class="mt-2 text-gray-700">"{review_text}"</p>'
+            
+        reviews_html_list.append(f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div>{text_html}</div>')
+        
+    reviews_section = "".join(reviews_html_list)
 
     destination_section = ""
     if real_data.get('cultural_attraction_image'):
@@ -1049,7 +1066,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         .image-item img {{ width: 100%; height: 200px; object-fit: cover; transition: transform 0.3s ease; border-radius: 15px; cursor: pointer; }}
         .reviews-grid {{ display: grid; grid-template-columns: 1fr; gap: 16px; }}
         .review-text {{ display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
-        .review-text.review-expanded {{ display: block; -webkit-line-clamp: unset; overflow: visible; }}
+        .review-text.review-expanded {{ display: block !important; -webkit-line-clamp: unset !important; -webkit-box-orient: unset !important; overflow: visible !important; max-height: none !important; }}
         .review-toggle {{ background: none; border: none; cursor: pointer; padding: 0; }}
         .economy-highlight {{ background: linear-gradient(45deg, #ffd700, #ffb347); color: #333; padding: 15px; border-radius: 15px; text-align: center; margin-top: 20px; font-weight: bold;}}
         .feature-icon {{ width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }}
@@ -1133,7 +1150,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         </div>
         <div class="story-card">
             <img src="{real_data.get('photos', [''])[0]}" alt="{data['hotel_name']}" style="width: 100%; height: 256px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-            <h2 class="text-2xl font-bold">{display_hotel_name} {stars}</h2>
+            <h2 class="text-2xl font-bold">{display_hotel_name}</h2>
+            <div style="margin-top: 6px;">{stars}</div>
             <p>📍 {display_address}</p>
             <p class="mt-4">🗓️ Du {date_start} au {date_end}</p>
             <div class="text-4xl font-bold mt-2">{your_price} €</div>
@@ -1148,7 +1166,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>
         <div id="photosModal" class="modal-photos"><span class="close-photos" id="closePhotos">×</span><div class="photo-counter" id="photoCounter">Photo 1 sur {total_photos}</div><div class="modal-photos-content">{modal_all_photos}</div></div>
         {video_html_block}
-        <div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Avis des clients</h3><div class="reviews-grid">{reviews_section}</div></div>
+        {f'<div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Avis des clients</h3><div class="reviews-grid">{reviews_section}</div></div>' if reviews_section else ''}
         <div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Découvrir {city_name}</h3>{destination_section}</div>
         {footer_html}
     </div>

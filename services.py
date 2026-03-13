@@ -642,34 +642,34 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             '''
 
     city_name = data.get('destination', '').split(',')[0].strip()
-    exclusive_services_html = f'<div class="p-4 mt-4 rounded-lg border-2 border-blue-200 bg-blue-50"><h4 class="font-bold text-blue-800 mb-2">Nos Services additionnels offerts</h4><p class="text-sm text-gray-700">{data.get("exclusive_services", "").strip().replace(chr(10), "<br>")}</p></div>' if data.get('exclusive_services', '').strip() else ""
+    exclusive_services_html = f'<div class="p-4 mt-4 rounded-lg border-2" style="border-color: #D4A853; background: #FBF8F3;"><h4 class="font-bold mb-2" style="color: #8B6914;">Nos Services additionnels offerts</h4><p class="text-sm text-gray-700">{data.get("exclusive_services", "").strip().replace(chr(10), "<br>")}</p></div>' if data.get('exclusive_services', '').strip() else ""
 
     flight_text_html = f'<div class="flex justify-between"><span>{flight_route_text}</span><span class="font-semibold">{flight_price}€</span></div>' if flight_price > 0 else ""
-    flight_inclusion_html = f'<div class="flex items-center"><div class="feature-icon bg-blue-500"><i class="fas fa-plane"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{flight_route_text}</h4><p class="text-gray-600 text-xs">Aller-retour inclus{flight_times_description}</p></div></div>' if flight_price > 0 else ""
+    flight_inclusion_html = f'<div class="flex items-center"><div class="feature-icon" style="background: #D4A853;"><i class="fas fa-plane"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{flight_route_text}</h4><p class="text-gray-600 text-xs">Aller-retour inclus{flight_times_description}</p></div></div>' if flight_price > 0 else ""
 
     baggage_option = data.get('baggage_type', 'bagages 10 kilos')
     baggage_inclusion_html = ''
     if is_ultra_budget and baggage_option == 'Pas de bagages':
-        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-400"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages à main uniquement</h4><p class="text-gray-600 text-xs">Pas de bagages cabine</p></div></div>'
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #C4B89A;"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages à main uniquement</h4><p class="text-gray-600 text-xs">Pas de bagages cabine</p></div></div>'
     elif baggage_option == 'bagages 10 kilos':
-        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 10 kilos</h4><p class="text-gray-600 text-xs">1 bagage inclus par personne en cabine</p></div></div>'
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #D4A853;"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 10 kilos</h4><p class="text-gray-600 text-xs">1 bagage inclus par personne en cabine</p></div></div>'
     elif baggage_option == 'Bagage 20 kilos':
-        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage en soute inclus par personne</p></div></div>'
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #D4A853;"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagage 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage en soute inclus par personne</p></div></div>'
     elif baggage_option == 'bagages 10 kilos + 1x 20 kilos':
-        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-red-500"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10 kilos + 1x 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage 10 kilos inclus par personne en cabine et un bagage 20 kilo en soute</p></div></div>'
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #D4A853;"><i class="fas fa-suitcase-rolling"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Bagages 10 kilos + 1x 20 kilos</h4><p class="text-gray-600 text-xs">1 bagage 10 kilos inclus par personne en cabine et un bagage 20 kilo en soute</p></div></div>'
     elif baggage_option == 'Pas de bagages':
-        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-400"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Pas de bagages</h4><p class="text-gray-600 text-xs">Peuvent être ajouté en option</p></div></div>'
+        baggage_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #C4B89A;"><i class="fas fa-suitcase"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Pas de bagages</h4><p class="text-gray-600 text-xs">Peuvent être ajouté en option</p></div></div>'
 
     transfer_cost = int(data.get('transfer_cost') or 0)
     transfer_text_html = f'<div class="flex justify-between"><span>+ Transferts</span><span class="font-semibold">~{transfer_cost}€</span></div>' if transfer_cost > 0 else ""
-    transfer_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-green-500"><i class="fas fa-bus"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Transfert aéroport ↔ hôtel</h4><p class="text-gray-600 text-xs">Prise en charge complète</p></div></div>' if transfer_cost > 0 else ""
+    transfer_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #D4A853;"><i class="fas fa-bus"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Transfert aéroport ↔ hôtel</h4><p class="text-gray-600 text-xs">Prise en charge complète</p></div></div>' if transfer_cost > 0 else ""
 
     surcharge_cost = int(data.get('surcharge_cost') or 0)
     surcharge_text_html = f'<div class="flex justify-between"><span>+ Surcoût {data.get("surcharge_type", "")}</span><span class="font-semibold">~{surcharge_cost}€</span></div>' if surcharge_cost > 0 else ""
     
     pension_html = ''
     if data.get('surcharge_type') != 'Logement seul':
-        pension_html = f'<div class="flex items-center"><div class="feature-icon bg-yellow-500"><i class="fas fa-utensils"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{data.get("surcharge_type", "Pension complète")}</h4><p class="text-gray-600 text-xs">Inclus dans le forfait</p></div></div>'
+        pension_html = f'<div class="flex items-center"><div class="feature-icon" style="background: #D4A853;"><i class="fas fa-utensils"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">{data.get("surcharge_type", "Pension complète")}</h4><p class="text-gray-600 text-xs">Inclus dans le forfait</p></div></div>'
 
     car_rental_cost = int(data.get('car_rental_cost') or 0)
     car_rental_text_html = f'<div class="flex justify-between"><span>+ Voiture de location (sans franchise)</span><span class="font-semibold">~{car_rental_cost}€</span></div>' if car_rental_cost > 0 else ""
@@ -677,9 +677,9 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     car_rental_inclusion_html = ''
     if car_rental_cost > 0:
         if is_ultra_budget:
-            car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location</h4><p class="text-gray-600 text-xs">Franchise à partir de 1100€</p></div></div>'
+            car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #C4B89A;"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location</h4><p class="text-gray-600 text-xs">Franchise à partir de 1100€</p></div></div>'
         else:
-            car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon bg-gray-500"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>'
+            car_rental_inclusion_html = '<div class="flex items-center"><div class="feature-icon" style="background: #C4B89A;"><i class="fas fa-car"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Voiture de location (sans franchise)</h4><p class="text-gray-600 text-xs">Explorez à votre rythme</p></div></div>'
 
     pricing_block_html = ''
     pricing_mode = data.get('pricing_mode', 'classic')
@@ -824,7 +824,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         <div class="mt-4 p-3 rounded-lg border-2 border-red-200 bg-red-50 text-sm">
             <h4 class="font-bold text-red-800 mb-2">⚠️ Tarif minimum avec les conditions suivantes :</h4>
             <ul class="text-xs text-red-700 list-none pl-0">{conditions_list_html}</ul>
-            <p class="text-xs text-blue-700 mt-2">💡 Possibilité d'ajouter des services à la carte sur demande.</p>
+            <p class="text-xs mt-2" style="color: #8B6914;">💡 Possibilité d'ajouter des services à la carte sur demande.</p>
         </div>
         '''
         pricing_block_html = f"""
@@ -882,7 +882,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
     
     total_photos = len(real_data['photos']) if real_data.get('photos') else 0
     image_gallery = "".join([f'<div class="image-item"><img src="{url}" alt="Photo de {data["hotel_name"]}"></div>' for url in real_data.get('photos', [])[:6]]) or '<p>Aucune photo disponible.</p>'
-    more_photos_button = f'<div class="text-center mt-4"><button id="voirPlusPhotos" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-full transition-colors">📸 Voir plus de photos ({total_photos} au total)</button></div>' if total_photos > 6 else ""
+    more_photos_button = f'<div class="text-center mt-4"><button id="voirPlusPhotos" class="font-semibold py-3 px-6 rounded-full transition-colors" style="background: #D4A853; color: white;">📸 Voir plus de photos ({total_photos} au total)</button></div>' if total_photos > 6 else ""
     modal_all_photos = "".join([f'<img src="{url}" alt="Photo {i+1} de {data["hotel_name"]}" class="modal-photo">' for i, url in enumerate(real_data.get('photos', []))])
 
     video_html_block = ""
@@ -891,7 +891,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         video_title = real_data['videos'][0]['title']
         video_html_block = f"""<div id="video-section-wrapper" class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Vidéo</h3><div><h4 class="font-semibold mb-2">Visite de l'hôtel</h4><div class="video-container aspect-w-16 aspect-h-9"><iframe src="{embed_url}" title="{video_title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full rounded-lg"></iframe></div></div></div>"""
 
-    reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="review-text mt-2 text-gray-700">"{r["text"]}"</p><button class="review-toggle text-blue-600 text-sm font-medium mt-1" onclick="this.previousElementSibling.classList.toggle(\'review-expanded\');this.textContent=this.previousElementSibling.classList.contains(\'review-expanded\')?\'Réduire\':\'Lire la suite\';">Lire la suite</button></div>' for r in real_data.get('reviews', [])])
+    reviews_section = "".join([f'<div class="bg-gray-50 p-4 rounded-lg"><div><span class="font-semibold">{r["author"]}</span> <span class="text-yellow-500">{r["rating"]}</span> <span class="text-gray-500 text-sm float-right">{r.get("date", "")}</span></div><p class="review-text mt-2 text-gray-700">"{r["text"]}"</p><button class="review-toggle text-sm font-medium mt-1" style="color: #8B6914;" onclick="this.previousElementSibling.classList.toggle(\'review-expanded\');this.textContent=this.previousElementSibling.classList.contains(\'review-expanded\')?\'Réduire\':\'Lire la suite\';">Lire la suite</button></div>' for r in real_data.get('reviews', [])])
 
     destination_section = ""
     if real_data.get('cultural_attraction_image'):
@@ -904,9 +904,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         destination_section += f'<div class="mb-6"><h4 class="font-semibold text-lg mb-3 text-gray-800">🍴 Top 3 Restaurants</h4><ul class="space-y-2 text-gray-700">{restaurants_list_items}</ul></div>'
 
     icons = {'plages': 'fa-water', 'culture': 'fa-monument', 'gastronomie': 'fa-utensils', 'activites': 'fa-map-signs'}
-    colors = {'plages': 'bg-blue-500', 'culture': 'bg-purple-500', 'gastronomie': 'bg-green-500', 'activites': 'bg-orange-500'}
     categories = {'plages': 'Plages & Nature', 'culture': 'Culture & Histoire', 'gastronomie': 'Gastronomie Locale', 'activites': 'Activités & Loisirs'}
-    
+
     flat_attractions = []
     for category, attractions in real_data.get('attractions', {}).items():
         start_index = 1 if category == 'culture' and real_data.get('cultural_attraction_image') else 0
@@ -914,7 +913,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             flat_attractions.append({'name': attraction_name, 'category': category})
 
     if flat_attractions:
-        other_attractions_items = "".join([f'<div class="flex items-start space-x-3"><div class="feature-icon {colors.get(attr["category"], "bg-gray-500")}" style="width: 35px; height: 35px; font-size: 16px; flex-shrink: 0;"><i class="fas {icons.get(attr["category"], "fa-question")}"></i></div><div><h5 class="font-semibold text-sm text-gray-800">{attr["name"]}</h5><p class="text-gray-500 text-xs">{categories.get(attr["category"])}</p></div></div>' for attr in flat_attractions[:4]])
+        other_attractions_items = "".join([f'<div class="flex items-start space-x-3" style="padding: 10px 0; border-bottom: 1px solid #f1f0eb;"><i class="fas {icons.get(attr["category"], "fa-question")}" style="color: #D4A853; font-size: 16px; margin-top: 2px; flex-shrink: 0; width: 20px;"></i><div><h5 class="font-semibold text-sm text-gray-800">{attr["name"]}</h5><p class="text-gray-500 text-xs">{categories.get(attr["category"])}</p></div></div>' for attr in flat_attractions[:4]])
         destination_section += f'<div><h4 class="font-semibold text-lg mb-3 text-gray-800">À explorer également</h4><div class="space-y-4">{other_attractions_items}</div></div>'
 
     creator_html = f'<p class="text-sm mt-3">Voyage proposé par <strong>{creator_pseudo}</strong></p>' if creator_pseudo else ""
@@ -929,13 +928,13 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         portal_link = "https://www.voyages-privileges.be"
 
     footer_html = f"""
-        <div class="instagram-card p-6 bg-blue-500 text-white text-center">
-            <h3 class="text-2xl font-bold mb-2">🌟 Réservez votre évasion !</h3>
+        <div class="instagram-card p-6 text-center" style="background: linear-gradient(135deg, #F5F0E8 0%, #E8DFD0 100%); color: #2D2A26;">
+            <h3 class="text-2xl font-bold mb-2">Réservez votre évasion</h3>
             <p>Les places sont très limitées pour cette offre exclusive. Pour garantir votre place :</p>
             {creator_html}
             <div class="mt-4 flex flex-col sm:flex-row justify-center gap-4">
-                <a href="tel:+32488433344" class="block w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-full">📞 Appeler maintenant</a>
-                <a href="mailto:infos@voyages-privileges.be" class="block w-full sm:w-auto bg-white hover:bg-gray-100 text-blue-500 font-bold py-3 px-6 rounded-full">✉️ Envoyer un email</a>
+                <a href="tel:+32488433344" class="block w-full sm:w-auto font-bold py-3 px-6 rounded-full" style="background: #2D2A26; color: #F5F0E8;">📞 Appeler maintenant</a>
+                <a href="mailto:infos@voyages-privileges.be" class="block w-full sm:w-auto font-bold py-3 px-6 rounded-full" style="background: white; color: #2D2A26; border: 1px solid #D4A853;">✉️ Envoyer un email</a>
             </div>
         </div>
         <div class="instagram-card p-6 text-center">
@@ -945,7 +944,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
         </div>
         
         <div class="instagram-card p-6 text-center">
-            <a href="{portal_link}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors" style="display: inline-block;">
+            <a href="{portal_link}" class="font-bold py-3 px-8 rounded-full transition-colors" style="display: inline-block; background: #2D2A26; color: #F5F0E8;">
                 {"Voir toutes mes offres" if portal_token else "Toutes nos offres"}
             </a>
         </div>
@@ -987,8 +986,8 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             <h3 class="text-xl font-semibold mb-4">📞 Contact & Infos</h3>
             <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Logo Voyages Privilèges" class="h-12 mx-auto mb-4">
             <p class="text-gray-800">📍 Rue Philippe Monnoyer 21, 6180 Courcelles</p>
-            <p class="text-gray-800 my-2">📞 <a href="tel:+32488433344" class="text-blue-600">+32 488 43 33 44</a></p>
-            <p class="text-gray-800">✉️ <a href="mailto:infos@voyages-privileges.be" class="text-blue-600">infos@voyages-privileges.be</a></p>
+            <p class="text-gray-800 my-2">📞 <a href="tel:+32488433344" style="color: #8B6914;">+32 488 43 33 44</a></p>
+            <p class="text-gray-800">✉️ <a href="mailto:infos@voyages-privileges.be" style="color: #8B6914;">infos@voyages-privileges.be</a></p>
             <hr class="my-4">
             <p class="text-xs text-gray-500">SRL RIDEA (OldiBike)<br>Numéro de société : 1024.916.054 - RC Exploitation : 99730451</p>
         </div>
@@ -1143,7 +1142,7 @@ def generate_travel_page_html(data, real_data, savings, comparison_total, creato
             <div class="mt-4">{instagram_button_html}</div>
         </div>
         {flights_block_html}
-        {'<div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Inclus dans votre séjour</h3><div class="space-y-5">' + flight_inclusion_html + transfer_inclusion_html + car_rental_inclusion_html + '<div class="flex items-center"><div class="feature-icon bg-purple-500"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel ' + stars + ' ' + display_hotel_name + '</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>' + pension_html + baggage_inclusion_html + '</div></div>' if pricing_mode != 'pack' else ''}
+        {'<div class="instagram-card p-6"><h3 class="section-title text-xl mb-4">Inclus dans votre séjour</h3><div class="space-y-5">' + flight_inclusion_html + transfer_inclusion_html + car_rental_inclusion_html + '<div class="flex items-center"><div class="feature-icon" style="background: #D4A853;"><i class="fas fa-hotel"></i></div><div class="ml-4"><h4 class="font-semibold text-sm">Hôtel ' + stars + ' ' + display_hotel_name + '</h4><p class="text-gray-600 text-xs">Style traditionnel</p></div></div>' + pension_html + baggage_inclusion_html + '</div></div>' if pricing_mode != 'pack' else ''}
         {pricing_block_html}
         {event_block_html}
         <div class="instagram-card p-6" id="gallery-section"><h3 class="section-title text-xl mb-4">Galerie de photos</h3><div class="image-grid">{image_gallery}</div>{more_photos_button}</div>

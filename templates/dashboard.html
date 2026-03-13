@@ -766,6 +766,7 @@
                 if (isOwner || isAdmin) {
                     actionButtons = `
                     ${viewClientLink}
+                    <button onclick="copyPortalLink(${trip.client_id}, this)" title="Copier lien espace client" class="text-cyan-500 text-xl">🔗</button>
                     <button onclick="openEditTripModal(${trip.id})" title="Ajuster" class="text-yellow-500 text-xl">⚙️</button>
                     <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
                     <button onclick="openSendOfferModal(${trip.id})" title="Envoyer Offre" class="text-purple-500 text-xl">💸</button>
@@ -775,6 +776,7 @@
                 } else {
                     actionButtons = `
                     ${viewClientLink}
+                    <button onclick="copyPortalLink(${trip.client_id}, this)" title="Copier lien espace client" class="text-cyan-500 text-xl">🔗</button>
                     <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
                 `;
                 }
@@ -798,10 +800,12 @@
                 <td class="p-3 text-sm text-slate-600">${trip.price}€</td>
                 <td class="p-3 text-right space-x-2">
                     <a href="${sitePublicUrl}/clients/${trip.client_published_filename}" target="_blank" class="text-blue-500 text-xl">👁️</a>
+                    <button onclick="copyPortalLink(${trip.client_id}, this)" title="Copier lien espace client" class="text-cyan-500 text-xl">🔗</button>
                     <button onclick="reproduceTrip(${trip.id})" title="Dupliquer" class="text-indigo-500 text-xl">🧬</button>
                     <button onclick="openInvoiceModal(${trip.id})" title="Facture" class="text-blue-500 text-xl">🧾</button>
                     ${deleteButton}
                 </td>`;
+
             }
 
             row.innerHTML = rowHtml;
@@ -878,6 +882,28 @@
             }
         } catch (error) {
             alert('Erreur réseau');
+        }
+    }
+
+    async function copyPortalLink(clientId, button) {
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '⏳';
+        button.disabled = true;
+        try {
+            const response = await fetch(`/api/client/${clientId}/portal-link`);
+            const result = await response.json();
+            if (result.success) {
+                await navigator.clipboard.writeText(result.portal_url);
+                button.innerHTML = '✅';
+                setTimeout(() => { button.innerHTML = originalIcon; button.disabled = false; }, 2000);
+            } else {
+                button.innerHTML = '❌';
+                setTimeout(() => { button.innerHTML = originalIcon; button.disabled = false; }, 2000);
+            }
+        } catch (error) {
+            alert('Erreur lors de la copie du lien');
+            button.innerHTML = originalIcon;
+            button.disabled = false;
         }
     }
 

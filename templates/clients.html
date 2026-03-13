@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="p-3 text-sm text-slate-600">${client.phone || 'N/A'}</td>
                 <td class="p-3 text-right space-x-2">
                     <button data-action="view" title="Voir l'historique" class="text-blue-500 text-xl">👁️</button>
+                    <button data-action="portal" title="Copier lien espace client" class="text-cyan-500 text-xl">🔗</button>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -101,6 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (action === 'view') {
             openClientModal(currentClientId);
+        } else if (action === 'portal') {
+            copyPortalLink(currentClientId, actionTarget);
         }
     });
 
@@ -143,7 +146,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h3 class="font-semibold text-slate-700 mt-6 mb-2">Historique des voyages</h3>
                 <div class="border rounded-md max-h-60 overflow-y-auto">${tripListHtml}</div>
 
-                <div class="mt-6 flex justify-end">
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="portal-link-btn" class="bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg">🔗 Copier lien portail</button>
                     <button id="edit-client-btn" class="bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg">Modifier les informations</button>
                 </div>
             </div>
@@ -166,9 +170,31 @@ document.addEventListener('DOMContentLoaded', function() {
         attachModalListeners();
     }
 
+    async function copyPortalLink(clientId, button) {
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '⏳';
+        button.disabled = true;
+        try {
+            const response = await fetch(`/api/client/${clientId}/portal-link`);
+            const result = await response.json();
+            if (result.success) {
+                await navigator.clipboard.writeText(result.portal_url);
+                button.innerHTML = '✅';
+                setTimeout(() => { button.innerHTML = originalIcon; button.disabled = false; }, 2000);
+            } else {
+                button.innerHTML = '❌';
+                setTimeout(() => { button.innerHTML = originalIcon; button.disabled = false; }, 2000);
+            }
+        } catch (error) {
+            button.innerHTML = '❌';
+            setTimeout(() => { button.innerHTML = originalIcon; button.disabled = false; }, 2000);
+        }
+    }
+
     function attachModalListeners() {
         document.querySelector('.close-modal-btn').addEventListener('click', () => modal.classList.remove('is-open'));
         document.getElementById('edit-client-btn').addEventListener('click', () => modalContent.classList.add('is-editing'));
+        document.getElementById('portal-link-btn').addEventListener('click', function() { copyPortalLink(currentClientId, this); });
         document.getElementById('cancel-edit-btn').addEventListener('click', () => modalContent.classList.remove('is-editing'));
         
         document.getElementById('edit-client-form').addEventListener('submit', async (e) => {

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vos Devis Voyage — Voyages Privilèges</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .hero-section {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        .hero-section .logo { height: 50px; margin-bottom: 1rem; }
+        .hero-section h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .hero-section p {
+            color: #64748b;
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+        }
+
+        .gallery-grid {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .trip-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        .trip-card:hover {
+            transform: translateY(-6px);
+            border-color: #bfdbfe;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.1);
+        }
+
+        .card-image {
+            position: relative;
+            height: 220px;
+            overflow: hidden;
+        }
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        .trip-card:hover .card-image img {
+            transform: scale(1.08);
+        }
+        .card-image .dates-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .card-image .status-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-assigned {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .status-sold {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .card-body h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        .card-body .destination {
+            color: #64748b;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .card-body .details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+        .card-body .details span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        .card-footer .price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+        .card-footer .view-btn {
+            background: #2563eb;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .card-footer .view-btn:hover {
+            background: #1d4ed8;
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: #94a3b8;
+        }
+        .empty-state i { font-size: 3rem; margin-bottom: 1rem; color: #cbd5e1; }
+
+        .loader-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4rem;
+        }
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #94a3b8;
+            font-size: 0.8rem;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 2rem;
+        }
+        footer a { color: #2563eb; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <div class="hero-section">
+        <img src="https://static.wixstatic.com/media/5ca515_449af35c8bea462986caf4fd28e02398~mv2.png" alt="Voyages Privilèges" class="logo">
+        <h1 id="client-greeting">Vos devis personnalisés</h1>
+        <p>Retrouvez ci-dessous toutes les offres préparées pour vous</p>
+    </div>
+
+    <div id="gallery-container" class="gallery-grid">
+        <div class="loader-container" style="grid-column: 1 / -1;">
+            <div class="loader"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Voyages Privilèges — Marque de RIDEA SRL</p>
+        <p>Rue Philippe Monnoyer 21, 6180 Courcelles</p>
+        <p style="margin-top: 0.5rem;"><a href="https://www.voyages-privileges.be" target="_blank">www.voyages-privileges.be</a></p>
+    </footer>
+
+    <script>
+        const portalToken = "{{ client.portal_token }}";
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch(`/api/client-portal/${portalToken}`);
+                if (!response.ok) throw new Error('Erreur réseau');
+                const data = await response.json();
+
+                // Mettre à jour le titre avec le nom du client
+                document.getElementById('client-greeting').textContent =
+                    `Bonjour ${data.client_name.split(' ')[0]} 👋`;
+
+                renderTrips(data.trips);
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('gallery-container').innerHTML =
+                    '<div class="empty-state" style="grid-column:1/-1"><i class="fas fa-exclamation-triangle"></i><p>Impossible de charger vos devis.</p></div>';
+            }
+        });
+
+        function renderTrips(trips) {
+            const container = document.getElementById('gallery-container');
+            container.innerHTML = '';
+
+            if (!trips || trips.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <i class="fas fa-suitcase-rolling"></i>
+                        <p>Aucun devis disponible pour le moment.</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Votre conseiller prépare vos offres, elles apparaîtront ici bientôt !</p>
+                    </div>`;
+                return;
+            }
+
+            trips.forEach(trip => {
+                // Formater les dates
+                let datesText = '';
+                if (trip.date_start && trip.date_end) {
+                    const start = new Date(trip.date_start);
+                    const end = new Date(trip.date_end);
+                    const opts = { day: 'numeric', month: 'short' };
+                    datesText = `${start.toLocaleDateString('fr-FR', opts)} → ${end.toLocaleDateString('fr-FR', opts)}`;
+                }
+
+                // Durée
+                let durationText = '';
+                if (trip.duration > 0) {
+                    durationText = `${trip.duration + 1}j / ${trip.duration}n`;
+                }
+
+                // Personnes
+                let peopleText = `${trip.num_people} pers.`;
+                if (trip.num_children && trip.num_children > 0) {
+                    peopleText += ` + ${trip.num_children} enf.`;
+                }
+
+                // Status badge
+                const statusBadge = trip.status === 'sold'
+                    ? '<span class="status-badge status-sold">Confirmé</span>'
+                    : '<span class="status-badge status-assigned">Devis</span>';
+
+                const card = `
+                <div class="trip-card">
+                    <a href="${trip.offer_url}" target="_blank" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; height: 100%;">
+                        <div class="card-image">
+                            <img src="${trip.image_url || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=🌍'}" alt="${trip.hotel_name}" loading="lazy">
+                            ${datesText ? `<span class="dates-badge"><i class="far fa-calendar-alt"></i> ${datesText}</span>` : ''}
+                            ${statusBadge}
+                        </div>
+                        <div class="card-body">
+                            <div>
+                                <h2>${trip.hotel_name.split(',')[0].trim()}</h2>
+                                <div class="destination">
+                                    <i class="fas fa-map-marker-alt" style="color: #2563eb;"></i>
+                                    ${trip.destination}
+                                </div>
+                                <div class="details">
+                                    <span><i class="fas fa-users"></i> ${peopleText}</span>
+                                    ${durationText ? `<span><i class="fas fa-moon"></i> ${durationText}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <span class="price">${trip.price}€</span>
+                                <span class="view-btn">Voir le détail →</span>
+                            </div>
+                        </div>
+                    </a>
+                </div>`;
+
+                container.innerHTML += card;
+            });
+        }
+    </script>
+
+</body>
+</html>

@@ -2,6 +2,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date
 import json
+import uuid
 
 db = SQLAlchemy()
 
@@ -43,6 +44,7 @@ class Client(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=True)
     phone = db.Column(db.String(50), nullable=True)
     address = db.Column(db.Text, nullable=True)
+    portal_token = db.Column(db.String(36), unique=True, nullable=True, default=lambda: str(uuid.uuid4()))
 
     trips = db.relationship('Trip', backref='client', lazy=True)
 
@@ -54,7 +56,8 @@ class Client(db.Model):
             'last_name': self.last_name,
             'email': self.email,
             'phone': self.phone,
-            'address': self.address
+            'address': self.address,
+            'portal_token': self.portal_token
         }
 
     def __repr__(self):
@@ -111,6 +114,7 @@ class Trip(db.Model):
         return {
             'id': self.id,
             'user_id': self.user_id,
+            'client_id': self.client_id,
             'creator_pseudo': self.user.pseudo if self.user else 'N/A',
             'hotel_name': self.hotel_name,
             'destination': self.destination,

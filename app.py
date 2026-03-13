@@ -158,6 +158,14 @@ def create_app(config_class=Config):
     def clients_page():
         return render_template('clients.html')
 
+    @app.route('/espace/<token>')
+    def client_portal(token):
+        """Page publique : espace client avec toutes ses fiches de voyage."""
+        client = Client.query.filter_by(portal_token=token).first_or_404()
+        return render_template('client_portal.html',
+                               client=client,
+                               site_public_url=app.config.get('SITE_PUBLIC_URL', ''))
+
     @app.route('/sales_report')
     @login_required
     def sales_report_page():
@@ -1014,6 +1022,71 @@ def create_app(config_class=Config):
             db.session.delete(client)
             db.session.commit()
             return jsonify({'success': True, 'message': 'Client supprimé.'})
+
+    @app.route('/api/client/<int:client_id>/portal-link')
+    @login_required
+    def get_client_portal_link(client_id):
+        """Retourne le lien du portail client."""
+        client = Client.query.get_or_404(client_id)
+        if not client.portal_token:
+            import uuid
+            client.portal_token = str(uuid.uuid4())
+            db.session.commit()
+        portal_url = request.host_url.rstrip('/') + '/espace/' + client.portal_token
+        return jsonify({'success': True, 'portal_url': portal_url})
+
+    @app.route('/api/client-portal/<token>')
+    def get_client_portal_trips(token):
+        """API publique : retourne les voyages d'un client pour son portail."""
+        client = Client.query.filter_by(portal_token=token).first_or_404()
+        trips = Trip.query.filter(
+            Trip.client_id == client.id,
+            Trip.status.in_(['assigned', 'sold']),
+            Trip.client_published_filename.isnot(None)
+        ).order_by(desc(Trip.assigned_at)).all()
+
+        trips_data = []
+        for trip in trips:
+            try:
+                full_data = json.loads(trip.full_data_json)
+                form_data = full_data.get('form_data', {})
+                api_data = full_data.get('api_data', {})
+
+                duration = 0
+                if form_data.get('date_start') and form_data.get('date_end'):
+                    start = datetime.strptime(form_data['date_start'], '%Y-%m-%d')
+                    end = datetime.strptime(form_data['date_end'], '%Y-%m-%d')
+                    duration = (end - start).days
+
+                photos = api_data.get('photos', [])
+                image_url = photos[0] if photos else ''
+                offer_url = f"{app.config.get('SITE_PUBLIC_URL', '')}/clients/{trip.client_published_filename}"
+
+                num_people = int(form_data.get('num_people', 2))
+                num_children = int(form_data.get('num_children', 0))
+
+                trips_data.append({
+                    'id': trip.id,
+                    'hotel_name': trip.hotel_name,
+                    'destination': trip.destination,
+                    'price': trip.price,
+                    'num_people': num_people,
+                    'num_children': num_children,
+                    'duration': duration,
+                    'date_start': form_data.get('date_start'),
+                    'date_end': form_data.get('date_end'),
+                    'image_url': image_url,
+                    'offer_url': offer_url,
+                    'status': trip.status
+                })
+            except Exception as e:
+                print(f"❌ Erreur portail voyage ID {trip.id}: {e}")
+                continue
+
+        return jsonify({
+            'client_name': f"{client.first_name} {client.last_name}",
+            'trips': trips_data
+        })
 
     @app.route('/api/sellers', methods=['GET', 'POST'])
     @admin_required

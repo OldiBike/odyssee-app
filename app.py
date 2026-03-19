@@ -1032,7 +1032,8 @@ def create_app(config_class=Config):
             import uuid
             client.portal_token = str(uuid.uuid4())
             db.session.commit()
-        portal_url = request.host_url.rstrip('/') + '/espace/' + client.portal_token
+        base_url = app.config.get('APP_BASE_URL', request.host_url.rstrip('/'))
+        portal_url = base_url.rstrip('/') + '/espace/' + client.portal_token
         return jsonify({'success': True, 'portal_url': portal_url})
 
     @app.route('/api/client-portal/<token>')

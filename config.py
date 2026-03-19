@@ -41,6 +41,7 @@ class Config:
     
     # URLs
     SITE_PUBLIC_URL = os.environ.get('SITE_PUBLIC_URL')
+    APP_BASE_URL = os.environ.get('APP_BASE_URL')  # Sous-domaine client (ex: https://client.voyages-privileges.be)
     N8N_WHATSAPP_WEBHOOK = os.environ.get('N8N_WHATSAPP_WEBHOOK')
     
     # Configuration API de publication (Hostinger)
